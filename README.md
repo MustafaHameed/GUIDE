@@ -51,6 +51,31 @@ df = pd.read_csv('student-mat.csv')
 print(df.head())
 ```
 
+- `higher`: wants to take higher education (`yes` or `no`)
+- `internet`: Internet access at home (`yes` or `no`)
+- `romantic`: with a romantic relationship (`yes` or `no`)
+- `famrel`: quality of family relationships (1 very bad to 5 excellent)
+- `freetime`: free time after school (1 very low to 5 very high)
+- `goout`: going out with friends (1 very low to 5 very high)
+- `Dalc`: workday alcohol consumption (1 very low to 5 very high)
+- `Walc`: weekend alcohol consumption (1 very low to 5 very high)
+- `health`: current health status (1 very bad to 5 very good)
+- `absences`: number of school absences (0–93)
+- `G1`: first period grade (0–20)
+- `G2`: second period grade (0–20)
+- `G3`: final grade (0–20)
+
+## Usage
+
+Load the data with [pandas](https://pandas.pydata.org/):
+
+```python
+import pandas as pd
+
+df = pd.read_csv('student-mat.csv')
+print(df.head())
+`
+
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
