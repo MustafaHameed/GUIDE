@@ -53,17 +53,17 @@ print(df.head())
 
 ### Train a baseline model
 
-The repository includes a simple preprocessing and modeling pipeline in
-`train_model.py`. It converts the final grade `G3` into a binary
-pass/fail target and trains a logistic regression model with proper
-encoding for categorical features.
+The project code now lives in the `src/` package:
 
-Run the script to see a hold‑out evaluation and 5‑fold cross‑validation
-score (requires `pandas` and `scikit-learn`):
+- `data.py` for loading and preparing the dataset
+- `preprocessing.py` for building the feature-processing pipeline
+- `model.py` for configuring the logistic regression classifier
+- `train.py` as the script entry point
+
+Run the training script to see a hold‑out evaluation and 5‑fold cross‑validation score (requires `pandas` and `scikit-learn`):
 
 ```bash
-python train_model.py
-```
+python -m src.train
 
 ## File
 
