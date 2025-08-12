@@ -1,0 +1,7 @@
+# Core project dependencies
+pandas
+scikit-learn
+seaborn
+matplotlib
+# Optional: model explainability
+shap
