@@ -9,7 +9,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.dummy import DummyRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -29,45 +28,7 @@ def load_regression_data(csv_path: str = "student-mat.csv"):
     return X, y, df
 
 
-def feature_groups():
-    demographic = [
-        "school",
-        "sex",
-        "age",
-        "address",
-        "famsize",
-        "Pstatus",
-        "Medu",
-        "Fedu",
-        "Mjob",
-        "Fjob",
-        "reason",
-        "guardian",
-    ]
-    behavioral = [
-        "traveltime",
-        "studytime",
-        "failures",
-        "schoolsup",
-        "famsup",
-        "paid",
-        "activities",
-        "nursery",
-        "higher",
-        "internet",
-        "romantic",
-        "famrel",
-        "freetime",
-        "goout",
-        "Dalc",
-        "Walc",
-        "health",
-        "absences",
-    ]
-    return demographic, behavioral
-
-
-def build_pipeline(X):
+def build_pipeline(X, model=None):
     numeric_features = X.select_dtypes(include="number").columns
     categorical_features = X.select_dtypes(exclude="number").columns
     preprocess = ColumnTransformer(
@@ -76,7 +37,7 @@ def build_pipeline(X):
             ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
         ]
     )
-    model = RandomForestRegressor(random_state=0)
+    model = RandomForestRegressor(random_state=0) if model is None else model
     pipe = Pipeline(
         steps=[
             ("preprocess", preprocess),
@@ -95,95 +56,54 @@ def evaluate_metrics(y_true, y_pred):
     return {"rmse": rmse, "mae": mae, "r2": r2}
 
 
-def run_inner_cv(X_train, y_train, param_grid):
-    pipe = build_pipeline(X_train)
-    inner_cv = KFold(n_splits=5, shuffle=True, random_state=0)
-    search = GridSearchCV(
-        pipe,
-        param_grid,
-        cv=inner_cv,
-        scoring="neg_root_mean_squared_error",
-        n_jobs=-1,
-    )
-    search.fit(X_train, y_train)
-    return search.best_estimator_
-
-
-def nested_cv(X, y, repeats=1):
-    param_grid = {
-        "select__k": ["all", 20],
-        "model__n_estimators": [50],
-        "model__max_depth": [None, 5],
-    }
-    outer_cv = RepeatedKFold(
-        n_splits=10, n_repeats=repeats, random_state=0
-    )
-    results = []
-    preds = []
-    demographic, behavioral = feature_groups()
-    for fold, (train_idx, test_idx) in enumerate(outer_cv.split(X, y), 1):
-        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-
-        # full model
-        best_model = run_inner_cv(X_train, y_train, param_grid)
-        y_pred = best_model.predict(X_test)
-        metrics = evaluate_metrics(y_test, y_pred)
-        results.append({"model": "full", "fold": fold, **metrics})
-        preds.append(
-            pd.DataFrame(
-                {
-                    "index": test_idx,
-                    "y_true": y_test,
-                    "y_pred": y_pred,
-                    "sex": X_test["sex"],
-                    "school": X_test["school"],
-                }
-            )
+def run_inner_cv(X_train, y_train, model, param_grid):
+    pipe = build_pipeline(X_train, model=model)
+    if param_grid:
+        inner_cv = KFold(n_splits=5, shuffle=True, random_state=0)
+        search = GridSearchCV(
+            pipe,
+            param_grid,
+            cv=inner_cv,
+            scoring="neg_root_mean_squared_error",
+            n_jobs=-1,
         )
-
-        # baselines
-        mean_model = DummyRegressor(strategy="mean")
-        mean_model.fit(X_train, y_train)
-        y_mean = mean_model.predict(X_test)
-        results.append({"model": "mean", "fold": fold, **evaluate_metrics(y_test, y_mean)})
-
-        ols = LinearRegression()
-        ols.fit(X_train[["G1", "G2"]], y_train)
-        y_ols = ols.predict(X_test[["G1", "G2"]])
-        results.append({"model": "ols_g1_g2", "fold": fold, **evaluate_metrics(y_test, y_ols)})
-
-        y_last = X_test["G2"].values
-        results.append({"model": "last_grade", "fold": fold, **evaluate_metrics(y_test, y_last)})
-
-        # ablations
-        X_train_no_g = X_train.drop(columns=["G1", "G2"])
-        X_test_no_g = X_test.drop(columns=["G1", "G2"])
-        best_no_g = run_inner_cv(X_train_no_g, y_train, param_grid)
-        y_no_g = best_no_g.predict(X_test_no_g)
-        results.append({"model": "no_g1_g2", "fold": fold, **evaluate_metrics(y_test, y_no_g)})
-
-        behav_cols = X_train.columns.difference(behavioral)
-        X_train_no_behav = X_train[behav_cols]
-        X_test_no_behav = X_test[behav_cols]
-        best_no_behav = run_inner_cv(X_train_no_behav, y_train, param_grid)
-        y_no_behav = best_no_behav.predict(X_test_no_behav)
-        results.append({"model": "no_behavior", "fold": fold, **evaluate_metrics(y_test, y_no_behav)})
-
-        X_train_demo = X_train[demographic]
-        X_test_demo = X_test[demographic]
-        best_demo = run_inner_cv(X_train_demo, y_train, param_grid)
-        y_demo = best_demo.predict(X_test_demo)
-        results.append({"model": "demographic_only", "fold": fold, **evaluate_metrics(y_test, y_demo)})
-
+        search.fit(X_train, y_train)
+        return search.best_estimator_
+    pipe.fit(X_train, y_train)
+    return pipe
+        
+def nested_cv(X, y, models, repeats=1):
+    outer_cv = RepeatedKFold(n_splits=10, n_repeats=repeats, random_state=0)
+    results: list[dict] = []
+    preds: list[pd.DataFrame] = []
+    for model_name, estimator, param_grid in models:
+        for fold, (train_idx, test_idx) in enumerate(outer_cv.split(X, y), 1):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+            best_model = run_inner_cv(X_train, y_train, estimator, param_grid)
+            y_pred = best_model.predict(X_test)
+            metrics = evaluate_metrics(y_test, y_pred)
+            results.append({"model": model_name, "fold": fold, **metrics})
+            preds.append(
+                pd.DataFrame(
+                    {
+                        "model": model_name,
+                        "fold": fold,
+                        "index": test_idx,
+                        "y_true": y_test,
+                        "y_pred": y_pred,
+                        "sex": X_test["sex"],
+                        "school": X_test["school"],
+                    }
+                )
+            )
     results_df = pd.DataFrame(results)
     preds_df = pd.concat(preds, ignore_index=True)
     return results_df, preds_df
 
 
-def statistical_tests(results_df):
+def statistical_tests(results_d, base_model):
     models = results_df["model"].unique()
-    base_model = "full"
     rows = []
     for m in models:
         if m == base_model:
@@ -261,23 +181,25 @@ def shap_analysis(best_model, X):
         plt.close()
 
 
-def residual_plots(preds_df):
+
+def residual_plots(preds_df, base_model):
     fig_dir = Path("figures")
     fig_dir.mkdir(exist_ok=True)
-    preds_df["residual"] = preds_df["y_true"] - preds_df["y_pred"]
-    sns.boxplot(data=preds_df, x="sex", y="residual")
+    df = preds_df[preds_df["model"] == base_model].copy()
+    df["residual"] = df["y_true"] - df["y_pred"]
+    sns.boxplot(data=df, x="sex", y="residual")
     plt.tight_layout()
     plt.savefig(fig_dir / "residuals_by_sex.png")
     plt.close()
 
-    sns.boxplot(data=preds_df, x="school", y="residual")
+    sns.boxplot(data=df, x="school", y="residual")
     plt.tight_layout()
     plt.savefig(fig_dir / "residuals_by_school.png")
     plt.close()
 
     try:
         sns.regplot(
-            data=preds_df,
+            data=df,
             x="y_true",
             y="y_pred",
             lowess=True,
@@ -286,7 +208,7 @@ def residual_plots(preds_df):
     except RuntimeError:
         print("statsmodels not installed; falling back to simple linear fit.")
         sns.regplot(
-            data=preds_df,
+            data=df,
             x="y_true",
             y="y_pred",
             line_kws={"color": "red"},
@@ -318,24 +240,46 @@ def learning_curve_plot(best_model, X, y):
     plt.close()
 
 
-def main(csv_path: str = "student-mat.csv", repeats: int = 1):
+def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
     X, y, df = load_regression_data(csv_path)
-    results_df, preds_df = nested_cv(X, y, repeats=repeats)
+    if models is None:
+        models = [
+            (
+                "random_forest",
+                RandomForestRegressor(random_state=0),
+                {
+                    "select__k": ["all", 20],
+                    "model__n_estimators": [50],
+                    "model__max_depth": [None, 5],
+                },
+            ),
+            (
+                "linear_regression",
+                LinearRegression(),
+                {"select__k": ["all", 20]},
+            ),
+        ]
+    results_df, preds_df = nested_cv(X, y, models=models, repeats=repeats)
 
     table_dir = Path("tables")
     table_dir.mkdir(exist_ok=True)
     results_df.to_csv(table_dir / "nested_cv_metrics.csv", index=False)
 
-    stats_df = statistical_tests(results_df)
+    base_model = models[0][0]
+    stats_df = statistical_tests(results_df, base_model)
     stats_df.to_csv(table_dir / "statistical_tests.csv", index=False)
 
-    best_model = run_inner_cv(X, y, {
-        "select__k": ["all", 20],
-        "model__n_estimators": [50],
-        "model__max_depth": [None, 5],
-    })
+    # Comparison visualization
+    fig_dir = Path("figures")
+    fig_dir.mkdir(exist_ok=True)
+    sns.boxplot(data=results_df, x="model", y="rmse")
+    plt.tight_layout()
+    plt.savefig(fig_dir / "model_rmse_boxplot.png")
+    plt.close()
+
+    best_model = run_inner_cv(X, y, models[0][1], models[0][2])
     shap_analysis(best_model, X)
-    residual_plots(preds_df)
+    residual_plots(preds_df, base_model)
     learning_curve_plot(best_model, X, y)
 
 

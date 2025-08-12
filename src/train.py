@@ -1,4 +1,4 @@
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
@@ -225,7 +225,7 @@ def main(
                 # Confusion matrix
                 cm_g = confusion_matrix(y_true_g, y_pred_g, labels=[0, 1])
                 plt.figure(figsize=(4, 4))
-                sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
+                                sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
                 plt.xlabel('Predicted')
                 plt.ylabel('Actual')
                 plt.tight_layout()
@@ -250,16 +250,16 @@ def main(
                         "disparity": disparity,
                     }
                 )
-if fairness_records:
-            fairness_df = pd.DataFrame(fairness_records)
-            fairness_path = report_dir / f"fairness_{col}.csv"
-            fairness_df.to_csv(fairness_path, index=False)
-            print(f"Fairness metrics for '{col}':")
-            print(
-                fairness_df.to_string(
-                    index=False, float_format=lambda x: f"{x:.3f}"
+            if fairness_records:
+                fairness_df = pd.DataFrame(fairness_records)
+                fairness_path = report_dir / f"fairness_{col}.csv"
+                fairness_df.to_csv(fairness_path, index=False)
+                print(f"Fairness metrics for '{col}':")
+                print(
+                    fairness_df.to_string(
+                        index=False, float_format=lambda x: f"{x:.3f}"
+                    )
                 )
-            )
 
     # Feature importance
     fi_csv = report_dir / "feature_importance.csv"
@@ -294,14 +294,37 @@ if fairness_records:
         plt.savefig(fi_fig)
         plt.close()
         importance_df.to_csv(fi_csv, index=False)
-    # Cross-validation for robustness
-    cv_model = build_pipeline(X, model_type=model_type, model_params=best_params)
-    cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='f1')
-    print(f'5-fold CV F1-score: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}')
+    # Cross-validation across all models
+    table_dir = Path("tables")
+    table_dir.mkdir(exist_ok=True)
+    performance: list[dict[str, float | str]] = []
+    for m in PARAM_GRIDS.keys():
+        try:
+            cv_model = build_pipeline(X, model_type=m)
+            scores = cross_validate(cv_model, X, y, cv=5, scoring=["accuracy", "f1"])
+            performance.append(
+                {
+                    "model_type": m,
+                    "accuracy_mean": scores["test_accuracy"].mean(),
+                    "accuracy_std": scores["test_accuracy"].std(),
+                    "f1_mean": scores["test_f1"].mean(),
+                    "f1_std": scores["test_f1"].std(),
+                }
+            )
+        except Exception as e:
+            print(f"Skipping {m} due to error: {e}")
+    perf_df = pd.DataFrame(performance)
+    perf_df.to_csv(table_dir / "model_performance.csv", index=False)
 
-    # Export cross-validation scores
-    cv_df = pd.DataFrame({'fold': range(1, len(cv_scores) + 1), 'f1_score': cv_scores})
-    cv_df.to_csv(report_dir / 'cv_scores.csv', index=False)
+    # Visualization of model comparison
+    if not perf_df.empty:
+        plt.figure(figsize=(8, 4))
+        sns.barplot(data=perf_df, x="model_type", y="f1_mean")
+        plt.ylabel("Mean F1")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        plt.savefig(fig_dir / "model_performance.png")
+        plt.close()
 
 
 if __name__ == '__main__':
@@ -327,19 +350,3 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--estimators',
-        nargs='*',
-        default=None,
-        help='Base estimators for stacking models',
-    )
-    parser.add_argument(
-        '--final-estimator',
-        default='logistic',
-        help='Meta-learner for stacking models',
-    )
-    parser.add_argument(
-        '--base-estimator',
-        default='decision_tree',
-        help='Base estimator for bagging models',
-    )
-    args = parser.parse_args()
-    main(**vars(args))
