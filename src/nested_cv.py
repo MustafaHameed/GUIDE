@@ -7,11 +7,25 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectKBest, f_regression
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    BaggingRegressor,
+    StackingRegressor,
+)
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+try:  # xgboost is optional
+    from xgboost import XGBRegressor  # type: ignore
+    HAS_XGB = True
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    XGBRegressor = None  # type: ignore
+    HAS_XGB = False
 
 try:  # SHAP is optional and used only for interpretation plots
     import shap  # type: ignore
@@ -102,7 +116,7 @@ def nested_cv(X, y, models, repeats=1):
     return results_df, preds_df
 
 
-def statistical_tests(results_d, base_model):
+def statistical_tests(results_df: pd.DataFrame, base_model: str):
     models = results_df["model"].unique()
     rows = []
     for m in models:
@@ -241,7 +255,7 @@ def learning_curve_plot(best_model, X, y):
 
 
 def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
-    X, y, df = load_regression_data(csv_path)
+    X, y, _ = load_regression_data(csv_path)
     if models is None:
         models = [
             (
@@ -258,7 +272,62 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                 LinearRegression(),
                 {"select__k": ["all", 20]},
             ),
+            (
+                "svr",
+                SVR(),
+                {
+                    "select__k": ["all", 20],
+                    "model__C": [1.0, 10.0],
+                    "model__kernel": ["rbf", "linear"],
+                },
+            ),
+            (
+                "knn",
+                KNeighborsRegressor(),
+                {
+                    "select__k": ["all", 20],
+                    "model__n_neighbors": [5, 10],
+                    "model__weights": ["uniform", "distance"],
+                },
+            ),
+            (
+                "bagging",
+                BaggingRegressor(
+                    estimator=DecisionTreeRegressor(random_state=0),
+                    random_state=0,
+                ),
+                {
+                    "select__k": ["all", 20],
+                    "model__n_estimators": [10, 20],
+                    "model__estimator__max_depth": [None, 5],
+                },
+            ),
+            (
+                "stacking",
+                StackingRegressor(
+                    estimators=[
+                        ("rf", RandomForestRegressor(random_state=0)),
+                        ("knn", KNeighborsRegressor()),
+                    ],
+                    final_estimator=LinearRegression(),
+                    n_jobs=-1,
+                ),
+                {"select__k": ["all", 20]},
+            ),            
         ]
+        if HAS_XGB:
+            models.append(
+                (
+                    "xgb",
+                    XGBRegressor(random_state=0, verbosity=0),
+                    {
+                        "select__k": ["all", 20],
+                        "model__n_estimators": [50],
+                        "model__max_depth": [3, 5],
+                        "model__learning_rate": [0.1, 0.01],
+                    },
+                )
+            )        
     results_df, preds_df = nested_cv(X, y, models=models, repeats=repeats)
 
     table_dir = Path("tables")
