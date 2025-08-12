@@ -72,10 +72,18 @@ The project code now lives in the `src/` package:
 Run the training script to see a hold‑out evaluation and 5‑fold cross‑validation score (requires `pandas` and `scikit-learn`):
 
 ```bash
-python -m src.train
+python -m src.train --task classification
 ```
 
-To compute fairness metrics for specific demographic groups, supply the column names:
+The `--task` flag also enables a regression mode:
+
+```bash
+python -m src.train --task regression
+```
+
+Regression predicts the final grade and outputs RMSE, MAE and R² metrics plus a learning curve figure.
+
+To compute fairness metrics for specific demographic groups (classification only), supply the column names:
 
 
 ### Running tests
@@ -86,7 +94,7 @@ pytest
 ```
 
 ```bash
-python -m src.train --group-cols sex school
+python -m src.train --task classification --group-cols sex school
 ```
 Group-specific reports will be written to `reports/` and figures to `figures/`.
 
@@ -112,6 +120,7 @@ python src/nested_cv.py
 
 Results are saved to `tables/` and figures to `figures/`. The optional
 dependencies [`shap`](https://shap.readthedocs.io/) and
+
 [`statsmodels`](https://www.statsmodels.org/) are used for SHAP feature
 importance plots and LOESS smoothing, respectively. If these packages are
 missing, the script will skip the associated plots.
