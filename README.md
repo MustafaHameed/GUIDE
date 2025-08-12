@@ -77,6 +77,14 @@ python -m src.train
 
 To compute fairness metrics for specific demographic groups, supply the column names:
 
+
+### Running tests
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
 ```bash
 python -m src.train --group-cols sex school
 ```
