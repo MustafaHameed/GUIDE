@@ -35,7 +35,45 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
             "model__learning_rate": [0.05, 0.1],
         }
     },
-
+    "svm": {
+        "default": {
+            "model__C": [0.1, 1.0, 10.0],
+            "model__kernel": ["linear", "rbf"],
+            "model__gamma": ["scale", "auto"],
+        }
+    },
+    "knn": {
+        "default": {
+            "model__n_neighbors": [5, 10, 15],
+            "model__weights": ["uniform", "distance"],
+        }
+    },
+    "naive_bayes": {
+        "default": {
+            "model__var_smoothing": [1e-09, 1e-08, 1e-07],
+        }
+    },
+    "extra_trees": {
+        "default": {
+            "model__n_estimators": [100, 200],
+            "model__max_depth": [None, 5, 10],
+        }
+    },
+    "xgboost": {
+        "default": {
+            "model__n_estimators": [100, 200],
+            "model__max_depth": [3, 6],
+            "model__learning_rate": [0.05, 0.1],
+        }
+    },
+    "lightgbm": {
+        "default": {
+            "model__n_estimators": [100, 200],
+            "model__max_depth": [-1, 5, 10],
+            "model__learning_rate": [0.05, 0.1],
+        }
+    },
+}
 def main(
     csv_path: str = "student-mat.csv",
     group_cols: list[str] | None = None,

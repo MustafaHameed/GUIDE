@@ -72,5 +72,6 @@ def build_pipeline(
         ]
     )
 
-    clf = create_model(model_type, **(model_params or {}))
+    model_params = model_params or {}
+    clf = create_model(model_type, **model_params)
     return Pipeline(steps=[("preprocess", preprocess), ("model", clf)])
