@@ -1,21 +1,69 @@
+"""Preprocessing utilities for the student performance dataset."""
+
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, OrdinalEncoder
 from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
 
 from .model import create_model
 
 
 def build_pipeline(X):
-    """Build preprocessing and modeling pipeline."""
-    numeric_features = X.select_dtypes(include='number').columns
-    categorical_features = X.select_dtypes(exclude='number').columns
+    """Build preprocessing and modeling pipeline.
+
+    Parameters
+    ----------
+    X : pandas.DataFrame
+        Feature matrix used to infer column types.
+
+    Returns
+    -------
+    sklearn.pipeline.Pipeline
+        A pipeline combining preprocessing and the model returned by
+        :func:`create_model`.
+    """
+
+    # Explicitly defined ordinal columns and their orderings
+    ordinal_info = {
+        "studytime": [1, 2, 3, 4],
+        "Dalc": [1, 2, 3, 4, 5],
+        "Walc": [1, 2, 3, 4, 5],
+    }
+    ordinal_features = [col for col in ordinal_info if col in X.columns]
+    ordinal_categories = [ordinal_info[col] for col in ordinal_features]
+
+    numeric_features = [
+        col
+        for col in X.select_dtypes(include="number").columns
+        if col not in ordinal_features
+    ]
+    categorical_features = X.select_dtypes(exclude="number").columns
+
+    numeric_transformer = Pipeline(
+        steps=[("imputer", SimpleImputer()), ("scaler", StandardScaler())]
+    )
+
+    categorical_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ]
+    )
+
+    ordinal_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("encoder", OrdinalEncoder(categories=ordinal_categories)),
+        ]
+    )
 
     preprocess = ColumnTransformer(
         transformers=[
-            ('num', StandardScaler(), numeric_features),
-            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
+            ("num", numeric_transformer, numeric_features),
+            ("ord", ordinal_transformer, ordinal_features),
+            ("cat", categorical_transformer, categorical_features),
         ]
     )
 
     clf = create_model()
-    return Pipeline(steps=[('preprocess', preprocess), ('model', clf)])
+    return Pipeline(steps=[("preprocess", preprocess), ("model", clf)])

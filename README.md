@@ -2,6 +2,15 @@
 
 This repository contains the `student-mat.csv` dataset with 395 records of Portuguese secondary school students and 33 features. The dataset includes demographic information, study habits and the final grade columns `G1`, `G2` and `G3`.
 
+## Installation
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+For stricter reproducibility, you may use a tool like `pip-tools` or provide a `conda` environment file to pin exact versions.
 ## Dataset Description
 
 Each row in the CSV describes one student with the following columns:
