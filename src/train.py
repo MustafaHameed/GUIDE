@@ -5,6 +5,8 @@ from sklearn.metrics import (
     RocCurveDisplay,
 )
 from sklearn.inspection import permutation_importance
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 import argparse
 import pandas as pd
 import seaborn as sns
@@ -73,12 +75,30 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
             "model__learning_rate": [0.05, 0.1],
         }
     },
+    "bagging": {
+        "default": {
+            "model__n_estimators": [10, 50],
+            "model__max_samples": [0.5, 1.0],
+        }
+    },
+    "stacking": {
+        "default": {
+            "model__final_estimator": [
+                LogisticRegression(max_iter=1000),
+                RandomForestClassifier(),
+            ],
+            "model__passthrough": [False, True],
+        }
+    },
 }
 def main(
     csv_path: str = "student-mat.csv",
     group_cols: list[str] | None = None,
     model_type: str = "logistic",
     param_grid: str = "none",
+    estimators: list[str] | None = None,
+    final_estimator: str = "logistic",
+    base_estimator: str = "decision_tree",
 ):
     """Train model and generate evaluation artifacts.
 
@@ -94,9 +114,23 @@ def main(
     param_grid : str, default "none"
         Preset name for the hyperparameter grid. Use "none" to skip
         hyperparameter tuning.
+    estimators : list[str] | None, optional
+        Base estimators for stacking models.
+    final_estimator : str, default "logistic"
+        Meta learner for stacking models.
+    base_estimator : str, default "decision_tree"
+        Base estimator used by bagging models.
     """
     X, y = load_data(csv_path)
-    pipeline = build_pipeline(X, model_type=model_type)
+    model_params: dict | None = None
+    if model_type == "stacking":
+        model_params = {
+            "estimators": estimators or ["logistic", "random_forest"],
+            "final_estimator": final_estimator,
+        }
+    elif model_type == "bagging":
+        model_params = {"base_estimator": base_estimator}
+    pipeline = build_pipeline(X, model_type=model_type, model_params=model_params)
 
     # Prepare output directories
     fig_dir = Path('figures')
@@ -118,9 +152,7 @@ def main(
         search = GridSearchCV(pipeline, grid, cv=5, scoring="f1")
         search.fit(X_train, y_train)
         model = search.best_estimator_
-        best_params = {
-            k.replace("model__", ""): v for k, v in search.best_params_.items()
-        }
+        best_params = model.named_steps["model"].get_params()
         best_score = search.best_score_
         print(f"Best params from search: {best_params} (score={best_score:.3f})")
     else:
@@ -287,3 +319,27 @@ if __name__ == '__main__':
         default='logistic',
         help='Type of model to train',
     )
+    parser.add_argument(
+        '--param-grid',
+        choices=['none', 'default'],
+        default='none',
+        help='Preset hyperparameter grid to use',
+    )
+    parser.add_argument(
+        '--estimators',
+        nargs='*',
+        default=None,
+        help='Base estimators for stacking models',
+    )
+    parser.add_argument(
+        '--final-estimator',
+        default='logistic',
+        help='Meta-learner for stacking models',
+    )
+    parser.add_argument(
+        '--base-estimator',
+        default='decision_tree',
+        help='Base estimator for bagging models',
+    )
+    args = parser.parse_args()
+    main(**vars(args))

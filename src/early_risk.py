@@ -18,11 +18,22 @@ def main(
     csv_path: str = "student-mat.csv",
     upto_grade: int = 1,
     model_type: str = "logistic",
+    estimators: list[str] | None = None,
+    final_estimator: str = "logistic",
+    base_estimator: str = "decision_tree",
 ):
     """Train model on truncated data and export risk probabilities."""
 
     X, y = load_early_data(csv_path, upto_grade=upto_grade)
-    pipeline = build_pipeline(X, model_type=model_type)
+    model_params: dict | None = None
+    if model_type == "stacking":
+        model_params = {
+            "estimators": estimators or ["logistic", "random_forest"],
+            "final_estimator": final_estimator,
+        }
+    elif model_type == "bagging":
+        model_params = {"base_estimator": base_estimator}
+    pipeline = build_pipeline(X, model_type=model_type, model_params=model_params)
 
     fig_dir = Path("figures")
     fig_dir.mkdir(exist_ok=True)
@@ -61,6 +72,8 @@ if __name__ == "__main__":
     parser.add_argument("--csv_path", default="student-mat.csv")
     parser.add_argument("--upto_grade", type=int, default=1)
     parser.add_argument("--model_type", default="logistic")
+    parser.add_argument("--estimators", nargs="*", default=None)
+    parser.add_argument("--final_estimator", default="logistic")
+    parser.add_argument("--base_estimator", default="decision_tree")
     args = parser.parse_args()
     main(**vars(args))
-
