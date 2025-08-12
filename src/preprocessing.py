@@ -8,13 +8,20 @@ from sklearn.impute import SimpleImputer
 from .model import create_model
 
 
-def build_pipeline(X):
+def build_pipeline(
+    X, model_type: str = "logistic", model_params: dict | None = None
+):
     """Build preprocessing and modeling pipeline.
 
     Parameters
     ----------
     X : pandas.DataFrame
         Feature matrix used to infer column types.
+    model_type : str, default "logistic"
+        Type of model to create. Passed to :func:`create_model`.
+    model_params : dict | None, optional
+        Keyword arguments supplied to :func:`create_model` for model
+        hyperparameters.
 
     Returns
     -------
@@ -65,5 +72,5 @@ def build_pipeline(X):
         ]
     )
 
-    clf = create_model()
+    clf = create_model(model_type, **(model_params or {}))
     return Pipeline(steps=[("preprocess", preprocess), ("model", clf)])
