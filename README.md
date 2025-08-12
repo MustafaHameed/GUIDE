@@ -98,6 +98,11 @@ python -m src.train --task classification --group-cols sex school
 ```
 Group-specific reports will be written to `reports/` and figures to `figures/`.
 
+After training, a feature-importance ranking is saved to `reports/feature_importance.csv`
+and a corresponding plot to `figures/feature_importance.png`. The script uses
+[`shap`](https://shap.readthedocs.io/) if available, otherwise falling back to
+permutation importance.
+
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and

@@ -4,10 +4,12 @@ from sklearn.metrics import (
     confusion_matrix,
     RocCurveDisplay,
 )
+from sklearn.inspection import permutation_importance
 import argparse
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
 
 from .data import load_data
@@ -33,8 +35,6 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
             "model__learning_rate": [0.05, 0.1],
         }
     },
-}
-
 
 def main(
     csv_path: str = "student-mat.csv",
@@ -180,18 +180,50 @@ def main(
                         "disparity": disparity,
                     }
                 )
-
-            if fairness_records:
-                fairness_df = pd.DataFrame(fairness_records)
-                fairness_path = report_dir / f"fairness_{col}.csv"
-                fairness_df.to_csv(fairness_path, index=False)
-                print(f"Fairness metrics for '{col}':")
-                print(
-                    fairness_df.to_string(
-                        index=False, float_format=lambda x: f"{x:.3f}"
-                    )
+if fairness_records:
+            fairness_df = pd.DataFrame(fairness_records)
+            fairness_path = report_dir / f"fairness_{col}.csv"
+            fairness_df.to_csv(fairness_path, index=False)
+            print(f"Fairness metrics for '{col}':")
+            print(
+                fairness_df.to_string(
+                    index=False, float_format=lambda x: f"{x:.3f}"
                 )
+            )
 
+    # Feature importance
+    fi_csv = report_dir / "feature_importance.csv"
+    fi_fig = fig_dir / "feature_importance.png"
+    try:
+        import shap
+
+        explainer = shap.Explainer(model, X_train)
+        shap_values = explainer(X_train)
+        shap.summary_plot(shap_values, X_train, show=False)
+        plt.tight_layout()
+        plt.savefig(fi_fig)
+        plt.close()
+        importance = np.abs(shap_values.values).mean(axis=0)
+        pd.DataFrame({
+            "feature": X_train.columns,
+            "importance": importance,
+        }).sort_values("importance", ascending=False).to_csv(fi_csv, index=False)
+    except Exception:
+        result = permutation_importance(
+            model, X_test, y_test, n_repeats=10, random_state=42
+        )
+        importance_df = (
+            pd.DataFrame({
+                "feature": X_test.columns,
+                "importance": result.importances_mean,
+            })
+            .sort_values("importance", ascending=False)
+        )
+        sns.barplot(data=importance_df, x="importance", y="feature")
+        plt.tight_layout()
+        plt.savefig(fi_fig)
+        plt.close()
+        importance_df.to_csv(fi_csv, index=False)
     # Cross-validation for robustness
     cv_model = build_pipeline(X, model_type=model_type, model_params=best_params)
     cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='f1')
