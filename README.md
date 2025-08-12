@@ -68,11 +68,14 @@ python -m src.train
 
 ### Exploratory data analysis
 
-An exploratory analysis script generates publication-ready figures:
+An exploratory analysis script generates publication-ready figures and
+summary tables:
 
 ```bash
-python eda.py
+python src/eda.py
 ```
+
+Outputs are written to `figures/` and `tables/` directories.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
