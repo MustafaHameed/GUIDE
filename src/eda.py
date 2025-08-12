@@ -65,6 +65,20 @@ ax = sns.regplot(data=df, x="studytime", y="G3", scatter_kws={"s": 20})
 ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
 save_figure(ax, "studytime_vs_g3.png", fig_dir)
 
+# Distribution of all grade columns
+grades_long = df[["G1", "G2", "G3"]].melt(var_name="grade", value_name="score")
+ax = sns.histplot(
+    data=grades_long,
+    x="score",
+    hue="grade",
+    bins=20,
+    element="step",
+    stat="density",
+    common_norm=False,
+)
+ax.set(xlabel="Grade", ylabel="Density")
+save_figure(ax, "grades_distribution.png", fig_dir)
+
 ax = sns.regplot(data=df, x="absences", y="G3", scatter_kws={"s": 20})
 ax.set(xlabel="Number of Absences", ylabel="Final Grade (G3)")
 save_figure(ax, "absences_vs_g3.png", fig_dir)
