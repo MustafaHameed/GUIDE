@@ -11,9 +11,15 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.dummy import DummyRegressor
 from scipy import stats
-import shap
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+try:  # SHAP is optional and used only for interpretation plots
+    import shap  # type: ignore
+    HAS_SHAP = True
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    shap = None  # type: ignore
+    HAS_SHAP = False
 
 
 def load_regression_data(csv_path: str = "student-mat.csv"):
@@ -219,6 +225,10 @@ def statistical_tests(results_df):
 
 
 def shap_analysis(best_model, X):
+    if not HAS_SHAP:
+        print("shap is not installed; skipping SHAP analysis.")
+        return
+
     preprocess = best_model.named_steps["preprocess"]
     select = best_model.named_steps["select"]
     X_pre = preprocess.transform(X)
@@ -265,7 +275,22 @@ def residual_plots(preds_df):
     plt.savefig(fig_dir / "residuals_by_school.png")
     plt.close()
 
-    sns.regplot(data=preds_df, x="y_true", y="y_pred", lowess=True, line_kws={"color": "red"})
+    try:
+        sns.regplot(
+            data=preds_df,
+            x="y_true",
+            y="y_pred",
+            lowess=True,
+            line_kws={"color": "red"},
+        )
+    except RuntimeError:
+        print("statsmodels not installed; falling back to simple linear fit.")
+        sns.regplot(
+            data=preds_df,
+            x="y_true",
+            y="y_pred",
+            line_kws={"color": "red"},
+        )
     plt.tight_layout()
     plt.savefig(fig_dir / "pred_vs_actual.png")
     plt.close()
