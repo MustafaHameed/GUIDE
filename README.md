@@ -76,6 +76,21 @@ python src/eda.py
 ```
 
 Outputs are written to `figures/` and `tables/` directories.
+### Nested cross-validation and interpretation
+
+The `nested_cv.py` script evaluates regression models using nested cross-
+validation, generates baseline and ablation comparisons, and produces
+interpretation plots:
+
+```bash
+python src/nested_cv.py
+```
+
+Results are saved to `tables/` and figures to `figures/`. The optional
+dependencies [`shap`](https://shap.readthedocs.io/) and
+[`statsmodels`](https://www.statsmodels.org/) are used for SHAP feature
+importance plots and LOESS smoothing, respectively. If these packages are
+missing, the script will skip the associated plots.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
