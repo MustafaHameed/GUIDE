@@ -66,6 +66,13 @@ Run the training script to see a hold‑out evaluation and 5‑fold cross‑vali
 python -m src.train
 ```
 
+To compute fairness metrics for specific demographic groups, supply the column names:
+
+```bash
+python -m src.train --group-cols sex school
+```
+Group-specific reports will be written to `reports/` and figures to `figures/`.
+
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and
