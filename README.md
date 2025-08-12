@@ -64,7 +64,15 @@ Run the training script to see a hold‑out evaluation and 5‑fold cross‑vali
 
 ```bash
 python -m src.train
+```
 
+### Exploratory data analysis
+
+An exploratory analysis script generates publication-ready figures:
+
+```bash
+python eda.py
+```
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
