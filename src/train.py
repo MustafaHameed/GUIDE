@@ -1,104 +1,3 @@
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.metrics import (
-    classification_report,
-    confusion_matrix,
-    RocCurveDisplay,
-)
-import argparse
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-from .data import load_data
-from .preprocessing import build_pipeline
-
-
-PARAM_GRIDS: dict[str, dict[str, dict]] = {
-    "logistic": {
-        "default": {
-            "model__C": [0.1, 1.0, 10.0],
-            "model__class_weight": [None, "balanced"],
-        }
-    },
-    "random_forest": {
-        "default": {
-            "model__n_estimators": [100, 200],
-            "model__max_depth": [None, 5, 10],
-        }
-    },
-    "gradient_boosting": {
-        "default": {
-            "model__n_estimators": [100, 200],
-            "model__learning_rate": [0.05, 0.1],
-        }
-    },
-}
-
-
-def main(
-    csv_path: str = "student-mat.csv",
-    group_cols: list[str] | None = None,
-    model_type: str = "logistic",
-    param_grid: str = "none",
-):
-    """Train model and generate evaluation artifacts.
-
-    Parameters
-    ----------
-    csv_path : str, default 'student-mat.csv'
-        Path to the input CSV file.
-    group_cols : list[str] | None, optional
-        Demographic columns to compute group-level metrics for. If ``None``,
-        only overall metrics are produced.
-    model_type : str, default "logistic"
-        Type of model to train.
-    param_grid : str, default "none"
-        Preset name for the hyperparameter grid. Use "none" to skip
-        hyperparameter tuning.
-    """
-    X, y = load_data(csv_path)
-    pipeline = build_pipeline(X, model_type=model_type)
-
-    # Prepare output directories
-    fig_dir = Path('figures')
-    fig_dir.mkdir(exist_ok=True)
-    report_dir = Path('reports')
-    report_dir.mkdir(exist_ok=True)
-
-    # Hold-out evaluation
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
-    )
-
-    grid = PARAM_GRIDS.get(model_type, {}).get(param_grid)
-
-    best_params: dict | None = None
-    best_score: float | None = None
-
-    if grid:
-        search = GridSearchCV(pipeline, grid, cv=5, scoring="f1")
-        search.fit(X_train, y_train)
-        model = search.best_estimator_
-        best_params = {
-            k.replace("model__", ""): v for k, v in search.best_params_.items()
-        }
-        best_score = search.best_score_
-        print(f"Best params from search: {best_params} (score={best_score:.3f})")
-    else:
-        model = pipeline
-        model.fit(X_train, y_train)
-        best_params = model.named_steps["model"].get_params()
-
-    y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:, 1]
-    print("Hold-out classification report:")
-    print(classification_report(y_test, y_pred))
-
-    # Export classification report as a table
-    report = classification_report(y_test, y_pred, output_dict=True)
-    pd.DataFrame(report).transpose().to_csv(
-        report_dir / 'classification_report.csv', index=True
     )
 
     # Confusion matrix visualization
@@ -124,10 +23,12 @@ def main(
 
     # Per-group evaluations
     if group_cols:
+        overall_positive_rate = (y_pred == 1).mean()
         for col in group_cols:
             if col not in X_test.columns:
                 print(f"Column '{col}' not in dataset. Skipping.")
                 continue
+            fairness_records: list[dict[str, float | str]] = []
             for group_value in X_test[col].unique():
                 mask = X_test[col] == group_value
                 y_true_g = y_test[mask]
@@ -168,6 +69,28 @@ def main(
                 plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
                 plt.close()
 
+                # Fairness metrics
+                pos_rate = (y_pred_g == 1).mean()
+                disparity = abs(pos_rate - overall_positive_rate)
+                fairness_records.append(
+                    {
+                        col: group_value,
+                        "positive_rate": pos_rate,
+                        "disparity": disparity,
+                    }
+                )
+
+            if fairness_records:
+                fairness_df = pd.DataFrame(fairness_records)
+                fairness_path = report_dir / f"fairness_{col}.csv"
+                fairness_df.to_csv(fairness_path, index=False)
+                print(f"Fairness metrics for '{col}':")
+                print(
+                    fairness_df.to_string(
+                        index=False, float_format=lambda x: f"{x:.3f}"
+                    )
+                )
+
     # Cross-validation for robustness
     cv_model = build_pipeline(X, model_type=model_type, model_params=best_params)
     cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='f1')
@@ -193,17 +116,3 @@ if __name__ == '__main__':
         default='logistic',
         help='Type of model to train',
     )
-    parser.add_argument(
-        '--param-grid',
-        choices=['none', 'default'],
-        default='none',
-        help='Preset hyperparameter grid to use',
-    )
-    args = parser.parse_args()
-    main(
-        csv_path=args.csv_path,
-        group_cols=args.group_cols,
-        model_type=args.model_type,
-        param_grid=args.param_grid,
-    )
-
