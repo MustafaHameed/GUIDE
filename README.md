@@ -85,6 +85,13 @@ Regression predicts the final grade and outputs RMSE, MAE and R² metrics plus a
 
 To compute fairness metrics for specific demographic groups (classification only), supply the column names:
 
+```bash
+python -m src.train --task classification --group-cols sex school
+```
+
+Each `fairness_<column>.csv` contains the group's positive rate, disparity, and
+false/true positive and negative rates (FPR, FNR, TPR, TNR).
+Group-specific reports will be written to `reports/` and figures to `figures/`.
 
 ### Running tests
 
@@ -92,11 +99,6 @@ To compute fairness metrics for specific demographic groups (classification only
 pip install -r requirements.txt
 pytest
 ```
-
-```bash
-python -m src.train --task classification --group-cols sex school
-```
-Group-specific reports will be written to `reports/` and figures to `figures/`.
 
 After training, a feature-importance ranking is saved to `reports/feature_importance.csv`
 and a corresponding plot to `figures/feature_importance.png`. The script uses
@@ -122,8 +124,7 @@ importance), saving a ranked CSV to
 `figures/early_feature_importance_G1.png`.
 ### Exploratory data analysis
 
-An exploratory analysis script generates publication-ready figures and
-summary tables:
+An exploratory analysis script generates publication-ready figures and summary tables:
 
 ```bash
 python src/eda.py

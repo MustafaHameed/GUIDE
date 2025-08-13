@@ -244,11 +244,20 @@ def main(
                 # Fairness metrics
                 pos_rate = (y_pred_g == 1).mean()
                 disparity = abs(pos_rate - overall_positive_rate)
+                tn, fp, fn, tp = cm_g.ravel()
+                fpr = fp / (fp + tn) if (fp + tn) else float("nan")
+                fnr = fn / (fn + tp) if (fn + tp) else float("nan")
+                tpr = tp / (tp + fn) if (tp + fn) else float("nan")
+                tnr = tn / (tn + fp) if (tn + fp) else float("nan")
                 fairness_records.append(
                     {
                         col: group_value,
                         "positive_rate": pos_rate,
                         "disparity": disparity,
+                        "fpr": fpr,
+                        "fnr": fnr,
+                        "tpr": tpr,
+                        "tnr": tnr,
                     }
                 )
             if fairness_records:
