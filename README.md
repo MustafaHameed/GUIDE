@@ -102,7 +102,9 @@ After training, a feature-importance ranking is saved to `reports/feature_import
 and a corresponding plot to `figures/feature_importance.png`. The script uses
 [`shap`](https://shap.readthedocs.io/) if available, otherwise falling back to
 permutation importance.
-
+Partial dependence and individual conditional expectation (ICE) plots for the top
+features are also written to `figures/` as `pdp_<feature>.png` and
+`ice_<feature>.png`.
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and

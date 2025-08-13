@@ -4,7 +4,7 @@ from sklearn.metrics import (
     confusion_matrix,
     RocCurveDisplay,
 )
-from sklearn.inspection import permutation_importance
+from sklearn.inspection import permutation_importance, PartialDependenceDisplay
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 import argparse
@@ -225,7 +225,7 @@ def main(
                 # Confusion matrix
                 cm_g = confusion_matrix(y_true_g, y_pred_g, labels=[0, 1])
                 plt.figure(figsize=(4, 4))
-                                sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
+                sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
                 plt.xlabel('Predicted')
                 plt.ylabel('Actual')
                 plt.tight_layout()
@@ -273,11 +273,12 @@ def main(
         plt.tight_layout()
         plt.savefig(fi_fig)
         plt.close()
-        importance = np.abs(shap_values.values).mean(axis=0)
-        pd.DataFrame({
-            "feature": X_train.columns,
-            "importance": importance,
-        }).sort_values("importance", ascending=False).to_csv(fi_csv, index=False)
+        importance_df = (
+            pd.DataFrame(
+                {"feature": X_train.columns, "importance": importance}
+            ).sort_values("importance", ascending=False)
+        )
+        importance_df.to_csv(fi_csv, index=False)
     except Exception:
         result = permutation_importance(
             model, X_test, y_test, n_repeats=10, random_state=42
@@ -294,6 +295,27 @@ def main(
         plt.savefig(fi_fig)
         plt.close()
         importance_df.to_csv(fi_csv, index=False)
+
+    # Partial dependence plots for top features
+    top_n = min(3, len(importance_df))
+    for feat in importance_df["feature"].head(top_n):
+        safe_name = str(feat).replace(" ", "_")
+        try:
+            PartialDependenceDisplay.from_estimator(
+                model, X_train, [feat], kind="average"
+            )
+            plt.tight_layout()
+            plt.savefig(fig_dir / f"pdp_{safe_name}.png")
+            plt.close()
+
+            PartialDependenceDisplay.from_estimator(
+                model, X_train, [feat], kind="individual"
+            )
+            plt.tight_layout()
+            plt.savefig(fig_dir / f"ice_{safe_name}.png")
+            plt.close()
+        except Exception as e:
+            print(f"Skipping PDP for {feat} due to error: {e}")
     # Cross-validation across all models
     table_dir = Path("tables")
     table_dir.mkdir(exist_ok=True)
@@ -350,3 +372,27 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--estimators',
+        nargs='*',
+        default=None,
+        help='Base estimators for stacking models',
+    )
+    parser.add_argument(
+        '--final-estimator',
+        default='logistic',
+        help='Final estimator for stacking models',
+    )
+    parser.add_argument(
+        '--base-estimator',
+        default='decision_tree',
+        help='Base estimator for bagging models',
+    )
+    args = parser.parse_args()
+    main(
+        csv_path=args.csv_path,
+        group_cols=args.group_cols,
+        model_type=args.model_type,
+        param_grid=args.param_grid,
+        estimators=args.estimators,
+        final_estimator=args.final_estimator,
+        base_estimator=args.base_estimator,
+    )
