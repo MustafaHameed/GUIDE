@@ -15,6 +15,14 @@ import numpy as np
 from pathlib import Path
 from lime.lime_tabular import LimeTabularExplainer
 import dice_ml
+from fairlearn.metrics import (
+    MetricFrame,
+    selection_rate,
+    true_positive_rate,
+    false_positive_rate,
+    positive_predictive_value,
+)
+from fairlearn.postprocessing import ThresholdOptimizer
 
 from .data import load_data
 from .preprocessing import build_pipeline
@@ -103,6 +111,8 @@ def main(
     final_estimator: str = "logistic",
     base_estimator: str = "decision_tree",
     sequence_model: str | None = None,
+    mitigation: str = "none",
+
 ):
     """Train model and generate evaluation artifacts.
 
@@ -127,6 +137,9 @@ def main(
     sequence_model : str | None, optional
         If provided, trains a sequence model (``'rnn'`` or ``'hmm'``) on
         grade sequences instead of a standard tabular model.
+    mitigation : str, default "none"
+        Fairness mitigation strategy to apply (``'demographic_parity'`` or
+        ``'equalized_odds'``). Requires ``group_cols``.
     """
     if sequence_model:
         evaluate_sequence_model(csv_path, model_type=sequence_model)
@@ -170,9 +183,29 @@ def main(
         model = pipeline
         model.fit(X_train, y_train)
         best_params = model.named_steps["model"].get_params()
-
-    y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:, 1]
+    # Optionally apply fairness mitigation using post-processing
+    if mitigation != "none":
+        if not group_cols:
+            print(
+                "Mitigation requested but no group column provided. Proceeding without mitigation."
+            )
+            y_pred = model.predict(X_test)
+            y_prob = model.predict_proba(X_test)[:, 1]
+        else:
+            sens_train = X_train[group_cols[0]]
+            sens_test = X_test[group_cols[0]]
+            mitigator = ThresholdOptimizer(
+                estimator=model, constraints=mitigation, prefit=True
+            )
+            mitigator.fit(X_train, y_train, sensitive_features=sens_train)
+            y_pred = mitigator.predict(X_test, sensitive_features=sens_test)
+            y_prob = mitigator._pmf_predict(
+                X_test, sensitive_features=sens_test
+            )[:, 1]
+            model = mitigator
+    else:
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
     print("Hold-out classification report:")
     print(classification_report(y_test, y_pred))
 
@@ -205,25 +238,24 @@ def main(
 
     # Per-group evaluations
     if group_cols:
-        overall_positive_rate = (y_pred == 1).mean()
+        overall_tpr = true_positive_rate(y_test, y_pred)
+        overall_fpr = false_positive_rate(y_test, y_pred)
         for col in group_cols:
             if col not in X_test.columns:
                 print(f"Column '{col}' not in dataset. Skipping.")
                 continue
-            fairness_records: list[dict[str, float | str]] = []
+            # Per-group classification artifacts
             for group_value in X_test[col].unique():
                 mask = X_test[col] == group_value
                 y_true_g = y_test[mask]
                 y_pred_g = y_pred[mask]
                 y_prob_g = y_prob[mask]
                 if y_true_g.nunique() < 2:
-                    # Skip groups with a single class; metrics not meaningful
                     print(
                         f"Skipping group {col}={group_value} due to single class in y_true."
                     )
                     continue
 
-                # Classification report
                 grp_report = classification_report(
                     y_true_g, y_pred_g, output_dict=True
                 )
@@ -233,7 +265,6 @@ def main(
                     index=True,
                 )
 
-                # Confusion matrix
                 cm_g = confusion_matrix(y_true_g, y_pred_g, labels=[0, 1])
                 plt.figure(figsize=(4, 4))
                 sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
@@ -245,29 +276,35 @@ def main(
                 )
                 plt.close()
 
-                # ROC curve
                 RocCurveDisplay.from_predictions(y_true_g, y_prob_g)
                 plt.tight_layout()
                 plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
                 plt.close()
 
-                # Fairness metrics
-                pos_rate = (y_pred_g == 1).mean()
-                disparity = abs(pos_rate - overall_positive_rate)
-                tn, fp, fn, tp = cm_g.ravel()
-                fpr = fp / (fp + tn) if (fp + tn) else float("nan")
-                fnr = fn / (fn + tp) if (fn + tp) else float("nan")
-                tpr = tp / (tp + fn) if (tp + fn) else float("nan")
-                tnr = tn / (tn + fp) if (tn + fp) else float("nan")
+            # Fairness metrics via fairlearn
+            mf = MetricFrame(
+                metrics={
+                    "demographic_parity": selection_rate,
+                    "true_positive_rate": true_positive_rate,
+                    "false_positive_rate": false_positive_rate,
+                    "predictive_parity": positive_predictive_value,
+                },
+                y_true=y_test,
+                y_pred=y_pred,
+                sensitive_features=X_test[col],
+            )
+            fairness_records: list[dict[str, float | str]] = []
+            for group_value, row in mf.by_group.iterrows():
+                eo = max(
+                    abs(row["true_positive_rate"] - overall_tpr),
+                    abs(row["false_positive_rate"] - overall_fpr),
+                )
                 fairness_records.append(
                     {
                         col: group_value,
-                        "positive_rate": pos_rate,
-                        "disparity": disparity,
-                        "fpr": fpr,
-                        "fnr": fnr,
-                        "tpr": tpr,
-                        "tnr": tnr,
+                        "demographic_parity": row["demographic_parity"],
+                        "predictive_parity": row["predictive_parity"],
+                        "equalized_odds": eo,
                     }
                 )
             if fairness_records:
@@ -304,7 +341,7 @@ def main(
         dice_model = dice_ml.Model(
             model=model.named_steps["model"], backend="sklearn"
         )
-        dice = dice_ml.Dice(dice_data, dice_model, method="random"
+        dice = dice_ml.Dice(dice_data, dice_model, method="random")
         test_trans = preprocessor.transform(X_test)
         if hasattr(test_trans, "toarray"):
             test_trans = test_trans.toarray()
@@ -472,6 +509,12 @@ if __name__ == '__main__':
         default=None,
         help='Train a sequence model on grades G1 and G2',
     )    
+    parser.add_argument(
+        '--mitigation',
+        choices=['none', 'demographic_parity', 'equalized_odds'],
+        default='none',
+        help='Fairness mitigation strategy to apply',
+    )
     args = parser.parse_args()
     main(
         csv_path=args.csv_path,
@@ -482,4 +525,5 @@ if __name__ == '__main__':
         final_estimator=args.final_estimator,
         base_estimator=args.base_estimator,
         sequence_model=args.sequence_model,
-        )
+        mitigation=args.mitigation,
+    )

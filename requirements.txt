@@ -1,6 +1,7 @@
 # Core project dependencies
 pandas
 scikit-learn
+fairlearn
 seaborn
 matplotlib
 # Optional: model explainability
