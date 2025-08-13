@@ -1,4 +1,10 @@
-"""Train a classifier using early grade data for risk assessment."""
+"""Train a classifier using early grade data for risk assessment.
+
+Beyond exporting risk probabilities, the script computes feature importances
+using SHAP when available and falls back to permutation importance otherwise.
+Ranked importances are written to ``reports/`` and a corresponding plot is
+saved in ``figures/``.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +12,10 @@ import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import RocCurveDisplay, classification_report
 from sklearn.model_selection import train_test_split
 
@@ -66,6 +75,43 @@ def main(
         report_dir / f"early_risk_probabilities_G{upto_grade}.csv", index=False
     )
 
+    fi_csv = report_dir / f"early_feature_importance_G{upto_grade}.csv"
+    fi_fig = fig_dir / f"early_feature_importance_G{upto_grade}.png"
+    try:
+        import shap
+
+        explainer = shap.Explainer(pipeline, X)
+        shap_values = explainer(X)
+        shap.summary_plot(shap_values, X, show=False)
+        plt.tight_layout()
+        plt.savefig(fi_fig)
+        plt.close()
+        importance_df = (
+            pd.DataFrame(
+                {
+                    "feature": X.columns,
+                    "importance": np.abs(shap_values.values).mean(axis=0),
+                }
+            ).sort_values("importance", ascending=False)
+        )
+        importance_df.to_csv(fi_csv, index=False)
+    except Exception:
+        result = permutation_importance(
+            pipeline, X, y, n_repeats=10, random_state=42
+        )
+        importance_df = (
+            pd.DataFrame(
+                {
+                    "feature": X.columns,
+                    "importance": result.importances_mean,
+                }
+            ).sort_values("importance", ascending=False)
+        )
+        sns.barplot(data=importance_df, x="importance", y="feature")
+        plt.tight_layout()
+        plt.savefig(fi_fig)
+        plt.close()
+        importance_df.to_csv(fi_csv, index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Early risk model training")

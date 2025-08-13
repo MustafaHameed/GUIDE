@@ -105,6 +105,21 @@ permutation importance.
 Partial dependence and individual conditional expectation (ICE) plots for the top
 features are also written to `figures/` as `pdp_<feature>.png` and
 `ice_<feature>.png`.
+LIME explanations for up to three misclassified or representative students are
+exported to `figures/` as `lime_<index>.html` and `lime_<index>.png`.
+### Early risk assessment
+
+To assess student risk using only early grade information, run:
+
+```bash
+python -m src.early_risk --upto_grade 1
+```
+
+The script outputs classification metrics, ROC curves, and risk probabilities. It
+also computes feature importances via SHAP when available (otherwise permutation
+importance), saving a ranked CSV to
+`reports/early_feature_importance_G1.csv` and a plot to
+`figures/early_feature_importance_G1.png`.
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and
