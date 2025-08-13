@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 from lime.lime_tabular import LimeTabularExplainer
+import dice_ml
 
 from .data import load_data
 from .preprocessing import build_pipeline
@@ -292,6 +293,18 @@ def main(
             class_names=["negative", "positive"],
             mode="classification",
         )
+        feature_names = preprocessor.get_feature_names_out().tolist()
+        train_df = pd.DataFrame(train_trans, columns=feature_names)
+        train_df["target"] = y_train.values
+        dice_data = dice_ml.Data(
+            dataframe=train_df,
+            continuous_features=feature_names,
+            outcome_name="target",
+        )
+        dice_model = dice_ml.Model(
+            model=model.named_steps["model"], backend="sklearn"
+        )
+        dice = dice_ml.Dice(dice_data, dice_model, method="random"
         test_trans = preprocessor.transform(X_test)
         if hasattr(test_trans, "toarray"):
             test_trans = test_trans.toarray()
@@ -313,6 +326,18 @@ def main(
             fig = exp.as_pyplot_figure()
             fig.savefig(fig_dir / f"lime_{idx}.png")
             plt.close(fig)
+            try:
+                query_df = pd.DataFrame(
+                    [test_trans[idx]], columns=feature_names
+                )
+                cf = dice.generate_counterfactuals(
+                    query_df, total_CFs=1, desired_class="opposite"
+                )
+                cf.cf_examples_list[0].final_cfs_df.to_csv(
+                    report_dir / f"counterfactual_{idx}.csv", index=False
+                )
+            except Exception as e:
+                print(f"Counterfactual generation failed for index {idx}: {e}")    
     except Exception as e:
         print(f"Skipping LIME explanations due to error: {e}")
 

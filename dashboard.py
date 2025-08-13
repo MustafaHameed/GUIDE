@@ -34,6 +34,7 @@ from src.preprocessing import build_pipeline
 PROJECT_DIR = Path(__file__).resolve().parent
 FIGURES_DIR = PROJECT_DIR / "figures"
 TABLES_DIR  = PROJECT_DIR / "tables"
+REPORTS_DIR = PROJECT_DIR / "reports"
 
 st.set_page_config(page_title="Student Performance Dashboard", layout="wide")
 st.title("Student Performance Dashboard")
@@ -108,7 +109,7 @@ def _show_table(csv_path: Path, title: str):
 # ---------- Sidebar Navigation ----------
 page = st.sidebar.selectbox(
     "Navigation",
-    ["EDA Plots", "Model Performance", "Fairness Metrics"],
+    ["EDA Plots", "Model Performance", "Fairness Metrics", "Counterfactuals"],
     index=0,
 )
 
@@ -116,6 +117,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**Project folders**")
 st.sidebar.code(f"figures → {FIGURES_DIR}", language="bash")
 st.sidebar.code(f"tables  → {TABLES_DIR}", language="bash")
+st.sidebar.code(f"reports → {REPORTS_DIR}", language="bash")
 
 # ---------- Pages ----------
 
@@ -174,6 +176,19 @@ elif page == "Fairness Metrics":
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
     _show_images_grid(fairness_imgs, cols=2)
+
+elif page == "Counterfactuals":
+    st.header("Counterfactual Examples")
+    st.markdown(
+        "Displays counterfactual tables generated during training. "
+        "Files are read from the **`reports/`** directory."
+    )
+    cf_tables = sorted(REPORTS_DIR.glob("counterfactual_*.csv"))
+    cf_tables += sorted(REPORTS_DIR.glob("early_counterfactual_*.csv"))
+    if not cf_tables:
+        st.info("No counterfactual tables found. Run training scripts to generate them.")
+    for path in cf_tables:
+        _show_table(path, path.stem.replace("_", " ").title())
 
 # ---------- Optional: lightweight data/pipeline showcase ----------
 with st.expander("Quick Sanity Check (loads a few rows)"):

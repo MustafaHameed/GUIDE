@@ -6,6 +6,7 @@ matplotlib
 # Optional: model explainability
 shap
 lime
+dice-ml
 streamlit
 # Sequence models
 torch

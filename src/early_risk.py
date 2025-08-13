@@ -22,6 +22,8 @@ from sklearn.model_selection import (
     cross_validate,
     cross_val_predict,
 )
+from lime.lime_tabular import LimeTabularExplainer
+import dice_ml
 
 from .data import load_early_data
 from .preprocessing import build_pipeline
@@ -108,6 +110,67 @@ def main(
                     / f"early_classification_report_G{upto_grade}_{col}_{group_val}.csv",
                     index=True,
                 )
+    # LIME explanations and counterfactuals
+    try:
+        preprocessor = pipeline.named_steps["preprocess"]
+        train_trans = preprocessor.transform(X)
+        if hasattr(train_trans, "toarray"):
+            train_trans = train_trans.toarray()
+        explainer = LimeTabularExplainer(
+            train_trans,
+            feature_names=preprocessor.get_feature_names_out().tolist(),
+            class_names=["negative", "positive"],
+            mode="classification",
+        )
+        feature_names = preprocessor.get_feature_names_out().tolist()
+        train_df = pd.DataFrame(train_trans, columns=feature_names)
+        train_df["target"] = y.values
+        dice_data = dice_ml.Data(
+            dataframe=train_df,
+            continuous_features=feature_names,
+            outcome_name="target",
+        )
+        dice_model = dice_ml.Model(
+            model=pipeline.named_steps["model"], backend="sklearn"
+        )
+        dice = dice_ml.Dice(dice_data, dice_model, method="random")
+        mis_idx = np.where(y != y_pred)[0]
+        if mis_idx.size == 0:
+            sample_idx = np.random.choice(
+                len(train_trans), size=min(3, len(train_trans)), replace=False
+            )
+        else:
+            sample_idx = mis_idx[: min(3, mis_idx.size)]
+        predict_fn = pipeline.named_steps["model"].predict_proba
+        for idx in sample_idx:
+            exp = explainer.explain_instance(
+                train_trans[idx],
+                predict_fn,
+                num_features=5,
+            )
+            exp.save_to_file(fig_dir / f"early_lime_G{upto_grade}_{idx}.html")
+            fig = exp.as_pyplot_figure()
+            fig.savefig(fig_dir / f"early_lime_G{upto_grade}_{idx}.png")
+            plt.close(fig)
+            try:
+                query_df = pd.DataFrame(
+                    [train_trans[idx]], columns=feature_names
+                )
+                cf = dice.generate_counterfactuals(
+                    query_df, total_CFs=1, desired_class="opposite"
+                )
+                cf.cf_examples_list[0].final_cfs_df.to_csv(
+                    report_dir
+                    / f"early_counterfactual_G{upto_grade}_{idx}.csv",
+                    index=False,
+                )
+            except Exception as e:
+                print(
+                    f"Counterfactual generation failed for index {idx}: {e}"
+                )
+    except Exception as e:
+        print(f"Skipping LIME/counterfactual explanations due to error: {e}")
+
 
     fi_csv = report_dir / f"early_feature_importance_G{upto_grade}.csv"
     fi_fig = fig_dir / f"early_feature_importance_G{upto_grade}.png"
