@@ -147,6 +147,19 @@ dependencies [`shap`](https://shap.readthedocs.io/) and
 [`statsmodels`](https://www.statsmodels.org/) are used for SHAP feature
 importance plots and LOESS smoothing, respectively. If these packages are
 missing, the script will skip the associated plots.
+
+### Streamlit dashboard
+
+An interactive dashboard can display the generated tables and figures.
+First make sure the analysis scripts above have produced outputs in the
+`tables/` and `figures/` directories. Then launch the app with:
+
+```bash
+streamlit run dashboard.py
+```
+
+The sidebar lets you switch between exploratory plots, model performance
+summaries, and per‑group fairness metrics.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
