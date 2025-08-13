@@ -13,6 +13,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+from lime.lime_tabular import LimeTabularExplainer
 
 from .data import load_data
 from .preprocessing import build_pipeline
@@ -260,6 +261,42 @@ def main(
                         index=False, float_format=lambda x: f"{x:.3f}"
                     )
                 )
+
+    # LIME explanations for selected samples
+    try:
+        preprocessor = model.named_steps["preprocess"]
+        train_trans = preprocessor.transform(X_train)
+        if hasattr(train_trans, "toarray"):
+            train_trans = train_trans.toarray()
+        explainer = LimeTabularExplainer(
+            train_trans,
+            feature_names=preprocessor.get_feature_names_out().tolist(),
+            class_names=["negative", "positive"],
+            mode="classification",
+        )
+        test_trans = preprocessor.transform(X_test)
+        if hasattr(test_trans, "toarray"):
+            test_trans = test_trans.toarray()
+        mis_idx = np.where(y_test != y_pred)[0]
+        if mis_idx.size == 0:
+            sample_idx = np.random.choice(
+                len(test_trans), size=min(3, len(test_trans)), replace=False
+            )
+        else:
+            sample_idx = mis_idx[: min(3, mis_idx.size)]
+        predict_fn = model.named_steps["model"].predict_proba
+        for idx in sample_idx:
+            exp = explainer.explain_instance(
+                test_trans[idx],
+                predict_fn,
+                num_features=5,
+            )
+            exp.save_to_file(fig_dir / f"lime_{idx}.html")
+            fig = exp.as_pyplot_figure()
+            fig.savefig(fig_dir / f"lime_{idx}.png")
+            plt.close(fig)
+    except Exception as e:
+        print(f"Skipping LIME explanations due to error: {e}")
 
     # Feature importance
     fi_csv = report_dir / "feature_importance.csv"
