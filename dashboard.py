@@ -110,7 +110,13 @@ def _show_table(csv_path: Path, title: str):
 # ---------- Sidebar Navigation ----------
 page = st.sidebar.selectbox(
     "Navigation",
-    ["EDA Plots", "Model Performance", "Fairness Metrics", "Explanations", "Counterfactuals"],
+    [
+        "EDA Plots",
+        "Model Performance",
+        "Fairness Metrics",
+        "Counterfactuals",
+        "Explanations",
+    ],
     index=0,
 )
 
@@ -243,6 +249,19 @@ elif page == "Counterfactuals":
         st.info("No counterfactual tables found. Run training scripts to generate them.")
     for path in cf_tables:
         _show_table(path, path.stem.replace("_", " ").title())
+
+elif page == "Explanations":
+    st.header("Concept-Level Explanations")
+    st.markdown(
+        "Causal effects of pedagogical concepts on final grades. "
+        "Tables and figures are loaded from the `tables/` and `figures/` folders."
+    )
+    _show_table(TABLES_DIR / "concept_importance.csv", "Concept Importance")
+    concept_fig = FIGURES_DIR / "concept_importance.png"
+    if concept_fig.exists():
+        st.image(str(concept_fig))
+    else:
+        st.info("`concept_importance.png` not found. Run `python src/concepts.py` to generate it.")
 
 # ---------- Optional: lightweight data/pipeline showcase ----------
 with st.expander("Quick Sanity Check (loads a few rows)"):

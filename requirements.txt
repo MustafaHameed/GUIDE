@@ -11,6 +11,8 @@ dice-ml
 streamlit
 streamlit-shap
 streamlit-dice
+dowhy
+causalml
 # Sequence models
 torch
 hmmlearn
