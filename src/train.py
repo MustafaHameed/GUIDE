@@ -17,6 +17,7 @@ from lime.lime_tabular import LimeTabularExplainer
 
 from .data import load_data
 from .preprocessing import build_pipeline
+from .sequence_models import evaluate_sequence_model
 
 
 PARAM_GRIDS: dict[str, dict[str, dict]] = {
@@ -100,6 +101,7 @@ def main(
     estimators: list[str] | None = None,
     final_estimator: str = "logistic",
     base_estimator: str = "decision_tree",
+    sequence_model: str | None = None,
 ):
     """Train model and generate evaluation artifacts.
 
@@ -121,7 +123,14 @@ def main(
         Meta learner for stacking models.
     base_estimator : str, default "decision_tree"
         Base estimator used by bagging models.
+    sequence_model : str | None, optional
+        If provided, trains a sequence model (``'rnn'`` or ``'hmm'``) on
+        grade sequences instead of a standard tabular model.
     """
+    if sequence_model:
+        evaluate_sequence_model(csv_path, model_type=sequence_model)
+        return
+    
     X, y = load_data(csv_path)
     model_params: dict | None = None
     if model_type == "stacking":
@@ -432,6 +441,12 @@ if __name__ == '__main__':
         default='decision_tree',
         help='Base estimator for bagging models',
     )
+    parser.add_argument(
+        '--sequence-model',
+        choices=['rnn', 'hmm'],
+        default=None,
+        help='Train a sequence model on grades G1 and G2',
+    )    
     args = parser.parse_args()
     main(
         csv_path=args.csv_path,
@@ -441,4 +456,5 @@ if __name__ == '__main__':
         estimators=args.estimators,
         final_estimator=args.final_estimator,
         base_estimator=args.base_estimator,
-    )
+        sequence_model=args.sequence_model,
+        )
