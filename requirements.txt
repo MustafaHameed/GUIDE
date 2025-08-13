@@ -12,3 +12,4 @@ streamlit
 # Sequence models
 torch
 hmmlearn
+captum

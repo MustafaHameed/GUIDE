@@ -43,36 +43,80 @@ def _train_rnn(
     y_test: np.ndarray,
     hidden_size: int = 8,
     epochs: int = 50,
+    save_importance: bool = False,
 ) -> float:
-    """Train a simple RNN classifier using PyTorch and return accuracy."""
+    """Train an attention-based RNN classifier and return accuracy.
+
+    When ``save_importance`` is True, per-step importance scores are computed
+    using Integrated Gradients and stored under ``tables/`` with a
+    corresponding bar plot in ``figures/``.
+    """
     import torch
     from torch import nn
+    from captum.attr import IntegratedGradients
+    import matplotlib.pyplot as plt
 
     input_size = X_train.shape[2]
 
-    rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-    fc = nn.Linear(hidden_size, 2)
+    class AttentionRNN(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+            self.attn = nn.Linear(hidden_size, 1)
+            self.fc = nn.Linear(hidden_size, 2)
+
+        def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            out, _ = self.rnn(x)
+            weights = torch.softmax(self.attn(out).squeeze(-1), dim=1)
+            context = torch.sum(out * weights.unsqueeze(-1), dim=1)
+            logits = self.fc(context)
+            return logits, weights
+
+    model = AttentionRNN()
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(list(rnn.parameters()) + list(fc.parameters()), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     X_train_t = torch.tensor(X_train, dtype=torch.float32)
     y_train_t = torch.tensor(y_train, dtype=torch.long)
 
     for _ in range(epochs):
         optimizer.zero_grad()
-        out, _ = rnn(X_train_t)
-        out = fc(out[:, -1, :])
+        out, _ = model(X_train_t)
         loss = criterion(out, y_train_t)
         loss.backward()
         optimizer.step()
 
-    rnn.eval()
+    model.eval()
     with torch.no_grad():
-        out, _ = rnn(torch.tensor(X_test, dtype=torch.float32))
-        out = fc(out[:, -1, :])
+        out, _ = model(torch.tensor(X_test, dtype=torch.float32))
         preds = out.argmax(dim=1)
         y_test_t = torch.tensor(y_test, dtype=torch.long)
         acc = (preds == y_test_t).float().mean().item()
+
+    if save_importance:
+        def forward_wrapper(x: torch.Tensor) -> torch.Tensor:
+            return model(x)[0]
+
+        ig = IntegratedGradients(forward_wrapper)
+        X_test_t = torch.tensor(X_test, dtype=torch.float32, requires_grad=True)
+        attrs = ig.attribute(X_test_t, target=1)
+        step_importance = attrs.abs().sum(dim=2).mean(dim=0).detach().cpu().numpy()
+        table_dir = Path("tables")
+        table_dir.mkdir(exist_ok=True)
+        df_imp = pd.DataFrame(
+            {"step": np.arange(1, len(step_importance) + 1), "importance": step_importance}
+        )
+        df_imp.to_csv(table_dir / "sequence_step_importance.csv", index=False)
+        fig_dir = Path("figures")
+        fig_dir.mkdir(exist_ok=True)
+        plt.figure()
+        plt.bar(df_imp["step"], df_imp["importance"])
+        plt.xlabel("Time Step")
+        plt.ylabel("Importance")
+        plt.tight_layout()
+        plt.savefig(fig_dir / "sequence_step_importance.png")
+        plt.close()
+
     return acc
 
 
@@ -132,7 +176,13 @@ def evaluate_sequence_model(csv_path: str, model_type: str = "rnn") -> pd.DataFr
             X_part, y, test_size=0.2, stratify=y, random_state=42
         )
         if model_type == "rnn":
-            acc = _train_rnn(X_train, y_train, X_test, y_test)
+            acc = _train_rnn(
+                X_train,
+                y_train,
+                X_test,
+                y_test,
+                save_importance=steps == X_seq.shape[1],
+            )
         elif model_type == "hmm":
             acc = _train_hmm(X_train, y_train, X_test, y_test)
         else:
