@@ -9,6 +9,8 @@ shap
 lime
 dice-ml
 streamlit
+streamlit-shap
+streamlit-dice
 # Sequence models
 torch
 hmmlearn
