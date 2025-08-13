@@ -23,6 +23,7 @@ from pathlib import Path
 import io
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html as st_html
 
 # --- Absolute imports from your package in src/ ---
 # These will work when you run from the project root.
@@ -109,7 +110,7 @@ def _show_table(csv_path: Path, title: str):
 # ---------- Sidebar Navigation ----------
 page = st.sidebar.selectbox(
     "Navigation",
-    ["EDA Plots", "Model Performance", "Fairness Metrics", "Counterfactuals"],
+    ["EDA Plots", "Model Performance", "Fairness Metrics", "Explanations", "Counterfactuals"],
     index=0,
 )
 
@@ -176,6 +177,59 @@ elif page == "Fairness Metrics":
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
     _show_images_grid(fairness_imgs, cols=2)
+
+elif page == "Explanations":
+    st.header("Model Explanations")
+    st.markdown(
+        "Explore global and local explanations generated with **SHAP** and **LIME**. "
+        "Save plots in `figures/` and HTML files in `figures/` or `reports/` to view them here."
+    )
+
+    shap_summary = FIGURES_DIR / "shap_summary.png"
+    if shap_summary.exists():
+        st.subheader("SHAP Summary Plot")
+        st.image(str(shap_summary))
+    else:
+        st.info("`shap_summary.png` not found in `figures/`.")
+
+    shap_dep_paths = sorted(FIGURES_DIR.glob("shap_dependence_*.png"))
+    if shap_dep_paths:
+        st.subheader("SHAP Dependence Plots")
+        feature_map = {p.stem.split("shap_dependence_", 1)[1]: p for p in shap_dep_paths}
+        feature = st.selectbox("Select feature", list(feature_map.keys()))
+        st.image(str(feature_map[feature]))
+    else:
+        st.info("No SHAP dependence plots available.")
+
+    lime_paths: list[Path] = []
+    lime_paths.extend(FIGURES_DIR.glob("lime_*.html"))
+    if REPORTS_DIR.exists():
+        lime_paths.extend(REPORTS_DIR.glob("lime_*.html"))
+    if lime_paths:
+        st.subheader("LIME Explanations")
+        lime_map = {p.stem: p for p in sorted(lime_paths)}
+        lime_choice = st.selectbox("Select LIME explanation", list(lime_map.keys()), key="lime_select")
+        st_html(lime_map[lime_choice].read_text(), height=600, scrolling=True)
+    else:
+        st.info("No LIME HTML explanations found.")
+
+    shap_html = FIGURES_DIR / "shap_summary.html"
+    if shap_html.exists():
+        st.subheader("Interactive SHAP Summary")
+        try:
+            from streamlit_shap import st_shap
+            st_shap(open(shap_html).read(), height=600)
+        except Exception:
+            st_html(shap_html.read_text(), height=600)
+
+    st.subheader("Custom Student Record")
+    uploaded = st.file_uploader("Upload a student record (CSV)", type=["csv"])
+    if uploaded is not None:
+        try:
+            df_up = pd.read_csv(uploaded)
+            st.dataframe(df_up, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Could not read uploaded file: {e}")
 
 elif page == "Counterfactuals":
     st.header("Counterfactual Examples")
