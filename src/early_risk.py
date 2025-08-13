@@ -17,7 +17,11 @@ import pandas as pd
 import seaborn as sns
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import RocCurveDisplay, classification_report
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import (
+    StratifiedKFold,
+    cross_validate,
+    cross_val_predict,
+)
 
 from .data import load_early_data
 from .preprocessing import build_pipeline
@@ -30,6 +34,7 @@ def main(
     estimators: list[str] | None = None,
     final_estimator: str = "logistic",
     base_estimator: str = "decision_tree",
+    group_cols: list[str] | None = None,
 ):
     """Train model on truncated data and export risk probabilities."""
 
@@ -49,22 +54,28 @@ def main(
     report_dir = Path("reports")
     report_dir.mkdir(exist_ok=True)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scoring = ["accuracy", "precision", "recall", "f1"]
+    scores = cross_validate(pipeline, X, y, cv=cv, scoring=scoring)
+    mean_scores = {m: scores[f"test_{m}"].mean() for m in scoring}
+    print("Cross-validation metrics:")
+    for m, val in mean_scores.items():
+        print(f"{m}: {val:.3f}")
+    pd.DataFrame([mean_scores]).to_csv(
+        report_dir / f"early_cv_metrics_G{upto_grade}.csv", index=False
     )
 
-    pipeline.fit(X_train, y_train)
-    y_pred = pipeline.predict(X_test)
-    y_prob = pipeline.predict_proba(X_test)[:, 1]
+    y_prob = cross_val_predict(pipeline, X, y, cv=cv, method="predict_proba")[:, 1]
+    y_pred = (y_prob >= 0.5).astype(int)
 
-    print(classification_report(y_test, y_pred))
+    print(classification_report(y, y_pred))
 
-    report = classification_report(y_test, y_pred, output_dict=True)
+    report = classification_report(y, y_pred, output_dict=True)
     pd.DataFrame(report).transpose().to_csv(
         report_dir / f"early_classification_report_G{upto_grade}.csv", index=True
     )
 
-    RocCurveDisplay.from_predictions(y_test, y_prob)
+    RocCurveDisplay.from_predictions(y, y_prob)
     plt.tight_layout()
     plt.savefig(fig_dir / f"early_roc_curve_G{upto_grade}.png")
     plt.close()
@@ -74,6 +85,29 @@ def main(
     pd.DataFrame({"risk_probability": probs}).to_csv(
         report_dir / f"early_risk_probabilities_G{upto_grade}.csv", index=False
     )
+
+    if group_cols:
+        df_pred = X.copy()
+        df_pred["y_true"] = y
+        df_pred["y_pred"] = y_pred
+        for col in group_cols:
+            if col not in df_pred.columns:
+                print(f"Column '{col}' not in dataset. Skipping.")
+                continue
+            for group_val, grp in df_pred.groupby(col):
+                if grp["y_true"].nunique() < 2:
+                    print(
+                        f"Skipping group {col}={group_val} due to single class in y_true."
+                    )
+                    continue
+                grp_report = classification_report(
+                    grp["y_true"], grp["y_pred"], output_dict=True
+                )
+                pd.DataFrame(grp_report).transpose().to_csv(
+                    report_dir
+                    / f"early_classification_report_G{upto_grade}_{col}_{group_val}.csv",
+                    index=True,
+                )
 
     fi_csv = report_dir / f"early_feature_importance_G{upto_grade}.csv"
     fi_fig = fig_dir / f"early_feature_importance_G{upto_grade}.png"
@@ -121,5 +155,11 @@ if __name__ == "__main__":
     parser.add_argument("--estimators", nargs="*", default=None)
     parser.add_argument("--final_estimator", default="logistic")
     parser.add_argument("--base_estimator", default="decision_tree")
+    parser.add_argument(
+        "--group-cols",
+        nargs="*",
+        default=None,
+        help="Columns to compute group-level metrics for",
+    )
     args = parser.parse_args()
     main(**vars(args))
