@@ -6,3 +6,4 @@ matplotlib
 # Optional: model explainability
 shap
 lime
+streamlit
