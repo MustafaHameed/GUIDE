@@ -7,3 +7,6 @@ matplotlib
 shap
 lime
 streamlit
+# Sequence models
+torch
+hmmlearn
