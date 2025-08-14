@@ -190,7 +190,11 @@ def main(
                 "Mitigation requested but no group column provided. Proceeding without mitigation."
             )
             y_pred = model.predict(X_test)
-            y_prob = model.predict_proba(X_test)[:, 1]
+            y_prob = (
+                model.predict_proba(X_test)[:, 1]
+                if hasattr(model, "predict_proba")
+                else None
+            )
         else:
             sens_train = X_train[group_cols[0]]
             sens_test = X_test[group_cols[0]]
@@ -199,13 +203,20 @@ def main(
             )
             mitigator.fit(X_train, y_train, sensitive_features=sens_train)
             y_pred = mitigator.predict(X_test, sensitive_features=sens_test)
-            y_prob = mitigator._pmf_predict(
-                X_test, sensitive_features=sens_test
-            )[:, 1]
+            # ThresholdOptimizer does not expose a public probability API
+            y_prob = (
+                mitigator.predict_proba(X_test, sensitive_features=sens_test)[:, 1]
+                if hasattr(mitigator, "predict_proba")
+                else None
+            )
             model = mitigator
     else:
         y_pred = model.predict(X_test)
-        y_prob = model.predict_proba(X_test)[:, 1]
+        y_prob = (
+            model.predict_proba(X_test)[:, 1]
+            if hasattr(model, "predict_proba")
+            else None
+        )
     print("Hold-out classification report:")
     print(classification_report(y_test, y_pred))
 
@@ -225,11 +236,12 @@ def main(
     plt.savefig(fig_dir / 'confusion_matrix.png')
     plt.close()
 
-    # ROC curve visualization
-    RocCurveDisplay.from_predictions(y_test, y_prob)
-    plt.tight_layout()
-    plt.savefig(fig_dir / 'roc_curve.png')
-    plt.close()
+    # ROC curve visualization (requires probability estimates)
+    if y_prob is not None:
+        RocCurveDisplay.from_predictions(y_test, y_prob)
+        plt.tight_layout()
+        plt.savefig(fig_dir / 'roc_curve.png')
+        plt.close()
 
     # Export best parameters and search metrics
     best_params_df = pd.DataFrame([best_params or {}])
@@ -249,7 +261,7 @@ def main(
                 mask = X_test[col] == group_value
                 y_true_g = y_test[mask]
                 y_pred_g = y_pred[mask]
-                y_prob_g = y_prob[mask]
+                y_prob_g = y_prob[mask] if y_prob is not None else None
                 if y_true_g.nunique() < 2:
                     print(
                         f"Skipping group {col}={group_value} due to single class in y_true."
@@ -276,10 +288,11 @@ def main(
                 )
                 plt.close()
 
-                RocCurveDisplay.from_predictions(y_true_g, y_prob_g)
-                plt.tight_layout()
-                plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
-                plt.close()
+                               if y_prob_g is not None:
+                    RocCurveDisplay.from_predictions(y_true_g, y_prob_g)
+                    plt.tight_layout()
+                    plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
+                    plt.close()
 
             # Fairness metrics via fairlearn
             mf = MetricFrame(
