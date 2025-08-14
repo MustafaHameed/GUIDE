@@ -386,6 +386,7 @@ def main(
 
         explainer = shap.Explainer(model, X_train)
         shap_values = explainer(X_train)
+        importance = np.abs(shap_values.values).mean(axis=0)
         shap.summary_plot(shap_values, X_train, show=False)
         plt.tight_layout()
         plt.savefig(fi_fig)

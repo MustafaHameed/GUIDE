@@ -54,7 +54,8 @@ def segment_students(csv_path: str = "student-mat.csv", n_clusters: int = 3) -> 
     X_scaled = scaler.fit_transform(features)
 
     algorithms = {
-        "kmeans": KMeans(n_clusters=n_clusters, random_state=0, n_init="auto"),
+                "kmeans": KMeans(n_clusters=n_clusters, random_state=0, n_init=10),
+        # n_init set to explicit integer for compatibility with older scikit-learn
         "agglomerative": AgglomerativeClustering(n_clusters=n_clusters),
     }
 

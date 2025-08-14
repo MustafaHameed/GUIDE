@@ -1,6 +1,6 @@
 # Core project dependencies
 pandas
-scikit-learn
+scikit-learn>=1.0
 fairlearn
 seaborn
 matplotlib
