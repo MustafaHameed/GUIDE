@@ -29,20 +29,25 @@ from streamlit.components.v1 import html as st_html
 # These will work when you run from the project root.
 from src.data import load_data
 from src.preprocessing import build_pipeline
+
 # from src.model import create_model  # Uncomment if you expose interactive training
 
 # ---------- Configuration ----------
 PROJECT_DIR = Path(__file__).resolve().parent
 FIGURES_DIR = PROJECT_DIR / "figures"
-TABLES_DIR  = PROJECT_DIR / "tables"
+TABLES_DIR = PROJECT_DIR / "tables"
 REPORTS_DIR = PROJECT_DIR / "reports"
+
+# Cache time-to-live in seconds for auto-refreshing cached data
+CACHE_TTL = 600
 
 st.set_page_config(page_title="Student Performance Dashboard", layout="wide")
 st.title("Student Performance Dashboard")
 
 # ---------- Helpers ----------
 
-@st.cache_data(show_spinner=False)
+
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def _safe_read_csv(path: Path) -> pd.DataFrame | None:
     if path.exists() and path.is_file():
         try:
@@ -52,7 +57,11 @@ def _safe_read_csv(path: Path) -> pd.DataFrame | None:
             return None
     return None
 
-def _list_images(folder: Path, patterns=(".png", ".jpg", ".jpeg", ".svg", ".webp")) -> list[Path]:
+
+
+def _list_images(
+    folder: Path, patterns=(".png", ".jpg", ".jpeg", ".svg", ".webp")
+) -> list[Path]:
     if not folder.exists():
         return []
     files = []
@@ -60,6 +69,9 @@ def _list_images(folder: Path, patterns=(".png", ".jpg", ".jpeg", ".svg", ".webp
         files.extend(folder.glob(f"*{ext}"))
     return sorted(files)
 
+def _show_images_grid(
+    image_paths: list[Path], cols: int = 2, caption_from_name: bool = True
+):
 def _show_images_grid(image_paths: list[Path], cols: int = 2, caption_from_name: bool = True):
     if not image_paths:
         st.info("No figures found yet. Generate them via your EDA/training scripts.")
@@ -85,7 +97,9 @@ def _show_images_grid(image_paths: list[Path], cols: int = 2, caption_from_name:
                             label="Download",
                             data=f,
                             file_name=p.name,
-                            mime="image/svg+xml" if p.suffix.lower() == ".svg" else None,
+                            mime=(
+                                "image/svg+xml" if p.suffix.lower() == ".svg" else None
+                            ),
                             key=f"dl_{p.name}_{i}",
                         )
                 except Exception as e:
@@ -120,6 +134,10 @@ page = st.sidebar.selectbox(
     ],
     index=0,
 )
+
+if st.sidebar.button("Refresh data"):
+    _safe_read_csv.clear()
+    st.sidebar.success("Data cache cleared")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Project folders**")
@@ -228,6 +246,7 @@ elif page == "Explanations":
         st.subheader("Interactive SHAP Summary")
         try:
             from streamlit_shap import st_shap
+
             st_shap(open(shap_html).read(), height=600)
         except Exception:
             st_html(shap_html.read_text(), height=600)
@@ -250,7 +269,9 @@ elif page == "Counterfactuals":
     cf_tables = sorted(REPORTS_DIR.glob("counterfactual_*.csv"))
     cf_tables += sorted(REPORTS_DIR.glob("early_counterfactual_*.csv"))
     if not cf_tables:
-        st.info("No counterfactual tables found. Run training scripts to generate them.")
+        st.info(
+            "No counterfactual tables found. Run training scripts to generate them."
+        )
     for path in cf_tables:
         _show_table(path, path.stem.replace("_", " ").title())
 
@@ -265,7 +286,28 @@ elif page == "Concept Explanations":
     if concept_fig.exists():
         st.image(str(concept_fig))
     else:
-        st.info("`concept_importance.png` not found. Run `python src/concepts.py` to generate it.")
+        st.info(
+            "`concept_importance.png` not found. Run `python src/concepts.py` to generate it."
+        )
+
+# ---------- Optional: lightweight data/pipeline showcase ----------
+with st.expander("Quick Sanity Check (loads a few rows)"):
+    st.write(
+        "This optional check loads the dataset and builds the preprocessing pipeline "
+        "to confirm your environment is wired correctly."
+    )
+    try:
+        # Adjust default path if your CSV lives elsewhere
+        csv_default = str((PROJECT_DIR / "student-mat.csv").resolve())
+        csv_path = st.text_input("CSV path", value=csv_default)
+        if st.button("Load sample & build pipeline"):
+            X, y = load_data(csv_path)
+            st.write("Shape:", X.shape, "Target length:", len(y))
+            st.dataframe(X.head(5), use_container_width=True)
+            pipe = build_pipeline(X.head(100))  # small sample to avoid heavy work
+            st.success("Pipeline created successfully.")
+    except Exception as e:
+        st.warning(f"Sanity check failed: {e}")
 
 # ---------- Optional: lightweight data/pipeline showcase ----------
 with st.expander("Quick Sanity Check (loads a few rows)"):
