@@ -14,6 +14,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 
 try:  # Optional dependencies
     from xgboost import XGBClassifier
@@ -34,8 +35,8 @@ def create_model(model_type: str = "logistic", **kwargs):
     model_type:
         The type of model to create. Supported options are ``"logistic"``,
         ``"random_forest"``, ``"gradient_boosting"``, ``"svm"``, ``"knn"``,
-        ``"naive_bayes"``, ``"extra_trees"``, and optionally ``"xgboost"`` or
-        ``"lightgbm"`` if those packages are installed.
+        ``"naive_bayes"``, ``"extra_trees"``, ``"mlp"``, and optionally
+        ``"xgboost"`` or ``"lightgbm"`` if those packages are installed.
     **kwargs:
         Additional keyword arguments passed to the model constructor. This
         allows tuning of hyperparameters such as ``C`` or ``class_weight`` for
@@ -62,6 +63,11 @@ def create_model(model_type: str = "logistic", **kwargs):
         return GaussianNB(**kwargs)
     if model_type == "extra_trees":
         return ExtraTreesClassifier(**kwargs)
+    if model_type == "mlp":
+        task = kwargs.pop("task", "classification")
+        if task == "regression":
+            return MLPRegressor(**kwargs)
+        return MLPClassifier(**kwargs)
     if model_type == "decision_tree":
         return DecisionTreeClassifier(**kwargs)
     if model_type == "bagging":

@@ -86,6 +86,13 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
             "model__max_depth": [None, 5, 10],
         }
     },
+        "mlp": {
+        "default": {
+            "model__hidden_layer_sizes": [(50,), (100,)],
+            "model__alpha": [0.0001, 0.001],
+            "model__learning_rate_init": [0.001, 0.01],
+        }
+    },
     "xgboost": {
         "default": {
             "model__n_estimators": [100, 200],

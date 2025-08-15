@@ -66,7 +66,8 @@ The project code now lives in the `src/` package:
 
 - `data.py` for loading and preparing the dataset
 - `preprocessing.py` for building the feature-processing pipeline
-- `model.py` for configuring the logistic regression classifier
+- `model.py` for configuring classifiers such as logistic regression, random
+  forest, and multilayer perceptrons (MLP)
 - `train.py` as the script entry point
 
 Run the training script to see a hold‑out evaluation and 5‑fold cross‑validation score (requires `pandas` and `scikit-learn`):
@@ -137,7 +138,7 @@ The `nested_cv.py` script evaluates regression models using nested cross-
 validation, generates baseline and ablation comparisons, and produces
 interpretation plots. Supported models include random forest, linear regression,
 Lasso, support vector regression, k-nearest neighbors, bagging, gradient
-boosting, stacking and optionally XGBoost:
+boosting, multilayer perceptrons, stacking and optionally XGBoost:
 
 ```bash
 python src/nested_cv.py

@@ -17,6 +17,7 @@ from sklearn.linear_model import LinearRegression, Lasso, Ridge
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.neural_network import MLPRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -328,7 +329,16 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                     "model__learning_rate": [0.1, 0.01],
                     "model__max_depth": [3, 5],
                 },
-            )
+            ),
+            (
+                "mlp",
+                MLPRegressor(random_state=0),
+                {
+                    "select__k": ["all", 20],
+                    "model__hidden_layer_sizes": [(50,), (100,)],
+                    "model__alpha": [0.0001, 0.001],
+                },
+            ),
             (
                 "stacking",
                 StackingRegressor(
