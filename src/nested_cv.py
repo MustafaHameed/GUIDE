@@ -11,6 +11,7 @@ from sklearn.ensemble import (
     RandomForestRegressor,
     BaggingRegressor,
     StackingRegressor,
+    GradientBoostingRegressor,
 )
 from sklearn.linear_model import LinearRegression, Lasso, Ridge
 from sklearn.svm import SVR
@@ -318,6 +319,16 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                     "model__estimator__max_depth": [None, 5],
                 },
             ),
+            (
+                "gradient_boosting",
+                GradientBoostingRegressor(random_state=0),
+                {
+                    "select__k": ["all", 20],
+                    "model__n_estimators": [100, 200],
+                    "model__learning_rate": [0.1, 0.01],
+                    "model__max_depth": [3, 5],
+                },
+            )
             (
                 "stacking",
                 StackingRegressor(

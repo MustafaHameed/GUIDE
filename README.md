@@ -136,8 +136,8 @@ Outputs are written to `figures/` and `tables/` directories.
 The `nested_cv.py` script evaluates regression models using nested cross-
 validation, generates baseline and ablation comparisons, and produces
 interpretation plots. Supported models include random forest, linear regression,
-Lasso, support vector regression, k-nearest neighbors, bagging, stacking and
-optionally XGBoost:
+Lasso, support vector regression, k-nearest neighbors, bagging, gradient
+boosting, stacking and optionally XGBoost:
 
 ```bash
 python src/nested_cv.py
