@@ -12,7 +12,7 @@ from sklearn.ensemble import (
     BaggingRegressor,
     StackingRegressor,
 )
-from sklearn.linear_model import LinearRegression, Lasso
+from sklearn.linear_model import LinearRegression, Lasso, Ridge
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
@@ -272,7 +272,15 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                 LinearRegression(),
                 {"select__k": ["all", 20]},
             ),
-                        (
+            (
+                "ridge",
+                Ridge(),
+                {
+                    "select__k": ["all", 20],
+                    "model__alpha": [0.1, 1.0, 10.0],
+                },
+            ),
+            (
                 "lasso",
                 Lasso(random_state=0),
                 {
