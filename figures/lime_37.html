@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divWTW8T5V2JNAGGJN"></div>
+        <div class="lime top_div" id="top_div5YVAXYCJKVZRCPA"></div>
         
         <script>
-        var top_div = d3.select('#top_divWTW8T5V2JNAGGJN').classed('lime top_div', true);
+        var top_div = d3.select('#top_div5YVAXYCJKVZRCPA').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.693456281934984, 0.30654371806501596]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.8916315243015143, 0.10836847569848577]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.47", -0.4113418757389732], ["num__G1 <= -0.90", -0.1608465123258546], ["num__failures <= -0.44", 0.05649073602072631], ["cat__higher_no <= 0.00", 0.03650989588248208], ["-0.14 < num__goout <= 0.76", -0.015207290728830062]], 1, exp_div);
+                exp.show([["num__G2 <= -0.47", -0.6297159106928624], ["num__G1 <= -0.90", -0.21577845393347375], ["ord__Walc <= 0.00", -0.08409610310504374], ["0.26 < num__age <= 1.04", -0.07821274875557307], ["0.09 < num__famrel <= 1.19", 0.0694930810203037]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.47", -0.4113418757389732], ["num__G1", "-0.90", -0.1608465123258546], ["num__failures", "-0.44", 0.05649073602072631], ["cat__higher_no", "0.00", 0.03650989588248208], ["num__goout", "0.76", -0.015207290728830062]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.47", -0.6297159106928624], ["num__G1", "-0.90", -0.21577845393347375], ["ord__Walc", "0.00", -0.08409610310504374], ["num__age", "1.04", -0.07821274875557307], ["num__famrel", "1.19", 0.0694930810203037]], 1, raw_div);
         
         </script>
         </body></html>

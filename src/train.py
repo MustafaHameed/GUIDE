@@ -333,6 +333,19 @@ def main(
                 fairness_df = pd.DataFrame(fairness_records)
                 fairness_path = report_dir / f"fairness_{col}.csv"
                 fairness_df.to_csv(fairness_path, index=False)
+                (
+                    fairness_df.set_index(col)[
+                        [
+                            "demographic_parity",
+                            "predictive_parity",
+                            "equalized_odds",
+                        ]
+                    ].plot.bar()
+                )
+                plt.ylabel("score")
+                plt.tight_layout()
+                plt.savefig(fig_dir / f"fairness_{col}.png")
+                plt.close()
                 print(f"Fairness metrics for '{col}':")
                 print(
                     fairness_df.to_string(

@@ -332,7 +332,7 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
 
     table_dir = Path("tables")
     table_dir.mkdir(exist_ok=True)
-    results_df.to_csv(table_dir / "nested_cv_metrics.csv", index=False)
+    results_df.to_csv(table_dir / "nested_cv_regression_metrics.csv", index=False)
 
     base_model = models[0][0]
     stats_df = statistical_tests(results_df, base_model)

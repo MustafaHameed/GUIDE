@@ -213,7 +213,12 @@ elif page == "Explanations":
         st.subheader("LIME Explanations")
         lime_map = {p.stem: p for p in sorted(lime_paths)}
         lime_choice = st.selectbox("Select LIME explanation", list(lime_map.keys()), key="lime_select")
-        st_html(lime_map[lime_choice].read_text(), height=600, scrolling=True)
+        st_html(
+            lime_map[lime_choice].read_text(encoding="utf-8"),
+            height=600,
+            scrolling=True,
+        )
+
     else:
         st.info("No LIME HTML explanations found.")
 

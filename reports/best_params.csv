@@ -1,2 +1,2 @@
-best_score,bootstrap,ccp_alpha,class_weight,criterion,max_depth,max_features,max_leaf_nodes,max_samples,min_impurity_decrease,min_samples_leaf,min_samples_split,min_weight_fraction_leaf,monotonic_cst,n_estimators,n_jobs,oob_score,random_state,verbose,warm_start
-0.9477260866194307,True,0.0,,gini,5,sqrt,,,0.0,1,2,0.0,,100,,False,,0,False
+best_score,C,class_weight,dual,fit_intercept,intercept_scaling,l1_ratio,max_iter,multi_class,n_jobs,penalty,random_state,solver,tol,verbose,warm_start
+,1.0,,False,True,1,,1000,deprecated,,l2,,lbfgs,0.0001,0,False

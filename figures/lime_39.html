@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_div134GYWMNFSWOCD2"></div>
+        <div class="lime top_div" id="top_div2PKVVNWMFV5UIDW"></div>
         
         <script>
-        var top_div = d3.select('#top_div134GYWMNFSWOCD2').classed('lime top_div', true);
+        var top_div = d3.select('#top_div2PKVVNWMFV5UIDW').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.5987207920293981, 0.4012792079706018]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.7653989574434299, 0.23460104255657005]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.47", -0.4155319941472758], ["num__failures > -0.44", -0.06197574197828475], ["num__absences > 0.31", -0.034453300842906605], ["cat__guardian_other <= 0.00", 0.02938004791413613], ["cat__schoolsup_yes <= 0.00", 0.024327593795474285]], 1, exp_div);
+                exp.show([["num__G2 <= -0.47", -0.6475226745519642], ["ord__Walc > 2.00", 0.09670466915719704], ["cat__Fjob_other <= 0.00", -0.05704923970994646], ["num__famrel <= 0.09", -0.052484835172348386], ["cat__sex_F <= 0.00", -0.03298855573927552]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.47", -0.4155319941472758], ["num__failures", "0.89", -0.06197574197828475], ["num__absences", "1.67", -0.034453300842906605], ["cat__guardian_other", "0.00", 0.02938004791413613], ["cat__schoolsup_yes", "0.00", 0.024327593795474285]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.47", -0.6475226745519642], ["ord__Walc", "3.00", 0.09670466915719704], ["cat__Fjob_other", "0.00", -0.05704923970994646], ["num__famrel", "0.09", -0.052484835172348386], ["cat__sex_F", "0.00", -0.03298855573927552]], 1, raw_div);
         
         </script>
         </body></html>
