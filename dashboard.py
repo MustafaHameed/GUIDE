@@ -316,22 +316,3 @@ with st.expander("Quick Sanity Check (loads a few rows)"):
             st.success("Pipeline created successfully.")
     except Exception as e:
         st.warning(f"Sanity check failed: {e}")
-
-# ---------- Optional: lightweight data/pipeline showcase ----------
-with st.expander("Quick Sanity Check (loads a few rows)"):
-    st.write(
-        "This optional check loads the dataset and builds the preprocessing pipeline "
-        "to confirm your environment is wired correctly."
-    )
-    try:
-        # Adjust default path if your CSV lives elsewhere
-        csv_default = str((PROJECT_DIR / "student-mat.csv").resolve())
-        csv_path = st.text_input("CSV path", value=csv_default)
-        if st.button("Load sample & build pipeline"):
-            X, y = load_data(csv_path)
-            st.write("Shape:", X.shape, "Target length:", len(y))
-            st.dataframe(X.head(5), use_container_width=True)
-            pipe = build_pipeline(X.head(100))  # small sample to avoid heavy work
-            st.success("Pipeline created successfully.")
-    except Exception as e:
-        st.warning(f"Sanity check failed: {e}")
