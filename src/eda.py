@@ -1,4 +1,12 @@
-"""Exploratory data analysis for the student performance dataset."""
+"""Exploratory data analysis utilities for the student performance dataset.
+
+This module exposes :func:`run_eda` which generates a collection of tables and
+figures describing the dataset.  The previous iteration of this module executed
+these steps at import time; the functionality is now wrapped in a function so it
+can be invoked programmatically by other modules (e.g. a data workflow script).
+"""
+
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -11,14 +19,16 @@ plt.rcParams["figure.dpi"] = 300
 plt.rcParams["savefig.dpi"] = 300
 
 
-def save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
-    """Save a table to disk."""
+def _save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
+    """Save a table to ``directory`` ensuring the folder exists."""
+
     directory.mkdir(exist_ok=True)
     table.to_csv(directory / name)
 
 
-def save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
-    """Tighten layout, save and close a figure given an Axes."""
+def _save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
+    """Tighten layout, save and close a figure given an ``Axes`` instance."""
+
     directory.mkdir(exist_ok=True)
     fig = ax.get_figure()
     fig.tight_layout()
@@ -26,73 +36,89 @@ def save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     plt.close(fig)
 
 
-# Load dataset
-DATA_PATH = Path("student-mat.csv")
-df = pd.read_csv(DATA_PATH)
+def run_eda(
+    df: pd.DataFrame,
+    fig_dir: str | Path = "figures",
+    table_dir: str | Path = "tables",
+) -> None:
+    """Generate exploratory data analysis artifacts.
 
-# Output directories
-fig_dir = Path("figures")
-table_dir = Path("tables")
+    Parameters
+    ----------
+    df:
+        The full dataset including the ``G3`` final grade column.
+    fig_dir, table_dir:
+        Output directories for the generated figures and tables.  Directories
+        are created if they do not already exist.
+    """
 
-# Summary statistics and additional tables
-summary = df.describe(include="all")
-print(summary)
-save_table(summary, "summary.csv", table_dir)
+    fig_dir = Path(fig_dir)
+    table_dir = Path(table_dir)
 
-group_tables = {
-    "grade_by_sex.csv": df.groupby("sex")["G3"].agg(["count", "mean"]),
-    "grade_by_studytime.csv": df.groupby("studytime")["G3"].agg(["count", "mean"]),
-}
+    # Summary statistics and additional tables
+    summary = df.describe(include="all")
+    print(summary)
+    _save_table(summary, "summary.csv", table_dir)
 
-numeric_df = df.select_dtypes(include="number")
-corr = numeric_df.corr()
-group_tables["correlation_matrix.csv"] = corr
+    group_tables = {
+        "grade_by_sex.csv": df.groupby("sex")["G3"].agg(["count", "mean"]),
+        "grade_by_studytime.csv": df.groupby("studytime")["G3"].agg(["count", "mean"]),
+    }
 
-for name, table in group_tables.items():
-    save_table(table, name, table_dir)
+    numeric_df = df.select_dtypes(include="number")
+    corr = numeric_df.corr()
+    group_tables["correlation_matrix.csv"] = corr
+
+    for name, table in group_tables.items():
+        _save_table(table, name, table_dir)
+
+    # Plots
+    ax = sns.histplot(df["G3"], bins=20, kde=True)
+    ax.set(xlabel="Final Grade (G3)", ylabel="Count")
+    _save_figure(ax, "g3_distribution.png", fig_dir)
+
+    ax = sns.boxplot(data=df, x="sex", y="G3")
+    ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
+    _save_figure(ax, "g3_by_sex.png", fig_dir)
+
+    ax = sns.regplot(data=df, x="studytime", y="G3", scatter_kws={"s": 20})
+    ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
+    _save_figure(ax, "studytime_vs_g3.png", fig_dir)
+
+    # Distribution of all grade columns
+    grades_long = df[["G1", "G2", "G3"]].melt(
+        var_name="grade", value_name="score"
+    )
+    ax = sns.histplot(
+        data=grades_long,
+        x="score",
+        hue="grade",
+        bins=20,
+        element="step",
+        stat="density",
+        common_norm=False,
+    )
+    ax.set(xlabel="Grade", ylabel="Density")
+    _save_figure(ax, "grades_distribution.png", fig_dir)
+
+    ax = sns.regplot(data=df, x="absences", y="G3", scatter_kws={"s": 20})
+    ax.set(xlabel="Number of Absences", ylabel="Final Grade (G3)")
+    _save_figure(ax, "absences_vs_g3.png", fig_dir)
+
+    plt.figure(figsize=(10, 8))
+    ax = sns.heatmap(corr, cmap="vlag", center=0, square=True, cbar_kws={"shrink": 0.5})
+    _save_figure(ax, "correlation_heatmap.png", fig_dir)
+
+    g = sns.pairplot(
+        df[["G1", "G2", "G3"]],
+        kind="reg",
+        diag_kind="kde",
+        plot_kws={"scatter_kws": {"s": 20}},
+    )
+    g.fig.tight_layout()
+    g.fig.savefig(fig_dir / "grades_pairplot.png")
+    plt.close(g.fig)
 
 
-# Plots
-ax = sns.histplot(df["G3"], bins=20, kde=True)
-ax.set(xlabel="Final Grade (G3)", ylabel="Count")
-save_figure(ax, "g3_distribution.png", fig_dir)
+__all__ = ["run_eda"]
 
-ax = sns.boxplot(data=df, x="sex", y="G3")
-ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
-save_figure(ax, "g3_by_sex.png", fig_dir)
-
-ax = sns.regplot(data=df, x="studytime", y="G3", scatter_kws={"s": 20})
-ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
-save_figure(ax, "studytime_vs_g3.png", fig_dir)
-
-# Distribution of all grade columns
-grades_long = df[["G1", "G2", "G3"]].melt(var_name="grade", value_name="score")
-ax = sns.histplot(
-    data=grades_long,
-    x="score",
-    hue="grade",
-    bins=20,
-    element="step",
-    stat="density",
-    common_norm=False,
-)
-ax.set(xlabel="Grade", ylabel="Density")
-save_figure(ax, "grades_distribution.png", fig_dir)
-
-ax = sns.regplot(data=df, x="absences", y="G3", scatter_kws={"s": 20})
-ax.set(xlabel="Number of Absences", ylabel="Final Grade (G3)")
-save_figure(ax, "absences_vs_g3.png", fig_dir)
-
-plt.figure(figsize=(10, 8))
-ax = sns.heatmap(corr, cmap="vlag", center=0, square=True, cbar_kws={"shrink": 0.5})
-save_figure(ax, "correlation_heatmap.png", fig_dir)
-
-g = sns.pairplot(
-    df[["G1", "G2", "G3"]],
-    kind="reg",
-    diag_kind="kde",
-    plot_kws={"scatter_kws": {"s": 20}},
-)
-g.fig.tight_layout()
-g.fig.savefig(fig_dir / "grades_pairplot.png")
-plt.close(g.fig)
