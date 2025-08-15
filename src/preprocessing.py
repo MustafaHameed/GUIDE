@@ -5,7 +5,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler, OrdinalEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
-from .model import create_model
+try:
+    from .model import create_model            # normal package import
+except ImportError:  # fallback when run as a script (not recommended)
+    from model import create_model
 
 
 def build_pipeline(

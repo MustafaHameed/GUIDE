@@ -1,18 +1,23 @@
 """Student segmentation using clustering algorithms."""
 
 from __future__ import annotations
+import os
+
+# Set environment variable BEFORE importing scikit-learn
+if os.name == 'nt':  # Windows
+    os.environ['OMP_NUM_THREADS'] = '2'
 
 from pathlib import Path
-
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
-from sklearn.cluster import AgglomerativeClustering, KMeans
+import numpy as np
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans, AgglomerativeClustering
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-sns.set_theme(context="paper", style="whitegrid", font_scale=1.2)
-plt.rcParams["figure.dpi"] = 300
-plt.rcParams["savefig.dpi"] = 300
+sns.set_theme(context="paper", style="whitegrid", font_scale=1.1)
+plt.rcParams["figure.dpi"] = 150
+plt.rcParams["savefig.dpi"] = 150
 
 
 def save_table(table: pd.DataFrame, name: str, directory: Path) -> None:

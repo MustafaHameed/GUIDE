@@ -141,18 +141,17 @@ if page == "EDA Plots":
 elif page == "Model Performance":
     st.header("Model Performance")
     st.markdown(
-        "Metrics and comparisons are read from CSV files in **`tables/`**. "
-        "Typical files include: `results_summary.csv`, `statistical_tests.csv`, "
-        "`nested_cv_results.csv`, and confusion matrices saved as images."
+        "Metrics and comparisons are read from CSV files in **`tables/`** and **`reports/`**. "
+        "Typical files include: `model_performance.csv`, `classification_report.csv`, "
+        "`nested_cv_regression_metrics.csv`, and confusion matrices saved as images."
     )
 
     # Common tables (show any that exist)
     candidate_tables = [
-        ("Overall Results Summary", TABLES_DIR / "results_summary.csv"),
-        ("Nested CV Results",      TABLES_DIR / "nested_cv_results.csv"),
-        ("Statistical Tests",      TABLES_DIR / "statistical_tests.csv"),
-        ("Per-Class Metrics",      TABLES_DIR / "per_class_metrics.csv"),
-        ("Calibration Metrics",    TABLES_DIR / "calibration_metrics.csv"),
+        ("Model Performance Comparison", TABLES_DIR / "model_performance.csv"),
+        ("Nested CV Regression Metrics", REPORTS_DIR / "nested_cv_regression_metrics.csv"),
+        ("Classification Report",      REPORTS_DIR / "classification_report.csv"),
+        ("Best Hyperparameters",       REPORTS_DIR / "best_params.csv"),
     ]
     for title, path in candidate_tables:
         _show_table(path, title)
@@ -169,16 +168,15 @@ elif page == "Model Performance":
 elif page == "Fairness Metrics":
     st.header("Fairness Metrics")
     st.markdown(
-        "Displays any fairness-related tables or figures you export to **`tables/`** and **`figures/`**. "
-        "Common filenames: `fairness_group_metrics.csv`, `fairness_thresholds.csv`, etc."
+        "Displays any fairness-related tables or figures you export to **`reports/`** and **`figures/`**. "
+        "Run training with `--group-cols` to generate these."
     )
-    fairness_tables = [
-        ("Group Metrics",      TABLES_DIR / "fairness_group_metrics.csv"),
-        ("Threshold Analysis", TABLES_DIR / "fairness_thresholds.csv"),
-        ("Parity Checks",      TABLES_DIR / "fairness_parity.csv"),
-    ]
-    for title, path in fairness_tables:
-        _show_table(path, title)
+    # Find all fairness reports
+    fairness_tables = sorted(REPORTS_DIR.glob("fairness_*.csv"))
+    if not fairness_tables:
+        st.info("No fairness reports found. Run training with a `--group-cols` argument.")
+    for path in fairness_tables:
+        _show_table(path, f"Fairness Metrics for {path.stem.split('_', 1)[1]}")
 
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]

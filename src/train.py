@@ -3,6 +3,7 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     RocCurveDisplay,
+    precision_score,
 )
 from sklearn.inspection import permutation_importance, PartialDependenceDisplay
 from sklearn.linear_model import LogisticRegression
@@ -14,13 +15,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 from lime.lime_tabular import LimeTabularExplainer
-import dice_ml
+try:
+    import dice_ml
+except ImportError:
+    dice_ml = None
+
+def positive_predictive_value(y_true, y_pred):
+    return precision_score(y_true, y_pred, zero_division=0)
+
 from fairlearn.metrics import (
     MetricFrame,
     selection_rate,
     true_positive_rate,
     false_positive_rate,
-    positive_predictive_value,
 )
 from fairlearn.postprocessing import ThresholdOptimizer
 
@@ -183,6 +190,8 @@ def main(
         model = pipeline
         model.fit(X_train, y_train)
         best_params = model.named_steps["model"].get_params()
+    # Keep original fitted pipeline for explanations even if mitigation wraps it
+    fitted_pipeline = model
     # Optionally apply fairness mitigation using post-processing
     if mitigation != "none":
         if not group_cols:
@@ -203,13 +212,13 @@ def main(
             )
             mitigator.fit(X_train, y_train, sensitive_features=sens_train)
             y_pred = mitigator.predict(X_test, sensitive_features=sens_test)
-            # ThresholdOptimizer does not expose a public probability API
+            # ThresholdOptimizer may not expose predict_proba
             y_prob = (
                 mitigator.predict_proba(X_test, sensitive_features=sens_test)[:, 1]
                 if hasattr(mitigator, "predict_proba")
                 else None
             )
-            model = mitigator
+            model = mitigator  # wrapped model (use fitted_pipeline for LIME/SHAP)
     else:
         y_pred = model.predict(X_test)
         y_prob = (
@@ -288,7 +297,7 @@ def main(
                 )
                 plt.close()
 
-                               if y_prob_g is not None:
+                if y_prob_g is not None:
                     RocCurveDisplay.from_predictions(y_true_g, y_prob_g)
                     plt.tight_layout()
                     plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
@@ -333,7 +342,7 @@ def main(
 
     # LIME explanations for selected samples
     try:
-        preprocessor = model.named_steps["preprocess"]
+        preprocessor = fitted_pipeline.named_steps["preprocess"]
         train_trans = preprocessor.transform(X_train)
         if hasattr(train_trans, "toarray"):
             train_trans = train_trans.toarray()
@@ -351,10 +360,13 @@ def main(
             continuous_features=feature_names,
             outcome_name="target",
         )
-        dice_model = dice_ml.Model(
-            model=model.named_steps["model"], backend="sklearn"
-        )
-        dice = dice_ml.Dice(dice_data, dice_model, method="random")
+        if dice_ml is not None:
+            dice_model = dice_ml.Model(
+                model=fitted_pipeline.named_steps["model"], backend="sklearn"
+            )
+            dice = dice_ml.Dice(dice_data, dice_model, method="random")
+        else:
+            dice = None
         test_trans = preprocessor.transform(X_test)
         if hasattr(test_trans, "toarray"):
             test_trans = test_trans.toarray()
@@ -365,7 +377,7 @@ def main(
             )
         else:
             sample_idx = mis_idx[: min(3, mis_idx.size)]
-        predict_fn = model.named_steps["model"].predict_proba
+        predict_fn = fitted_pipeline.named_steps["model"].predict_proba
         for idx in sample_idx:
             exp = explainer.explain_instance(
                 test_trans[idx],
@@ -380,12 +392,13 @@ def main(
                 query_df = pd.DataFrame(
                     [test_trans[idx]], columns=feature_names
                 )
-                cf = dice.generate_counterfactuals(
-                    query_df, total_CFs=1, desired_class="opposite"
-                )
-                cf.cf_examples_list[0].final_cfs_df.to_csv(
-                    report_dir / f"counterfactual_{idx}.csv", index=False
-                )
+                if dice is not None:
+                    cf = dice.generate_counterfactuals(
+                        query_df, total_CFs=1, desired_class="opposite"
+                    )
+                    cf.cf_examples_list[0].final_cfs_df.to_csv(
+                        report_dir / f"counterfactual_{idx}.csv", index=False
+                    )
             except Exception as e:
                 print(f"Counterfactual generation failed for index {idx}: {e}")    
     except Exception as e:
@@ -397,7 +410,7 @@ def main(
     try:
         import shap
 
-        explainer = shap.Explainer(model, X_train)
+        explainer = shap.Explainer(fitted_pipeline, X_train)
         shap_values = explainer(X_train)
         importance = np.abs(shap_values.values).mean(axis=0)
         shap.summary_plot(shap_values, X_train, show=False)
@@ -412,7 +425,7 @@ def main(
         importance_df.to_csv(fi_csv, index=False)
     except Exception:
         result = permutation_importance(
-            model, X_test, y_test, n_repeats=10, random_state=42
+            fitted_pipeline, X_test, y_test, n_repeats=10, random_state=42
         )
         importance_df = (
             pd.DataFrame({
@@ -433,14 +446,14 @@ def main(
         safe_name = str(feat).replace(" ", "_")
         try:
             PartialDependenceDisplay.from_estimator(
-                model, X_train, [feat], kind="average"
+                fitted_pipeline, X_train, [feat], kind="average"
             )
             plt.tight_layout()
             plt.savefig(fig_dir / f"pdp_{safe_name}.png")
             plt.close()
 
             PartialDependenceDisplay.from_estimator(
-                model, X_train, [feat], kind="individual"
+                fitted_pipeline, X_train, [feat], kind="individual"
             )
             plt.tight_layout()
             plt.savefig(fig_dir / f"ice_{safe_name}.png")
