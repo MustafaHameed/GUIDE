@@ -116,6 +116,7 @@ page = st.sidebar.selectbox(
         "Fairness Metrics",
         "Counterfactuals",
         "Explanations",
+        "Concept Explanations",
     ],
     index=0,
 )
@@ -253,7 +254,7 @@ elif page == "Counterfactuals":
     for path in cf_tables:
         _show_table(path, path.stem.replace("_", " ").title())
 
-elif page == "Explanations":
+elif page == "Concept Explanations":
     st.header("Concept-Level Explanations")
     st.markdown(
         "Causal effects of pedagogical concepts on final grades. "

@@ -74,12 +74,13 @@ def create_model(model_type: str = "logistic", **kwargs):
         task = kwargs.pop("task", "classification")
         return create_stacking(estimators, final_est, task=task, **kwargs)
     if model_type == "xgboost":
-        if XGBClassifier is None:  # pragma: no cover - requires optional package
-            raise ImportError(
-                "xgboost is not installed. Install xgboost to use this model."
-            )
-        # Silence warning about label encoder for recent xgboost versions
-        return XGBClassifier(use_label_encoder=False, eval_metric="logloss", **kwargs)
+        if XGBClassifier is None:
+            raise ImportError("xgboost not installed.")
+        return XGBClassifier(
+            objective="binary:logistic",
+            eval_metric="logloss",
+            **kwargs,
+        )
     if model_type == "lightgbm":
         if LGBMClassifier is None:  # pragma: no cover - requires optional package
             raise ImportError(

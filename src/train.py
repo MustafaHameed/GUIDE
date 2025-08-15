@@ -14,6 +14,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+import warnings
+
+# Suppress common warnings for cleaner output
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
+warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
+warnings.filterwarnings("ignore", category=Warning, module="lightgbm")
+
 from lime.lime_tabular import LimeTabularExplainer
 try:
     import dice_ml
