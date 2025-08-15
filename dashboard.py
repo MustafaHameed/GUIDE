@@ -64,9 +64,14 @@ def _list_images(
 ) -> list[Path]:
     if not folder.exists():
         return []
-    files = []
+    files: set[Path] = set()
     for ext in patterns:
-        files.extend(folder.glob(f"*{ext}"))
+        # Build a case-insensitive glob pattern such as *.[pP][nN][gG]
+        suffix = ext.lstrip(".")
+        ci_pattern = "*." + "".join(
+            f"[{c.lower()}{c.upper()}]" if c.isalpha() else c for c in suffix
+        )
+        files.update(folder.glob(ci_pattern))
     return sorted(files)
 
 def _show_images_grid(
