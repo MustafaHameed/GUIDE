@@ -77,7 +77,6 @@ def _list_images(
 def _show_images_grid(
     image_paths: list[Path], cols: int = 2, caption_from_name: bool = True
 ):
-def _show_images_grid(image_paths: list[Path], cols: int = 2, caption_from_name: bool = True):
     if not image_paths:
         st.info("No figures found yet. Generate them via your EDA/training scripts.")
         return
@@ -126,9 +125,15 @@ def _show_table(csv_path: Path, title: str):
         key=f"dl_{csv_path.name}",
     )
 
-# ---------- Sidebar Navigation ----------
-page = st.sidebar.selectbox(
-    "Navigation",
+# ---------- Page Navigation ----------
+(
+    tab_eda,
+    tab_model,
+    tab_fairness,
+    tab_counterfactuals,
+    tab_explanations,
+    tab_concepts,
+) = st.tabs(
     [
         "EDA Plots",
         "Model Performance",
@@ -137,7 +142,6 @@ page = st.sidebar.selectbox(
         "Explanations",
         "Concept Explanations",
     ],
-    index=0,
 )
 
 if st.sidebar.button("Refresh data"):
@@ -152,7 +156,7 @@ st.sidebar.code(f"reports → {REPORTS_DIR}", language="bash")
 
 # ---------- Pages ----------
 
-if page == "EDA Plots":
+with tab_eda:
     st.header("Exploratory Data Analysis")
     st.markdown(
         "This section displays pre-generated figures from the **`figures/`** directory. "
@@ -162,7 +166,7 @@ if page == "EDA Plots":
     eda_imgs = _list_images(FIGURES_DIR)
     _show_images_grid(eda_imgs, cols=2)
 
-elif page == "Model Performance":
+with tab_model:
     st.header("Model Performance")
     st.markdown(
         "Metrics and comparisons are read from CSV files in **`tables/`** and **`reports/`**. "
@@ -189,7 +193,7 @@ elif page == "Model Performance":
     else:
         st.info("No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`.")
 
-elif page == "Fairness Metrics":
+with tab_fairness:
     st.header("Fairness Metrics")
     st.markdown(
         "Displays any fairness-related tables or figures you export to **`reports/`** and **`figures/`**. "
@@ -206,7 +210,22 @@ elif page == "Fairness Metrics":
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
     _show_images_grid(fairness_imgs, cols=2)
 
-elif page == "Explanations":
+with tab_counterfactuals:
+    st.header("Counterfactual Examples")
+    st.markdown(
+        "Displays counterfactual tables generated during training. "
+        "Files are read from the **`reports/`** directory."
+    )
+    cf_tables = sorted(REPORTS_DIR.glob("counterfactual_*.csv"))
+    cf_tables += sorted(REPORTS_DIR.glob("early_counterfactual_*.csv"))
+    if not cf_tables:
+        st.info(
+            "No counterfactual tables found. Run training scripts to generate them."
+        )
+    for path in cf_tables:
+        _show_table(path, path.stem.replace("_", " ").title())
+
+with tab_explanations:
     st.header("Model Explanations")
     st.markdown(
         "Explore global and local explanations generated with **SHAP** and **LIME**. "
@@ -265,22 +284,7 @@ elif page == "Explanations":
         except Exception as e:
             st.warning(f"Could not read uploaded file: {e}")
 
-elif page == "Counterfactuals":
-    st.header("Counterfactual Examples")
-    st.markdown(
-        "Displays counterfactual tables generated during training. "
-        "Files are read from the **`reports/`** directory."
-    )
-    cf_tables = sorted(REPORTS_DIR.glob("counterfactual_*.csv"))
-    cf_tables += sorted(REPORTS_DIR.glob("early_counterfactual_*.csv"))
-    if not cf_tables:
-        st.info(
-            "No counterfactual tables found. Run training scripts to generate them."
-        )
-    for path in cf_tables:
-        _show_table(path, path.stem.replace("_", " ").title())
-
-elif page == "Concept Explanations":
+with tab_concepts:
     st.header("Concept-Level Explanations")
     st.markdown(
         "Causal effects of pedagogical concepts on final grades. "
@@ -294,7 +298,6 @@ elif page == "Concept Explanations":
         st.info(
             "`concept_importance.png` not found. Run `python src/concepts.py` to generate it."
         )
-
 # ---------- Optional: lightweight data/pipeline showcase ----------
 with st.expander("Quick Sanity Check (loads a few rows)"):
     st.write(
