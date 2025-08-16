@@ -175,7 +175,7 @@ elif current_tab == "Model Performance":
     # Common tables (show any that exist)
     candidate_tables = [
         ("Model Performance Comparison", TABLES_DIR / "model_performance.csv"),
-        ("Nested CV Regression Metrics", REPORTS_DIR / "nested_cv_regression_metrics.csv"),
+        ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),  # Changed from REPORTS_DIR to TABLES_DIR
         ("Classification Report",      REPORTS_DIR / "classification_report.csv"),
         ("Best Hyperparameters",       REPORTS_DIR / "best_params.csv"),
     ]
