@@ -107,7 +107,7 @@ def _show_images_grid(
                         file_name=p.name,
                         mime="image/svg+xml" if p.suffix.lower() == ".svg" else None,
                         key=f"dl_{p.name}_{i}",
-                                        
+                    )
                 except Exception as e:
                     st.warning(f"Failed to display `{p.name}` → {e}")
 
