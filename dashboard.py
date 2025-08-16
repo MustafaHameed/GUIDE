@@ -19,6 +19,7 @@ Optional (Windows/MKL): set OMP threads to avoid KMeans warning/leak
     $env:OMP_NUM_THREADS=2
 """
 
+from contextlib import contextmanager
 from pathlib import Path
 import io
 import pandas as pd
@@ -82,14 +83,26 @@ def _read_file_bytes(path: str) -> bytes:
     return Path(path).read_bytes()
 
 def _show_images_grid(
-    image_paths: list[Path], cols: int = 2, caption_from_name: bool = True
+    image_paths: list[Path], cols: int = 2, caption_from_name: bool = True, max_per_page: int = 6
 ):
     if not image_paths:
         st.info("No figures found yet. Generate them via your EDA/training scripts.")
         return
+    
+    # Add pagination
+    total_pages = (len(image_paths) + max_per_page - 1) // max_per_page
+    if total_pages > 1:
+        page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, key=f"page_{hash(str(image_paths))}")
+        start_idx = (page - 1) * max_per_page
+        end_idx = min(start_idx + max_per_page, len(image_paths))
+        current_paths = image_paths[start_idx:end_idx]
+        st.caption(f"Showing {start_idx+1}-{end_idx} of {len(image_paths)} images")
+    else:
+        current_paths = image_paths
+        
     # chunk images
-    for i in range(0, len(image_paths), cols):
-        row_paths = image_paths[i : i + cols]
+    for i in range(0, len(current_paths), cols):
+        row_paths = current_paths[i : i + cols]
         cols_objs = st.columns(len(row_paths))
         for c, p in zip(cols_objs, row_paths):
             with c:
@@ -128,38 +141,20 @@ def _show_table(csv_path: Path, title: str):
     )
 
 # ---------- Page Navigation ----------
-(
-    tab_eda,
-    tab_model,
-    tab_fairness,
-    tab_counterfactuals,
-    tab_explanations,
-    tab_concepts,
-) = st.tabs(
-    [
-        "EDA Plots",
-        "Model Performance",
-        "Fairness Metrics",
-        "Counterfactuals",
-        "Explanations",
-        "Concept Explanations",
-    ],
-)
+tab_names = [
+    "EDA Plots",
+    "Model Performance",
+    "Fairness Metrics",
+    "Counterfactuals",
+    "Explanations",
+    "Concept Explanations",
+]
 
-if st.sidebar.button("Refresh data"):
-    _safe_read_csv.clear()
-    _list_images.clear()
-    st.sidebar.success("Data cache cleared")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Project folders**")
-st.sidebar.code(f"figures → {FIGURES_DIR}", language="bash")
-st.sidebar.code(f"tables  → {TABLES_DIR}", language="bash")
-st.sidebar.code(f"reports → {REPORTS_DIR}", language="bash")
+current_tab = st.sidebar.radio("Navigation", tab_names)
 
 # ---------- Pages ----------
 
-with tab_eda:
+if current_tab == "EDA Plots":
     st.header("Exploratory Data Analysis")
     st.markdown(
         "This section displays pre-generated figures from the **`figures/`** directory. "
@@ -169,7 +164,7 @@ with tab_eda:
     eda_imgs = _list_images(FIGURES_DIR)
     _show_images_grid(eda_imgs, cols=2)
 
-with tab_model:
+elif current_tab == "Model Performance":
     st.header("Model Performance")
     st.markdown(
         "Metrics and comparisons are read from CSV files in **`tables/`** and **`reports/`**. "
@@ -196,7 +191,7 @@ with tab_model:
     else:
         st.info("No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`.")
 
-with tab_fairness:
+elif current_tab == "Fairness Metrics":
     st.header("Fairness Metrics")
     st.markdown(
         "Displays any fairness-related tables or figures you export to **`reports/`** and **`figures/`**. "
@@ -213,7 +208,7 @@ with tab_fairness:
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
     _show_images_grid(fairness_imgs, cols=2)
 
-with tab_counterfactuals:
+elif current_tab == "Counterfactuals":
     st.header("Counterfactual Examples")
     st.markdown(
         "Displays counterfactual tables generated during training. "
@@ -228,7 +223,7 @@ with tab_counterfactuals:
     for path in cf_tables:
         _show_table(path, path.stem.replace("_", " ").title())
 
-with tab_explanations:
+elif current_tab == "Explanations":
     st.header("Model Explanations")
     st.markdown(
         "Explore global and local explanations generated with **SHAP** and **LIME**. "
@@ -287,7 +282,7 @@ with tab_explanations:
         except Exception as e:
             st.warning(f"Could not read uploaded file: {e}")
 
-with tab_concepts:
+elif current_tab == "Concept Explanations":
     st.header("Concept-Level Explanations")
     st.markdown(
         "Causal effects of pedagogical concepts on final grades. "
@@ -319,3 +314,29 @@ with st.expander("Quick Sanity Check (loads a few rows)"):
             st.success("Pipeline created successfully.")
     except Exception as e:
         st.warning(f"Sanity check failed: {e}")
+
+@contextmanager
+def st_progress_operation(message="Processing..."):
+    """Context manager to show progress during potentially slow operations."""
+    progress = st.progress(0)
+    status = st.empty()
+    status.text(message)
+    try:
+        yield
+    finally:
+        progress.progress(100)
+        status.empty()
+
+# Add a memory cleanup function:
+def cleanup_memory():
+    """Force garbage collection and clear caches."""
+    import gc
+    _safe_read_csv.clear()
+    _list_images.clear()
+    _read_file_bytes.clear()
+    gc.collect()
+    st.sidebar.success("Memory cleaned up")
+
+# Add this button to sidebar:
+if st.sidebar.button("Clean Memory"):
+    cleanup_memory()
