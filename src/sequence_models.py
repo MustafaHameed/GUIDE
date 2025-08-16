@@ -43,6 +43,7 @@ def _train_rnn(
     y_test: np.ndarray,
     hidden_size: int = 8,
     epochs: int = 50,
+    learning_rate: float = 0.01,
     save_importance: bool = False,
 ) -> float:
     """Train an attention-based RNN classifier and return accuracy.
@@ -74,7 +75,7 @@ def _train_rnn(
 
     model = AttentionRNN()
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     X_train_t = torch.tensor(X_train, dtype=torch.float32)
     y_train_t = torch.tensor(y_train, dtype=torch.long)
@@ -152,7 +153,13 @@ def _train_hmm(
     return accuracy_score(y_test, preds)
 
 
-def evaluate_sequence_model(csv_path: str, model_type: str = "rnn") -> pd.DataFrame:
+def evaluate_sequence_model(
+    csv_path: str,
+    model_type: str = "rnn",
+    hidden_size: int = 8,
+    epochs: int = 50,
+    learning_rate: float = 0.01,
+) -> pd.DataFrame:
     """Train on partial grade sequences and evaluate accuracy.
 
     Parameters
@@ -161,6 +168,12 @@ def evaluate_sequence_model(csv_path: str, model_type: str = "rnn") -> pd.DataFr
         Path to the student performance CSV file.
     model_type : {'rnn', 'hmm'}
         Sequence model to use.
+    hidden_size : int, default 8
+        RNN hidden dimension when ``model_type='rnn'``.
+    epochs : int, default 50
+        Number of training epochs for the RNN.
+    learning_rate : float, default 0.01
+        Optimizer learning rate for the RNN.
 
     Returns
     -------

@@ -133,6 +133,9 @@ def main(
     final_estimator: str = "logistic",
     base_estimator: str = "decision_tree",
     sequence_model: str | None = None,
+    hidden_size: int = 8,
+    epochs: int = 50,
+    learning_rate: float = 0.01,
     mitigation: str = "none",
 ):
     """Train model and generate evaluation artifacts.
@@ -160,12 +163,24 @@ def main(
     sequence_model : str | None, optional
         If provided, trains a sequence model (``'rnn'`` or ``'hmm'``) on
         grade sequences instead of a standard tabular model.
+    hidden_size : int, default 8
+        Hidden dimension for the RNN when ``sequence_model='rnn'``.
+    epochs : int, default 50
+        Number of training epochs for the RNN.
+    learning_rate : float, default 0.01
+        Learning rate for the RNN optimizer.
     mitigation : str, default "none"
         Fairness mitigation strategy to apply (``'demographic_parity'`` or
         ``'equalized_odds'``). Requires ``group_cols``.
     """
     if sequence_model:
-        evaluate_sequence_model(csv_path, model_type=sequence_model)
+        evaluate_sequence_model(
+            csv_path,
+            model_type=sequence_model,
+            hidden_size=hidden_size,
+            epochs=epochs,
+            learning_rate=learning_rate,
+        )
         return
     
     X, y = load_data(csv_path, pass_threshold=pass_threshold)
@@ -566,7 +581,16 @@ if __name__ == '__main__':
         choices=['rnn', 'hmm'],
         default=None,
         help='Train a sequence model on grades G1 and G2',
-    )    
+    )
+    parser.add_argument(
+        '--hidden-size', type=int, default=8, help='RNN hidden layer size'
+    )
+    parser.add_argument(
+        '--epochs', type=int, default=50, help='Number of RNN training epochs'
+    )
+    parser.add_argument(
+        '--learning-rate', type=float, default=0.01, help='RNN learning rate'
+    )   
     parser.add_argument(
         '--mitigation',
         choices=['none', 'demographic_parity', 'equalized_odds'],
@@ -583,6 +607,9 @@ if __name__ == '__main__':
         final_estimator=args.final_estimator,
         base_estimator=args.base_estimator,
         sequence_model=args.sequence_model,
+        hidden_size=args.hidden_size,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
         mitigation=args.mitigation,
         pass_threshold=args.pass_threshold,
     )
