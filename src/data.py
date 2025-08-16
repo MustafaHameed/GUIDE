@@ -5,22 +5,37 @@ from __future__ import annotations
 import pandas as pd
 
 
-def load_data(csv_path: str, pass_threshold: int = 10):
-    """Load dataset and create binary target indicating pass/fail.
+def load_data(
+    csv_path: str, pass_threshold: int = 10, task: str = "classification"
+):
+    """Load dataset and return features/target for the requested task
 
     Parameters
     ----------
     csv_path : str
         Path to the CSV file.
     pass_threshold : int, default 10
-        Minimum ``G3`` grade considered a passing score.
+        Minimum ``G3`` grade considered a passing score when ``task`` is
+        ``"classification"``.
+    task : {"classification", "regression"}, default "classification"
+        Which prediction task to prepare the data for. Classification creates a
+        binary ``pass`` target while regression uses the raw ``G3`` grade.
     """
 
     df = pd.read_csv(csv_path)
-    df["pass"] = (df["G3"] >= pass_threshold).astype(int)
-    X = df.drop(columns=["G3", "pass"])
-    y = df["pass"]
-    return X, y
+
+    if task == "classification":
+        df["pass"] = (df["G3"] >= pass_threshold).astype(int)
+        X = df.drop(columns=["G3", "pass"])
+        y = df["pass"]
+        return X, y
+
+    if task == "regression":
+        X = df.drop(columns=["G3"])
+        y = df["G3"]
+        return X, y
+
+    raise ValueError(f"Unsupported task: {task}")
 
 
 def load_early_data(

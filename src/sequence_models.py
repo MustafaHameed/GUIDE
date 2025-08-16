@@ -195,6 +195,9 @@ def evaluate_sequence_model(
                 X_test,
                 y_test,
                 save_importance=steps == X_seq.shape[1],
+                hidden_size=hidden_size,
+                epochs=epochs,
+                learning_rate=learning_rate,
             )
         elif model_type == "hmm":
             acc = _train_hmm(X_train, y_train, X_test, y_test)

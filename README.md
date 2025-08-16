@@ -82,7 +82,8 @@ The `--task` flag also enables a regression mode:
 python -m src.train --task regression
 ```
 
-Regression predicts the final grade and outputs RMSE, MAE and R² metrics plus a learning curve figure.
+Regression predicts the final grade and reports RMSE, MAE and R² scores. Use
+`--model-type` (e.g. `linear`, `random_forest`) to select the regressor.
 
 To compute fairness metrics for specific demographic groups (classification only), supply the column names:
 
@@ -123,6 +124,18 @@ also computes feature importances via SHAP when available (otherwise permutation
 importance), saving a ranked CSV to
 `reports/early_feature_importance_G1.csv` and a plot to
 `figures/early_feature_importance_G1.png`.
+
+### Sequence models
+
+The training script can also evaluate grade sequences with an RNN or HMM:
+
+```bash
+python -m src.train --sequence-model rnn
+```
+
+When using the RNN, the hidden size, number of epochs, and learning rate can be
+adjusted via ``--hidden-size``, ``--epochs``, and ``--learning-rate``. The
+defaults are 8, 50, and 0.01 respectively.
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and summary tables:

@@ -12,7 +12,10 @@ except ImportError:  # fallback when run as a script (not recommended)
 
 
 def build_pipeline(
-    X, model_type: str = "logistic", model_params: dict | None = None
+    X,
+    model_type: str = "logistic",
+    model_params: dict | None = None,
+    task: str = "classification",
 ):
     """Build preprocessing and modeling pipeline.
 
@@ -76,5 +79,5 @@ def build_pipeline(
     )
 
     model_params = model_params or {}
-    clf = create_model(model_type, **model_params)
+    clf = create_model(model_type, task=task, **model_params)
     return Pipeline(steps=[("preprocess", preprocess), ("model", clf)])

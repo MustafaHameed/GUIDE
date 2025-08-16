@@ -4,10 +4,13 @@ from sklearn.metrics import (
     confusion_matrix,
     RocCurveDisplay,
     precision_score,
+    mean_squared_error,
+    mean_absolute_error,
+    r2_score,
 )
 from sklearn.inspection import permutation_importance, PartialDependenceDisplay
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import argparse
 import pandas as pd
 import seaborn as sns
@@ -123,6 +126,57 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
         }
     },
 }
+
+REGRESSION_PARAM_GRIDS: dict[str, dict[str, dict]] = {
+    "linear": {"default": {}},
+    "random_forest": {
+        "default": {
+            "model__n_estimators": [100, 200],
+            "model__max_depth": [None, 5, 10],
+        }
+    },
+    "gradient_boosting": {
+        "default": {
+            "model__n_estimators": [100, 200],
+            "model__learning_rate": [0.05, 0.1],
+        }
+    },
+    "svm": {
+        "default": {
+            "model__C": [0.1, 1.0, 10.0],
+            "model__kernel": ["linear", "rbf"],
+            "model__gamma": ["scale", "auto"],
+        }
+    },
+    "knn": {
+        "default": {
+            "model__n_neighbors": [5, 10, 15],
+            "model__weights": ["uniform", "distance"],
+        }
+    },
+    "mlp": {
+        "default": {
+            "model__hidden_layer_sizes": [(50,), (100,)],
+            "model__alpha": [0.0001, 0.001],
+            "model__learning_rate_init": [0.001, 0.01],
+        }
+    },
+    "bagging": {
+        "default": {
+            "model__n_estimators": [10, 50],
+            "model__max_samples": [0.5, 1.0],
+        }
+    },
+    "stacking": {
+        "default": {
+            "model__final_estimator": [
+                LinearRegression(),
+                RandomForestRegressor(),
+            ],
+            "model__passthrough": [False, True],
+        }
+    },
+}
 def main(
     csv_path: str = "student-mat.csv",
     pass_threshold: int = 10,
@@ -137,6 +191,7 @@ def main(
     epochs: int = 50,
     learning_rate: float = 0.01,
     mitigation: str = "none",
+    task: str = "classification",
 ):
     """Train model and generate evaluation artifacts.
 
@@ -172,6 +227,9 @@ def main(
     mitigation : str, default "none"
         Fairness mitigation strategy to apply (``'demographic_parity'`` or
         ``'equalized_odds'``). Requires ``group_cols``.
+    task : str, default "classification"
+        ``"classification"`` for pass/fail prediction or ``"regression"`` to
+        predict the raw ``G3`` grade.
     """
     if sequence_model:
         evaluate_sequence_model(
@@ -183,16 +241,34 @@ def main(
         )
         return
     
-    X, y = load_data(csv_path, pass_threshold=pass_threshold)
-    model_params: dict | None = None
-    if model_type == "stacking":
-        model_params = {
-            "estimators": estimators or ["logistic", "random_forest"],
-            "final_estimator": final_estimator,
-        }
-    elif model_type == "bagging":
-        model_params = {"base_estimator": base_estimator}
-    pipeline = build_pipeline(X, model_type=model_type, model_params=model_params)
+    if task == "regression":
+        X, y = load_data(csv_path, task="regression")
+        model_params: dict | None = None
+        if model_type == "stacking":
+            model_params = {
+                "estimators": estimators or ["linear", "random_forest"],
+                "final_estimator": final_estimator,
+            }
+        elif model_type == "bagging":
+            model_params = {"base_estimator": base_estimator}
+        pipeline = build_pipeline(
+            X, model_type=model_type, model_params=model_params, task="regression"
+        )
+    else:
+        X, y = load_data(
+            csv_path, pass_threshold=pass_threshold, task="classification"
+        )
+        model_params: dict | None = None
+        if model_type == "stacking":
+            model_params = {
+                "estimators": estimators or ["logistic", "random_forest"],
+                "final_estimator": final_estimator,
+            }
+        elif model_type == "bagging":
+            model_params = {"base_estimator": base_estimator}
+        pipeline = build_pipeline(
+            X, model_type=model_type, model_params=model_params, task="classification"
+        )
 
     # Prepare output directories
     fig_dir = Path('figures')
@@ -201,17 +277,26 @@ def main(
     report_dir.mkdir(exist_ok=True)
 
     # Hold-out evaluation
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
-    )
+    if task == "regression":
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        grid_dict = REGRESSION_PARAM_GRIDS
+        scoring = "neg_mean_squared_error"
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, stratify=y, random_state=42
+        )
+        grid_dict = PARAM_GRIDS
+        scoring = "f1"
 
-    grid = PARAM_GRIDS.get(model_type, {}).get(param_grid)
+    grid = grid_dict.get(model_type, {}).get(param_grid)
 
     best_params: dict | None = None
     best_score: float | None = None
 
     if grid:
-        search = GridSearchCV(pipeline, grid, cv=5, scoring="f1")
+        search = GridSearchCV(pipeline, grid, cv=5, scoring=scoring)
         search.fit(X_train, y_train)
         model = search.best_estimator_
         best_params = model.named_steps["model"].get_params()
@@ -221,6 +306,21 @@ def main(
         model = pipeline
         model.fit(X_train, y_train)
         best_params = model.named_steps["model"].get_params()
+
+    if task == "regression":
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        print(f"RMSE: {rmse:.3f}\nMAE: {mae:.3f}\nR^2: {r2:.3f}")
+        pd.DataFrame({"rmse": [rmse], "mae": [mae], "r2": [r2]}).to_csv(
+            report_dir / "regression_metrics.csv", index=False
+        )
+        best_params_df = pd.DataFrame([best_params or {}])
+        best_params_df.insert(0, "best_score", best_score)
+        best_params_df.to_csv(report_dir / "best_params.csv", index=False)
+        return
     # Keep original fitted pipeline for explanations even if mitigation wraps it
     fitted_pipeline = model
     # Optionally apply fairness mitigation using post-processing
@@ -550,7 +650,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--model-type',
-        choices=list(PARAM_GRIDS.keys()),
+        choices=list(set(PARAM_GRIDS.keys()) | set(REGRESSION_PARAM_GRIDS.keys())),
         default='logistic',
         help='Type of model to train',
     )
@@ -597,7 +697,15 @@ if __name__ == '__main__':
         default='none',
         help='Fairness mitigation strategy to apply',
     )
+    parser.add_argument(
+        '--task',
+        choices=['classification', 'regression'],
+        default='classification',
+        help='Prediction task to run',
+    )
     args = parser.parse_args()
+    if args.task == 'regression' and args.model_type == 'logistic':
+        args.model_type = 'linear'
     main(
         csv_path=args.csv_path,
         group_cols=args.group_cols,
@@ -612,4 +720,5 @@ if __name__ == '__main__':
         learning_rate=args.learning_rate,
         mitigation=args.mitigation,
         pass_threshold=args.pass_threshold,
+        task=args.task,
     )
