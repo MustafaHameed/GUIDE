@@ -59,6 +59,7 @@ def _safe_read_csv(path: Path) -> pd.DataFrame | None:
 
 
 
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def _list_images(
     folder: Path, patterns=(".png", ".jpg", ".jpeg", ".svg", ".webp")
 ) -> list[Path]:
@@ -147,6 +148,7 @@ def _show_table(csv_path: Path, title: str):
 
 if st.sidebar.button("Refresh data"):
     _safe_read_csv.clear()
+    _list_images.clear()
     st.sidebar.success("Data cache cleared")
 
 st.sidebar.markdown("---")
