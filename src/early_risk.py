@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from pathlib import Path
+import argparse
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, cross_validate
@@ -22,8 +23,11 @@ def train_early(
     csv_path: str = "student-mat.csv",
     upto_grade: int = 1,
     model_type: str = "logistic",
+    pass_threshold: int = 10,
 ):
-    X, y = load_early_data(csv_path, upto_grade=upto_grade)
+    X, y = load_early_data(
+        csv_path, upto_grade=upto_grade, pass_threshold=pass_threshold
+    )
     pipeline = build_pipeline(X, model_type=model_type)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     scores = cross_validate(pipeline, X, y, cv=cv, scoring=["accuracy", "f1"])
@@ -59,4 +63,17 @@ def train_early(
     return imp
 
 if __name__ == "__main__":
-    train_early()
+    parser = argparse.ArgumentParser(
+        description="Train a classifier using early grade data"
+    )
+    parser.add_argument("--csv-path", default="student-mat.csv")
+    parser.add_argument("--upto-grade", type=int, default=1)
+    parser.add_argument("--model-type", default="logistic")
+    parser.add_argument("--pass-threshold", type=int, default=10)
+    args = parser.parse_args()
+    train_early(
+        csv_path=args.csv_path,
+        upto_grade=args.upto_grade,
+        model_type=args.model_type,
+        pass_threshold=args.pass_threshold,
+    )

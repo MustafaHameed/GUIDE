@@ -24,6 +24,7 @@ from .eda import run_eda
 
 def main(
     csv_path: str = "student-mat.csv",
+    pass_threshold: int = 10,
     figures_dir: str | Path = "figures",
     tables_dir: str | Path = "tables",
     fit: bool = False,
@@ -34,6 +35,8 @@ def main(
     ----------
     csv_path:
         Location of the raw CSV file.
+    pass_threshold : int, default 10
+        Minimum ``G3`` grade considered a passing score.
     figures_dir, tables_dir:
         Directories where EDA output is written.
     fit:
@@ -55,7 +58,7 @@ def main(
     run_eda(df, fig_dir=figures_dir, table_dir=tables_dir)
 
     # Build pipeline using feature matrix returned by ``load_data``
-    X, y = load_data(str(csv_path))
+    X, y = load_data(str(csv_path), pass_threshold=pass_threshold)
     pipeline = build_pipeline(X)
     if fit:
         pipeline.fit(X, y)
@@ -68,6 +71,12 @@ def _parse_args() -> argparse.Namespace:
         "--csv-path",
         default="student-mat.csv",
         help="Path to CSV file containing the dataset",
+    )
+    parser.add_argument(
+        "--pass-threshold",
+        type=int,
+        default=10,
+        help="Minimum G3 grade considered a passing score",
     )
     parser.add_argument(
         "--figures-dir",
@@ -94,4 +103,5 @@ if __name__ == "__main__":
         figures_dir=args.figures_dir,
         tables_dir=args.tables_dir,
         fit=args.fit,
+        pass_threshold=args.pass_threshold,
     )

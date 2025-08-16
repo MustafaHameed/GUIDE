@@ -125,6 +125,7 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
 }
 def main(
     csv_path: str = "student-mat.csv",
+    pass_threshold: int = 10,
     group_cols: list[str] | None = None,
     model_type: str = "logistic",
     param_grid: str = "none",
@@ -133,7 +134,6 @@ def main(
     base_estimator: str = "decision_tree",
     sequence_model: str | None = None,
     mitigation: str = "none",
-
 ):
     """Train model and generate evaluation artifacts.
 
@@ -141,6 +141,8 @@ def main(
     ----------
     csv_path : str, default 'student-mat.csv'
         Path to the input CSV file.
+    pass_threshold : int, default 10
+        Minimum ``G3`` grade considered a passing score.
     group_cols : list[str] | None, optional
         Demographic columns to compute group-level metrics for. If ``None``,
         only overall metrics are produced.
@@ -166,7 +168,7 @@ def main(
         evaluate_sequence_model(csv_path, model_type=sequence_model)
         return
     
-    X, y = load_data(csv_path)
+    X, y = load_data(csv_path, pass_threshold=pass_threshold)
     model_params: dict | None = None
     if model_type == "stacking":
         model_params = {
@@ -523,6 +525,8 @@ def main(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train model with fairness evaluation')
     parser.add_argument('--csv-path', default='student-mat.csv')
+    parser.add_argument('--pass-threshold', type=int, default=10,
+                        help='Minimum G3 grade considered a passing score')    
     parser.add_argument(
         '--group-cols',
         nargs='*',
@@ -580,4 +584,5 @@ if __name__ == '__main__':
         base_estimator=args.base_estimator,
         sequence_model=args.sequence_model,
         mitigation=args.mitigation,
+        pass_threshold=args.pass_threshold,
     )
