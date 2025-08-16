@@ -74,6 +74,12 @@ def _list_images(
         files.update(folder.glob(ci_pattern))
     return sorted(files)
 
+
+@st.cache_data(show_spinner=False)
+def _read_file_bytes(path: str) -> bytes:
+    """Read file bytes with Streamlit caching."""
+    return Path(path).read_bytes()
+
 def _show_images_grid(
     image_paths: list[Path], cols: int = 2, caption_from_name: bool = True
 ):
@@ -87,25 +93,20 @@ def _show_images_grid(
         for c, p in zip(cols_objs, row_paths):
             with c:
                 try:
+                    img_bytes = _read_file_bytes(str(p))                    
                     if p.suffix.lower() == ".svg":
-                        # Render SVG by reading bytes
-                        svg_bytes = p.read_bytes()
-                        st.image(io.BytesIO(svg_bytes))
+                        st.image(io.BytesIO(img_bytes))
                     else:
-                        st.image(str(p))
+                        st.image(img_bytes)
                     if caption_from_name:
                         st.caption(p.stem.replace("_", " ").title())
-                    # Download button
-                    with open(p, "rb") as f:
-                        st.download_button(
-                            label="Download",
-                            data=f,
-                            file_name=p.name,
-                            mime=(
-                                "image/svg+xml" if p.suffix.lower() == ".svg" else None
-                            ),
-                            key=f"dl_{p.name}_{i}",
-                        )
+                    st.download_button(
+                        label="Download",
+                        data=img_bytes,
+                        file_name=p.name,
+                        mime="image/svg+xml" if p.suffix.lower() == ".svg" else None,
+                        key=f"dl_{p.name}_{i}",
+                                        
                 except Exception as e:
                     st.warning(f"Failed to display `{p.name}` → {e}")
 
