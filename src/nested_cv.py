@@ -21,6 +21,13 @@ from sklearn.neural_network import MLPRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+try:  # statistical tests
+    from statsmodels.stats.anova import AnovaRM
+    from statsmodels.stats.multicomp import MultiComparison
+    HAS_STATSMODELS = True
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    AnovaRM = MultiComparison = None  # type: ignore
+    HAS_STATSMODELS = False
 
 try:  # xgboost is optional
     from xgboost import XGBRegressor  # type: ignore
@@ -158,6 +165,47 @@ def statistical_tests(results_df: pd.DataFrame, base_model: str):
                 }
             )
     return pd.DataFrame(rows)
+
+
+def anova_and_tukey(results_df: pd.DataFrame):
+    """Aggregate metrics by model and run repeated-measures ANOVA and Tukey HSD.
+
+    Parameters
+    ----------
+    results_df : pd.DataFrame
+        Output of :func:`nested_cv` with columns ``model``, ``fold`` and ``rmse``.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+        ANOVA table, Tukey HSD summary, and bootstrap confidence intervals for the
+        mean RMSE of each model.
+    """
+
+    if not HAS_STATSMODELS:  # pragma: no cover - optional dependency
+        raise ModuleNotFoundError("statsmodels is required for ANOVA and Tukey tests")
+
+    # One-way repeated measures ANOVA with folds as the subject
+    anova_res = AnovaRM(results_df, depvar="rmse", subject="fold", within=["model"]).fit()
+    anova_table = anova_res.anova_table.reset_index().rename(columns={"index": "source"})
+
+    # Tukey HSD post-hoc comparisons across models
+    mc = MultiComparison(results_df["rmse"], results_df["model"])
+    tukey_res = mc.tukeyhsd()
+    tukey_table = tukey_res.summary()
+    tukey_df = pd.DataFrame(tukey_table.data[1:], columns=tukey_table.data[0])
+
+    # Bootstrap confidence intervals for each model's mean RMSE
+    rng = np.random.default_rng(0)
+    ci_rows = []
+    for model, grp in results_df.groupby("model"):
+        vals = grp["rmse"].values
+        boot_means = [rng.choice(vals, size=len(vals), replace=True).mean() for _ in range(1000)]
+        lower, upper = np.percentile(boot_means, [2.5, 97.5])
+        ci_rows.append({"model": model, "mean": vals.mean(), "ci_lower": lower, "ci_upper": upper})
+    ci_df = pd.DataFrame(ci_rows)
+
+    return anova_table, tukey_df, ci_df
 
 
 def shap_analysis(best_model, X):
@@ -374,11 +422,29 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
     base_model = models[0][0]
     stats_df = statistical_tests(results_df, base_model)
     stats_df.to_csv(table_dir / "statistical_tests.csv", index=False)
+    # Repeated-measures ANOVA, Tukey HSD, and bootstrap confidence intervals
+    try:
+        anova_df, tukey_df, ci_df = anova_and_tukey(results_df)
+        anova_df.to_csv(table_dir / "rmse_anova.csv", index=False)
+        tukey_df.to_csv(table_dir / "rmse_tukey_hsd.csv", index=False)
+        ci_df.to_csv(table_dir / "rmse_bootstrap_ci.csv", index=False)
+    except ModuleNotFoundError:
+        anova_df = tukey_df = ci_df = None
+
 
     # Comparison visualization
     fig_dir = Path("figures")
     fig_dir.mkdir(exist_ok=True)
-    sns.boxplot(data=results_df, x="model", y="rmse")
+    order = results_df["model"].unique()
+    sns.boxplot(data=results_df, x="model", y="rmse", order=order)
+    if ci_df is not None:
+        for i, model in enumerate(order):
+            row = ci_df[ci_df["model"] == model].iloc[0]
+            err = [[row["mean"] - row["ci_lower"]], [row["ci_upper"] - row["mean"]]]
+            plt.errorbar(i, row["mean"], yerr=err, fmt="o", color="black", capsize=5)
+    if anova_df is not None:
+        p_val = anova_df.loc[anova_df["source"] == "model", "Pr > F"].iloc[0]
+        plt.figtext(0.99, 0.01, f"ANOVA p={p_val:.3f}", ha="right", va="bottom")
     plt.tight_layout()
     plt.savefig(fig_dir / "model_rmse_boxplot.png")
     plt.close()
