@@ -220,19 +220,30 @@ elif current_tab == "Fairness Metrics":
         post_df = _safe_read_csv(post_path) if post_path.exists() else None
         display_name = base.replace("fairness_", "").replace("_", " ")
         if pre_df is not None and post_df is not None:
-            metric_cols = ["demographic_parity", "equalized_odds"]
-            group_cols = [c for c in pre_df.columns if c not in metric_cols]
-            merged = pre_df[group_cols + metric_cols].merge(
-                post_df[group_cols + metric_cols],
-                on=group_cols,
-                suffixes=("_pre", "_post"),
-            )
-            merged["dp_delta"] = (
-                merged["demographic_parity_post"] - merged["demographic_parity_pre"]
-            )
-            merged["eo_delta"] = (
-                merged["equalized_odds_post"] - merged["equalized_odds_pre"]
-            )
+            metrics = ["demographic_parity", "equalized_odds"]
+            pre_post_cols = [f"{m}_pre" for m in metrics] + [f"{m}_post" for m in metrics]
+            if all(col in post_df.columns for col in pre_post_cols):
+                merged = post_df.copy()
+                group_cols = [
+                    c
+                    for c in merged.columns
+                    if c not in pre_post_cols + ["dp_delta", "eo_delta"]
+                ]
+            else:
+                group_cols = [c for c in pre_df.columns if c not in metrics]
+                merged = pre_df[group_cols + metrics].merge(
+                    post_df[group_cols + metrics],
+                    on=group_cols,
+                    suffixes=("_pre", "_post"),
+                )
+            if "dp_delta" not in merged.columns:
+                merged["dp_delta"] = (
+                    merged["demographic_parity_post"] - merged["demographic_parity_pre"]
+                )
+            if "eo_delta" not in merged.columns:
+                merged["eo_delta"] = (
+                    merged["equalized_odds_post"] - merged["equalized_odds_pre"]
+                )
             renamed = merged.rename(
                 columns={
                     "demographic_parity_pre": "Demographic Parity (Pre)",
