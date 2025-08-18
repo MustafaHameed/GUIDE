@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 import warnings
+import itertools
 
 # Suppress common warnings for cleaner output
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
@@ -43,11 +44,14 @@ def _compute_fairness_tables(
     report_dir: Path,
     suffix: str,
     baseline: dict[str, pd.DataFrame] | None = None,
+    fig_dir: Path | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """Compute DP and EO tables for each sensitive column."""
+    """Compute DP and EO tables for each sensitive column and their intersections."""
     results: dict[str, pd.DataFrame] = {}
     overall_tpr = true_positive_rate(y_true, y_pred)
     overall_fpr = false_positive_rate(y_true, y_pred)
+    
+    # Per-column fairness
     for col in group_cols:
         if col not in X.columns:
             continue
@@ -91,7 +95,79 @@ def _compute_fairness_tables(
                 ]
             ]
         df.to_csv(report_dir / f"fairness_{col}_{suffix}.csv", index=False)
+        if fig_dir is not None:
+            plot_df = df.melt(id_vars=[col], value_vars=["demographic_parity", "equalized_odds"],
+                              var_name="metric", value_name="value")
+            sns.barplot(data=plot_df, x=col, y="value", hue="metric")
+            plt.tight_layout()
+            plt.savefig(fig_dir / f"fairness_{col}_{suffix}.png")
+            plt.close()
         results[col] = df
+
+    # Intersectional fairness for combinations of columns
+    if len(group_cols) > 1:
+        for col_a, col_b in itertools.product(group_cols, group_cols):
+            if group_cols.index(col_a) >= group_cols.index(col_b):
+                continue
+            pair_name = f"{col_a}_{col_b}"
+            sens_df = X[[col_a, col_b]]
+            mf = MetricFrame(
+                metrics={
+                    "demographic_parity": selection_rate,
+                    "true_positive_rate": true_positive_rate,
+                    "false_positive_rate": false_positive_rate,
+                },
+                y_true=y_true,
+                y_pred=y_pred,
+                sensitive_features=sens_df,
+            )
+            records = []
+            for (val_a, val_b), row in mf.by_group.iterrows():
+                eo = max(
+                    abs(row["true_positive_rate"] - overall_tpr),
+                    abs(row["false_positive_rate"] - overall_fpr),
+                )
+                records.append(
+                    {
+                        col_a: val_a,
+                        col_b: val_b,
+                        "demographic_parity": row["demographic_parity"],
+                        "equalized_odds": eo,
+                    }
+                )
+            df = pd.DataFrame(records)
+            if baseline and pair_name in baseline:
+                df = df.merge(baseline[pair_name], on=[col_a, col_b], suffixes=("_post", "_pre"))
+                df["dp_delta"] = df["demographic_parity_post"] - df["demographic_parity_pre"]
+                df["eo_delta"] = df["equalized_odds_post"] - df["equalized_odds_pre"]
+                df = df[
+                    [
+                        col_a,
+                        col_b,
+                        "demographic_parity_pre",
+                        "demographic_parity_post",
+                        "dp_delta",
+                        "equalized_odds_pre",
+                        "equalized_odds_post",
+                        "eo_delta",
+                    ]
+                ]
+            df.to_csv(report_dir / f"fairness_{pair_name}_{suffix}.csv", index=False)
+            if fig_dir is not None:
+                id_col = df[col_a].astype(str) + "_" + df[col_b].astype(str)
+                plot_df = df.assign(**{pair_name: id_col})
+                plot_df = plot_df.melt(
+                    id_vars=[pair_name],
+                    value_vars=["demographic_parity", "equalized_odds"],
+                    var_name="metric",
+                    value_name="value",
+                )
+                sns.barplot(data=plot_df, x=pair_name, y="value", hue="metric")
+                plt.tight_layout()
+                plt.savefig(fig_dir / f"fairness_{pair_name}_{suffix}.png")
+                plt.close()
+            results[pair_name] = df
+
     return results
 
 from fairlearn.metrics import (
@@ -421,7 +497,7 @@ def main(
     pre_fairness: dict[str, pd.DataFrame] = {}
     if group_cols:
         pre_fairness = _compute_fairness_tables(
-            y_test, pre_y_pred, X_test, group_cols, report_dir, "pre"
+            y_test, pre_y_pred, X_test, group_cols, report_dir, "pre", fig_dir=fig_dir
         )
 
     y_pred = pre_y_pred
@@ -493,6 +569,7 @@ def main(
             report_dir,
             "post",
             baseline=pre_fairness,
+            fig_dir=fig_dir,
         )
     print("Hold-out classification report:")
     print(classification_report(y_test, y_pred))

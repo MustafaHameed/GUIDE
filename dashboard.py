@@ -213,19 +213,35 @@ elif current_tab == "Fairness Metrics":
     if not fairness_pre:
         st.info("No fairness reports found. Run training with a `--group-cols` argument.")
     for pre_path in fairness_pre:
-        col = pre_path.stem.split("_")[1]
+        col = pre_path.stem.replace("fairness_", "").replace("_pre", "")
         post_path = REPORTS_DIR / f"fairness_{col}_post.csv"
         pre_df = _safe_read_csv(pre_path)
         post_df = _safe_read_csv(post_path) if post_path.exists() else None
+        display_name = col.replace("_", " ")
         if post_df is not None:
-            st.subheader(f"Fairness Metrics for {col}")
+            st.subheader(f"Fairness Metrics for {display_name}")
             st.dataframe(post_df, use_container_width=True)
+            group_cols = [
+                c
+                for c in post_df.columns
+                if c
+                not in {
+                    "demographic_parity_pre",
+                    "demographic_parity_post",
+                    "dp_delta",
+                    "equalized_odds_pre",
+                    "equalized_odds_post",
+                    "eo_delta",
+                }
+            ]
             try:
-                st.bar_chart(post_df.set_index(col)[["dp_delta", "eo_delta"]])
+                chart_df = post_df.copy()
+                chart_df["group"] = chart_df[group_cols].astype(str).agg("_".join, axis=1)
+                st.bar_chart(chart_df.set_index("group")["dp_delta eo_delta".split()])
             except Exception:
                 pass
         elif pre_df is not None:
-            st.subheader(f"Fairness Metrics for {col} (pre-mitigation)")
+            st.subheader(f"Fairness Metrics for {display_name} (pre-mitigation)")
             st.dataframe(pre_df, use_container_width=True)
 
 
