@@ -2,8 +2,10 @@
 pandas
 scikit-learn>=1.0
 fairlearn
+aif360
 seaborn
 matplotlib
+statsmodels
 # Optional: model explainability
 shap
 lime

@@ -33,6 +33,66 @@ except ImportError:
 def positive_predictive_value(y_true, y_pred):
     return precision_score(y_true, y_pred, zero_division=0)
 
+
+def _compute_fairness_tables(
+    y_true: pd.Series,
+    y_pred: np.ndarray,
+    X: pd.DataFrame,
+    group_cols: list[str],
+    report_dir: Path,
+    suffix: str,
+    baseline: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
+    """Compute DP and EO tables for each sensitive column."""
+    results: dict[str, pd.DataFrame] = {}
+    overall_tpr = true_positive_rate(y_true, y_pred)
+    overall_fpr = false_positive_rate(y_true, y_pred)
+    for col in group_cols:
+        if col not in X.columns:
+            continue
+        mf = MetricFrame(
+            metrics={
+                "demographic_parity": selection_rate,
+                "true_positive_rate": true_positive_rate,
+                "false_positive_rate": false_positive_rate,
+            },
+            y_true=y_true,
+            y_pred=y_pred,
+            sensitive_features=X[col],
+        )
+        records: list[dict[str, float | str]] = []
+        for group_value, row in mf.by_group.iterrows():
+            eo = max(
+                abs(row["true_positive_rate"] - overall_tpr),
+                abs(row["false_positive_rate"] - overall_fpr),
+            )
+            records.append(
+                {
+                    col: group_value,
+                    "demographic_parity": row["demographic_parity"],
+                    "equalized_odds": eo,
+                }
+            )
+        df = pd.DataFrame(records)
+        if baseline and col in baseline:
+            df = df.merge(baseline[col], on=col, suffixes=("_post", "_pre"))
+            df["dp_delta"] = df["demographic_parity_post"] - df["demographic_parity_pre"]
+            df["eo_delta"] = df["equalized_odds_post"] - df["equalized_odds_pre"]
+            df = df[
+                [
+                    col,
+                    "demographic_parity_pre",
+                    "demographic_parity_post",
+                    "dp_delta",
+                    "equalized_odds_pre",
+                    "equalized_odds_post",
+                    "eo_delta",
+                ]
+            ]
+        df.to_csv(report_dir / f"fairness_{col}_{suffix}.csv", index=False)
+        results[col] = df
+    return results
+
 from fairlearn.metrics import (
     MetricFrame,
     selection_rate,
@@ -40,6 +100,10 @@ from fairlearn.metrics import (
     false_positive_rate,
 )
 from fairlearn.postprocessing import ThresholdOptimizer
+
+from aif360.datasets import BinaryLabelDataset
+from aif360.algorithms.preprocessing import Reweighing
+from aif360.algorithms.inprocessing import AdversarialDebiasing
 
 from .data import load_data
 from .preprocessing import build_pipeline
@@ -225,8 +289,9 @@ def main(
     learning_rate : float, default 0.01
         Learning rate for the RNN optimizer.
     mitigation : str, default "none"
-        Fairness mitigation strategy to apply (``'demographic_parity'`` or
-        ``'equalized_odds'``). Requires ``group_cols``.
+        Fairness mitigation strategy to apply (``'demographic_parity'``,
+        ``'equalized_odds'``, ``'reweighing'`` or ``'adversarial'``).
+        Requires ``group_cols``.
     task : str, default "classification"
         ``"classification"`` for pass/fail prediction or ``"regression"`` to
         predict the raw ``G3`` grade.
@@ -292,6 +357,26 @@ def main(
 
     grid = grid_dict.get(model_type, {}).get(param_grid)
 
+    train_bld = test_bld = None
+    if group_cols:
+        train_df_bld = X_train[group_cols].copy()
+        test_df_bld = X_test[group_cols].copy()
+        train_df_bld["label"] = y_train.values
+        test_df_bld["label"] = y_test.values
+        for col in group_cols:
+            train_df_bld[col] = pd.Categorical(train_df_bld[col]).codes
+            test_df_bld[col] = pd.Categorical(test_df_bld[col]).codes
+        train_bld = BinaryLabelDataset(
+            df=train_df_bld,
+            label_names=["label"],
+            protected_attribute_names=group_cols,
+        )
+        test_bld = BinaryLabelDataset(
+            df=test_df_bld,
+            label_names=["label"],
+            protected_attribute_names=group_cols,
+        )
+
     best_params: dict | None = None
     best_score: float | None = None
 
@@ -322,20 +407,26 @@ def main(
         best_params_df.to_csv(report_dir / "best_params.csv", index=False)
         return
     # Keep original fitted pipeline for explanations even if mitigation wraps it
-    fitted_pipeline = model
-    # Optionally apply fairness mitigation using post-processing
-    if mitigation != "none":
-        if not group_cols:
-            print(
-                "Mitigation requested but no group column provided. Proceeding without mitigation."
-            )
-            y_pred = model.predict(X_test)
-            y_prob = (
-                model.predict_proba(X_test)[:, 1]
-                if hasattr(model, "predict_proba")
-                else None
-            )
-        else:
+
+    # Predictions before mitigation
+    pre_y_pred = model.predict(X_test)
+    pre_y_prob = (
+        model.predict_proba(X_test)[:, 1]
+        if hasattr(model, "predict_proba")
+        else None
+    )
+    pre_fairness: dict[str, pd.DataFrame] = {}
+    if group_cols:
+        pre_fairness = _compute_fairness_tables(
+            y_test, pre_y_pred, X_test, group_cols, report_dir, "pre"
+        )
+
+    y_pred = pre_y_pred
+    y_prob = pre_y_prob
+
+    if mitigation != "none" and group_cols:
+        if mitigation in ["demographic_parity", "equalized_odds"]:
+
             sens_train = X_train[group_cols[0]]
             sens_test = X_test[group_cols[0]]
             mitigator = ThresholdOptimizer(
@@ -343,19 +434,62 @@ def main(
             )
             mitigator.fit(X_train, y_train, sensitive_features=sens_train)
             y_pred = mitigator.predict(X_test, sensitive_features=sens_test)
-            # ThresholdOptimizer may not expose predict_proba
+
             y_prob = (
                 mitigator.predict_proba(X_test, sensitive_features=sens_test)[:, 1]
                 if hasattr(mitigator, "predict_proba")
                 else None
             )
-            model = mitigator  # wrapped model (use fitted_pipeline for LIME/SHAP)
-    else:
-        y_pred = model.predict(X_test)
-        y_prob = (
-            model.predict_proba(X_test)[:, 1]
-            if hasattr(model, "predict_proba")
-            else None
+            model = mitigator
+        elif mitigation == "reweighing" and train_bld is not None:
+            from sklearn.base import clone
+
+            rw = Reweighing()
+            rw_train = rw.fit_transform(train_bld)
+            model = clone(model)
+            model.fit(
+                X_train,
+                y_train,
+                model__sample_weight=rw_train.instance_weights,
+            )
+            y_pred = model.predict(X_test)
+            y_prob = (
+                model.predict_proba(X_test)[:, 1]
+                if hasattr(model, "predict_proba")
+                else None
+            )
+        elif mitigation == "adversarial" and train_bld is not None and test_bld is not None:
+            import tensorflow as tf
+
+            sess = tf.compat.v1.Session()
+            priv = [{group_cols[0]: 1}]
+            unpriv = [{group_cols[0]: 0}]
+            adv = AdversarialDebiasing(
+                privileged_groups=priv,
+                unprivileged_groups=unpriv,
+                scope_name="adv_debias",
+                debias=True,
+                sess=sess,
+            )
+            adv.fit(train_bld)
+            pred_ds = adv.predict(test_bld)
+            y_pred = pred_ds.labels.ravel()
+            y_prob = getattr(pred_ds, "scores", None)
+            model = adv
+        else:
+            print(
+                "Mitigation requested but no group column provided. Proceeding without mitigation."
+            )
+
+    if group_cols:
+        _compute_fairness_tables(
+            y_test,
+            y_pred,
+            X_test,
+            group_cols,
+            report_dir,
+            "post",
+            baseline=pre_fairness,
         )
     print("Hold-out classification report:")
     print(classification_report(y_test, y_pred))
@@ -434,55 +568,6 @@ def main(
                     plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
                     plt.close()
 
-            # Fairness metrics via fairlearn
-            mf = MetricFrame(
-                metrics={
-                    "demographic_parity": selection_rate,
-                    "true_positive_rate": true_positive_rate,
-                    "false_positive_rate": false_positive_rate,
-                    "predictive_parity": positive_predictive_value,
-                },
-                y_true=y_test,
-                y_pred=y_pred,
-                sensitive_features=X_test[col],
-            )
-            fairness_records: list[dict[str, float | str]] = []
-            for group_value, row in mf.by_group.iterrows():
-                eo = max(
-                    abs(row["true_positive_rate"] - overall_tpr),
-                    abs(row["false_positive_rate"] - overall_fpr),
-                )
-                fairness_records.append(
-                    {
-                        col: group_value,
-                        "demographic_parity": row["demographic_parity"],
-                        "predictive_parity": row["predictive_parity"],
-                        "equalized_odds": eo,
-                    }
-                )
-            if fairness_records:
-                fairness_df = pd.DataFrame(fairness_records)
-                fairness_path = report_dir / f"fairness_{col}.csv"
-                fairness_df.to_csv(fairness_path, index=False)
-                (
-                    fairness_df.set_index(col)[
-                        [
-                            "demographic_parity",
-                            "predictive_parity",
-                            "equalized_odds",
-                        ]
-                    ].plot.bar()
-                )
-                plt.ylabel("score")
-                plt.tight_layout()
-                plt.savefig(fig_dir / f"fairness_{col}.png")
-                plt.close()
-                print(f"Fairness metrics for '{col}':")
-                print(
-                    fairness_df.to_string(
-                        index=False, float_format=lambda x: f"{x:.3f}"
-                    )
-                )
 
     # LIME explanations for selected samples
     try:
@@ -693,7 +778,7 @@ if __name__ == '__main__':
     )   
     parser.add_argument(
         '--mitigation',
-        choices=['none', 'demographic_parity', 'equalized_odds'],
+        choices=['none', 'demographic_parity', 'equalized_odds', 'reweighing', 'adversarial'],
         default='none',
         help='Fairness mitigation strategy to apply',
     )

@@ -194,15 +194,28 @@ elif current_tab == "Model Performance":
 elif current_tab == "Fairness Metrics":
     st.header("Fairness Metrics")
     st.markdown(
-        "Displays any fairness-related tables or figures you export to **`reports/`** and **`figures/`**. "
+        "Displays pre- and post-mitigation fairness reports saved to **`reports/`**. "
         "Run training with `--group-cols` to generate these."
     )
-    # Find all fairness reports
-    fairness_tables = sorted(REPORTS_DIR.glob("fairness_*.csv"))
-    if not fairness_tables:
+    fairness_pre = sorted(REPORTS_DIR.glob("fairness_*_pre.csv"))
+    if not fairness_pre:
         st.info("No fairness reports found. Run training with a `--group-cols` argument.")
-    for path in fairness_tables:
-        _show_table(path, f"Fairness Metrics for {path.stem.split('_', 1)[1]}")
+    for pre_path in fairness_pre:
+        col = pre_path.stem.split("_")[1]
+        post_path = REPORTS_DIR / f"fairness_{col}_post.csv"
+        pre_df = _safe_read_csv(pre_path)
+        post_df = _safe_read_csv(post_path) if post_path.exists() else None
+        if post_df is not None:
+            st.subheader(f"Fairness Metrics for {col}")
+            st.dataframe(post_df, use_container_width=True)
+            try:
+                st.bar_chart(post_df.set_index(col)[["dp_delta", "eo_delta"]])
+            except Exception:
+                pass
+        elif pre_df is not None:
+            st.subheader(f"Fairness Metrics for {col} (pre-mitigation)")
+            st.dataframe(pre_df, use_container_width=True)
+
 
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
