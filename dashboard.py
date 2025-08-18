@@ -25,6 +25,7 @@ import io
 import pandas as pd
 import streamlit as st
 from streamlit.components.v1 import html as st_html
+import altair as alt
 
 # --- Absolute imports from your package in src/ ---
 # These will work when you run from the project root.
@@ -213,37 +214,83 @@ elif current_tab == "Fairness Metrics":
     if not fairness_pre:
         st.info("No fairness reports found. Run training with a `--group-cols` argument.")
     for pre_path in fairness_pre:
-        col = pre_path.stem.replace("fairness_", "").replace("_pre", "")
-        post_path = REPORTS_DIR / f"fairness_{col}_post.csv"
+        base = pre_path.stem.replace("_pre", "")
+        post_path = REPORTS_DIR / f"{base}_post.csv"
         pre_df = _safe_read_csv(pre_path)
         post_df = _safe_read_csv(post_path) if post_path.exists() else None
-        display_name = col.replace("_", " ")
-        if post_df is not None:
-            st.subheader(f"Fairness Metrics for {display_name}")
-            st.dataframe(post_df, use_container_width=True)
-            group_cols = [
-                c
-                for c in post_df.columns
-                if c
-                not in {
-                    "demographic_parity_pre",
-                    "demographic_parity_post",
-                    "dp_delta",
-                    "equalized_odds_pre",
-                    "equalized_odds_post",
-                    "eo_delta",
+        display_name = base.replace("fairness_", "").replace("_", " ")
+        if pre_df is not None and post_df is not None:
+            metric_cols = ["demographic_parity", "equalized_odds"]
+            group_cols = [c for c in pre_df.columns if c not in metric_cols]
+            merged = pre_df[group_cols + metric_cols].merge(
+                post_df[group_cols + metric_cols],
+                on=group_cols,
+                suffixes=("_pre", "_post"),
+            )
+            merged["dp_delta"] = (
+                merged["demographic_parity_post"] - merged["demographic_parity_pre"]
+            )
+            merged["eo_delta"] = (
+                merged["equalized_odds_post"] - merged["equalized_odds_pre"]
+            )
+            renamed = merged.rename(
+                columns={
+                    "demographic_parity_pre": "Demographic Parity (Pre)",
+                    "demographic_parity_post": "Demographic Parity (Post)",
+                    "dp_delta": "DP Δ",
+                    "equalized_odds_pre": "Equalized Odds (Pre)",
+                    "equalized_odds_post": "Equalized Odds (Post)",
+                    "eo_delta": "EO Δ",
                 }
+            )
+            st.subheader(f"Fairness Metrics for {display_name}")
+            st.dataframe(
+                renamed[
+                    group_cols
+                    + [
+                        "Demographic Parity (Pre)",
+                        "Demographic Parity (Post)",
+                        "DP Δ",
+                        "Equalized Odds (Pre)",
+                        "Equalized Odds (Post)",
+                        "EO Δ",
+                    ]
+                ],
+                use_container_width=True,
+            )
+
+            chart_df = renamed.copy()
+            chart_df["group"] = chart_df[group_cols].astype(str).agg("_".join, axis=1)
+            dp_chart = chart_df.set_index("group")[
+                ["Demographic Parity (Pre)", "Demographic Parity (Post)"]
             ]
-            try:
-                chart_df = post_df.copy()
-                chart_df["group"] = chart_df[group_cols].astype(str).agg("_".join, axis=1)
-                st.bar_chart(chart_df.set_index("group")["dp_delta eo_delta".split()])
-            except Exception:
-                pass
+            eo_chart = chart_df.set_index("group")[
+                ["Equalized Odds (Pre)", "Equalized Odds (Post)"]
+            ]
+            st.bar_chart(dp_chart, use_container_width=True)
+            st.bar_chart(eo_chart, use_container_width=True)
+
+            delta_long = chart_df[["group", "DP Δ", "EO Δ"]].melt(
+                "group", var_name="Metric", value_name="Delta"
+            )
+            delta_chart = (
+                alt.Chart(delta_long)
+                .mark_bar()
+                .encode(
+                    x=alt.X("group:N", title="Group"),
+                    y=alt.Y("Delta:Q", title="Δ (Post - Pre)"),
+                    color=alt.condition(
+                        alt.datum.Delta >= 0,
+                        alt.value("seagreen"),
+                        alt.value("indianred"),
+                    ),
+                    column=alt.Column("Metric:N", title=None),
+                )
+            )
+            st.altair_chart(delta_chart, use_container_width=True)
         elif pre_df is not None:
             st.subheader(f"Fairness Metrics for {display_name} (pre-mitigation)")
             st.dataframe(pre_df, use_container_width=True)
-
 
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
