@@ -96,12 +96,23 @@ def _compute_fairness_tables(
             ]
         df.to_csv(report_dir / f"fairness_{col}_{suffix}.csv", index=False)
         if fig_dir is not None:
-            plot_df = df.melt(id_vars=[col], value_vars=["demographic_parity", "equalized_odds"],
-                              var_name="metric", value_name="value")
-            sns.barplot(data=plot_df, x=col, y="value", hue="metric")
-            plt.tight_layout()
-            plt.savefig(fig_dir / f"fairness_{col}_{suffix}.png")
-            plt.close()
+            # Determine which fairness metric columns are present
+            fairness_metrics = []
+            for metric in ["demographic_parity", "equalized_odds"]:
+                if metric in df.columns:
+                    fairness_metrics.append(metric)
+                elif f"{metric}_post" in df.columns:
+                    fairness_metrics.append(f"{metric}_post")
+            
+            if fairness_metrics:
+                plot_df = df.melt(id_vars=[col], value_vars=fairness_metrics,
+                                  var_name="metric", value_name="value")
+                sns.barplot(data=plot_df, x=col, y="value", hue="metric")
+                plt.tight_layout()
+                plt.savefig(fig_dir / f"fairness_{col}_{suffix}.png")
+                plt.close()
+            else:
+                print(f"Skipping fairness plot for {col} due to missing metric columns")
         results[col] = df
 
     # Intersectional fairness for combinations of columns
