@@ -178,18 +178,30 @@ elif current_tab == "Model Performance":
         ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),  # Changed from REPORTS_DIR to TABLES_DIR
         ("Classification Report",      REPORTS_DIR / "classification_report.csv"),
         ("Best Hyperparameters",       REPORTS_DIR / "best_params.csv"),
+        ("Threshold Tuning",           TABLES_DIR / "threshold_tuning.csv"),
     ]
     for title, path in candidate_tables:
         _show_table(path, title)
 
     st.subheader("Performance Figures")
-    perf_imgs = [p for p in _list_images(FIGURES_DIR) if any(
-        tag in p.stem.lower() for tag in ("roc", "pr", "confusion", "learning_curve", "residual", "calibration")
-    )]
+    pr_path = FIGURES_DIR / "pr_curve.png"
+    if pr_path.exists():
+        st.image(str(pr_path), caption="Precision-Recall Curve")
+    perf_imgs = [
+        p
+        for p in _list_images(FIGURES_DIR)
+        if any(
+            tag in p.stem.lower()
+            for tag in ("roc", "confusion", "learning_curve", "residual", "calibration")
+        )
+        and p != pr_path
+    ]
     if perf_imgs:
         _show_images_grid(perf_imgs, cols=2)
-    else:
-        st.info("No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`.")
+    elif not pr_path.exists():
+        st.info(
+            "No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`."
+        )
 
 elif current_tab == "Fairness Metrics":
     st.header("Fairness Metrics")

@@ -4,6 +4,7 @@ from sklearn.metrics import (
     confusion_matrix,
     RocCurveDisplay,
     precision_score,
+    precision_recall_curve,
     mean_squared_error,
     mean_absolute_error,
     r2_score,
@@ -340,6 +341,8 @@ def main(
     fig_dir.mkdir(exist_ok=True)
     report_dir = Path('reports')
     report_dir.mkdir(exist_ok=True)
+    table_dir = Path('tables')
+    table_dir.mkdir(exist_ok=True)
 
     # Hold-out evaluation
     if task == "regression":
@@ -407,7 +410,7 @@ def main(
         best_params_df.to_csv(report_dir / "best_params.csv", index=False)
         return
     # Keep original fitted pipeline for explanations even if mitigation wraps it
-
+    fitted_pipeline = model
     # Predictions before mitigation
     pre_y_pred = model.predict(X_test)
     pre_y_prob = (
@@ -516,6 +519,85 @@ def main(
         plt.tight_layout()
         plt.savefig(fig_dir / 'roc_curve.png')
         plt.close()
+
+        # Precision-Recall analysis
+        precision, recall, thresholds = precision_recall_curve(y_test, y_prob)
+        precision_curve = precision[:-1]
+        recall_curve = recall[:-1]
+        f1_scores = 2 * precision_curve * recall_curve / (
+            precision_curve + recall_curve + 1e-8
+        )
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx]
+        y_pred_pr = (y_prob >= best_threshold).astype(int)
+
+        # Bootstrap confidence bands
+        n_boot = 100
+        rng = np.random.default_rng(42)
+        boot_prec_curve = []
+        boot_rec_curve = []
+        boot_prec_best = []
+        boot_rec_best = []
+        boot_f1_best = []
+        for _ in range(n_boot):
+            idx = rng.integers(0, len(y_prob), len(y_prob))
+            y_true_b = y_test.values[idx]
+            y_prob_b = y_prob[idx]
+            p_b, r_b, t_b = precision_recall_curve(y_true_b, y_prob_b)
+            p_interp = np.interp(thresholds, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1])
+            r_interp = np.interp(thresholds, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1])
+            boot_prec_curve.append(p_interp)
+            boot_rec_curve.append(r_interp)
+            boot_prec_best.append(np.interp(best_threshold, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1]))
+            boot_rec_best.append(np.interp(best_threshold, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1]))
+            pb = boot_prec_best[-1]
+            rb = boot_rec_best[-1]
+            boot_f1_best.append(2 * pb * rb / (pb + rb + 1e-8))
+
+        boot_prec_curve = np.array(boot_prec_curve)
+        boot_rec_curve = np.array(boot_rec_curve)
+        prec_mean = boot_prec_curve.mean(axis=0)
+        prec_low = np.percentile(boot_prec_curve, 2.5, axis=0)
+        prec_high = np.percentile(boot_prec_curve, 97.5, axis=0)
+        rec_mean = boot_rec_curve.mean(axis=0)
+
+        # Plot PR curve with confidence band and optimal threshold
+        plt.figure()
+        plt.plot(recall_curve, precision_curve, label="PR curve")
+        plt.fill_between(rec_mean, prec_low, prec_high, color="lightblue", alpha=0.4, label="95% CI")
+        plt.scatter(
+            recall_curve[best_idx],
+            precision_curve[best_idx],
+            color="red",
+            label=f"Best thr={best_threshold:.2f}",
+        )
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(fig_dir / "pr_curve.png")
+        plt.close()
+
+        # Save threshold tuning metrics
+        prec_best_arr = np.array(boot_prec_best)
+        rec_best_arr = np.array(boot_rec_best)
+        f1_best_arr = np.array(boot_f1_best)
+        threshold_df = pd.DataFrame(
+            {
+                "threshold": [best_threshold],
+                "precision_mean": [prec_best_arr.mean()],
+                "precision_ci_lower": [np.percentile(prec_best_arr, 2.5)],
+                "precision_ci_upper": [np.percentile(prec_best_arr, 97.5)],
+                "recall_mean": [rec_best_arr.mean()],
+                "recall_ci_lower": [np.percentile(rec_best_arr, 2.5)],
+                "recall_ci_upper": [np.percentile(rec_best_arr, 97.5)],
+                "f1_mean": [f1_best_arr.mean()],
+                "f1_ci_lower": [np.percentile(f1_best_arr, 2.5)],
+                "f1_ci_upper": [np.percentile(f1_best_arr, 97.5)],
+            }
+        )
+        threshold_df.to_csv(table_dir / "threshold_tuning.csv", index=False)
+
 
     # Export best parameters and search metrics
     best_params_df = pd.DataFrame([best_params or {}])
