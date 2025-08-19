@@ -33,6 +33,7 @@ def _save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     fig = ax.get_figure()
     fig.tight_layout()
     fig.savefig(directory / name)
+    print(f"Saved figure: {directory / name}")  # Add this line
     plt.close(fig)
 
 
@@ -73,9 +74,12 @@ def run_eda(
         _save_table(table, name, table_dir)
 
     # Plots
-    ax = sns.histplot(df["G3"], bins=20, kde=True)
-    ax.set(xlabel="Final Grade (G3)", ylabel="Count")
-    _save_figure(ax, "g3_distribution.png", fig_dir)
+    try:
+        ax = sns.histplot(df["G3"], bins=20, kde=True)
+        ax.set(xlabel="Final Grade (G3)", ylabel="Count")
+        _save_figure(ax, "g3_distribution.png", fig_dir)
+    except Exception as e:
+        print(f"Failed to create g3_distribution.png: {e}")
 
     ax = sns.boxplot(data=df, x="sex", y="G3")
     ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
