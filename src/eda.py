@@ -119,6 +119,41 @@ def run_eda(
     g.fig.savefig(fig_dir / "grades_pairplot.png")
     plt.close(g.fig)
 
+    # Figures for the paper's main exploratory analysis
+    for grade in ["G1", "G2", "G3"]:
+        ax = sns.histplot(df[grade], bins=20, kde=True)
+        ax.axvline(10, color="k", linestyle="--")
+        ax.set(xlabel=f"{grade} Score", ylabel="Count")
+        _save_figure(ax, f"eda_hist_{grade.lower()}.png", fig_dir)
+
+    corr_subset = df[["G1", "G2", "G3", "absences", "failures", "studytime"]].corr()
+    plt.figure(figsize=(10, 8))
+    ax = sns.heatmap(corr_subset, cmap="vlag", center=0, square=True, cbar_kws={"shrink": 0.5})
+    _save_figure(ax, "eda_corr_heatmap.png", fig_dir)
+
+    ax = sns.boxplot(data=df, x="sex", y="G3")
+    ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
+    _save_figure(ax, "eda_g3_by_sex_box.png", fig_dir)
+
+    ax = sns.boxplot(data=df, x="school", y="G3")
+    ax.set(xlabel="School", ylabel="Final Grade (G3)")
+    _save_figure(ax, "eda_g3_by_school_box.png", fig_dir)
+
+    outcome_df = df.assign(outcome=lambda d: d["G3"].ge(10).map({True: "pass", False: "fail"}))
+    ax = sns.boxplot(data=outcome_df, x="outcome", y="absences")
+    ax.set(xlabel="Outcome", ylabel="Number of Absences")
+    _save_figure(ax, "eda_absences_by_outcome.png", fig_dir)
+
+    ax = sns.regplot(
+        data=df, x="studytime", y="G3", lowess=True, scatter_kws={"s": 20}
+    )
+    ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
+    _save_figure(ax, "eda_studytime_vs_g3.png", fig_dir)
+
+    ax = sns.regplot(data=df, x="G1", y="G3", scatter_kws={"s": 20})
+    ax.set(xlabel="First Period Grade (G1)", ylabel="Final Grade (G3)")
+    _save_figure(ax, "eda_g1_vs_g3_scatter.png", fig_dir)
+
 
 __all__ = ["run_eda"]
 
