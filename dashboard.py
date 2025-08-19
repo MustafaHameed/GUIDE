@@ -45,6 +45,11 @@ CACHE_TTL = 600
 
 st.set_page_config(page_title="Student Performance Dashboard", layout="wide")
 st.title("Student Performance Dashboard")
+st.caption(
+    "GUIDE: A Framework for Guiding Unbiased and Interpretable Decisions in "
+    "Education with Explainable and Fair Machine Learning"
+)
+
 
 # ---------- Helpers ----------
 
