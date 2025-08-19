@@ -13,7 +13,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-
+import pandas as pd
+df = pd.read_csv("student-mat.csv")
+print(df.columns)
+print(df.head())
 sns.set_theme(context="paper", style="whitegrid", font_scale=1.2)
 plt.rcParams["figure.dpi"] = 300
 plt.rcParams["savefig.dpi"] = 300
@@ -52,6 +55,9 @@ def run_eda(
         Output directories for the generated figures and tables.  Directories
         are created if they do not already exist.
     """
+
+    print(df.columns)
+    print(df.head())
 
     fig_dir = Path(fig_dir)
     table_dir = Path(table_dir)
@@ -160,4 +166,13 @@ def run_eda(
 
 
 __all__ = ["run_eda"]
+
+# Add this execution block
+if __name__ == "__main__":
+    # Data is already loaded at the module level as 'df'
+    print("Running EDA with student data...")
+    run_eda(df)
+    print("EDA complete. Check the 'figures' and 'tables' directories for output.")
+
+
 
