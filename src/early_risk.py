@@ -9,6 +9,7 @@ References
 from __future__ import annotations
 from pathlib import Path
 import argparse
+import logging
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, cross_validate
@@ -31,23 +32,53 @@ except ImportError:
     from data import load_early_data
     from preprocessing import build_pipeline
 
+
+logger = logging.getLogger(__name__)
+
 def train_early(
     csv_path: str = "student-mat.csv",
     upto_grade: int = 1,
     model_type: str = "logistic",
     pass_threshold: int = 10,
     group_cols: list[str] | None = None,
-):
+) -> pd.DataFrame:
+    """Train a classifier using early grade data and report metrics.
+
+    Parameters
+    ----------
+    csv_path:
+        Path to the CSV file containing student data.
+    upto_grade:
+        The highest early grade column (e.g. ``G1`` or ``G2``) to include.
+    model_type:
+        Which model pipeline to build. Options depend on ``build_pipeline``.
+    pass_threshold:
+        Minimum final grade considered a pass when creating the target.
+    group_cols:
+        Optional list of column names for which to compute fairness metrics.
+
+    Returns
+    -------
+    pd.DataFrame
+        Data frame of permutation feature importances.
+
+    Side Effects
+    ------------
+    Saves ROC curve and feature-importance plots under ``figures`` and
+    corresponding CSV reports under ``reports``. Metrics are logged using the
+    module logger.
+    """
     X, y = load_early_data(
         csv_path, upto_grade=upto_grade, pass_threshold=pass_threshold
     )
     pipeline = build_pipeline(X, model_type=model_type)
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     scores = cross_validate(pipeline, X, y, cv=cv, scoring=["accuracy", "f1"])
-    print(
-        f"CV accuracy {scores['test_accuracy'].mean():.3f} "
-        f"+/- {scores['test_accuracy'].std():.3f}; "
-        f"F1 {scores['test_f1'].mean():.3f}"
+    logger.info(
+        "CV accuracy %.3f +/- %.3f; F1 %.3f",
+        scores["test_accuracy"].mean(),
+        scores["test_accuracy"].std(),
+        scores["test_f1"].mean(),
     )
     pipeline.fit(X, y)
     y_pred = pipeline.predict(X)
@@ -56,8 +87,8 @@ def train_early(
         if hasattr(pipeline, "predict_proba")
         else None
     )
-    fig_dir = Path("figures"); fig_dir.mkdir(exist_ok=True)
-    report_dir = Path("reports"); report_dir.mkdir(exist_ok=True)
+    fig_dir = Path("figures"); fig_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = Path("reports"); report_dir.mkdir(parents=True, exist_ok=True)
 
     # Simple train ROC (no hold-out in this quick utility)
     if y_prob is not None:
@@ -70,7 +101,7 @@ def train_early(
     if group_cols:
         for col in group_cols:
             if col not in X.columns:
-                print(f"Column '{col}' not in dataset. Skipping.")
+                logger.warning("Column '%s' not in dataset. Skipping.", col)
                 continue
             mf = MetricFrame(
                 metrics={
@@ -86,11 +117,12 @@ def train_early(
                 columns={"index": col}
             )
             fairness_df.to_csv(report_dir / f"fairness_{col}.csv", index=False)
-            print(f"Fairness metrics for '{col}':")
-            print(
+            logger.info(
+                "Fairness metrics for '%s':\n%s",
+                col,
                 fairness_df.to_string(
                     index=False, float_format=lambda x: f"{x:.3f}"
-                )
+                ),
             )
 
     # Feature importance (permutation)
