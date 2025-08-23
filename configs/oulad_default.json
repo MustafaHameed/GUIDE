@@ -1,0 +1,4 @@
+{
+  "dataset": "data/oulad/processed/oulad_ml.parquet",
+  "split": "data/oulad/splits/random_split.json"
+}
