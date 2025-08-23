@@ -30,7 +30,7 @@ import seaborn as sns
 
 # Fairness imports
 from fairlearn.metrics import (
-    MetricFrame, 
+    MetricFrame,
     demographic_parity_difference,
     equalized_odds_difference,
     true_positive_rate,
@@ -186,55 +186,58 @@ def apply_postprocessing(model: Any, X_train: pd.DataFrame, y_train: pd.Series,
     return y_pred, y_prob
 
 
-def calculate_fairness_metrics(y_true: np.ndarray, y_pred: np.ndarray, 
-                              sensitive_features: pd.Series) -> Dict[str, float]:
-    """Calculate comprehensive fairness metrics.
-    
+def calculate_fairness_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sensitive_features: pd.Series,
+) -> Tuple[Dict[str, float], pd.DataFrame]:
+    """Calculate comprehensive fairness metrics and group report.
+
     Args:
         y_true: True labels
         y_pred: Predicted labels
         sensitive_features: Sensitive attribute values
-        
+
     Returns:
-        Dictionary of fairness metrics
+        Tuple of (metrics dictionary, per-group report DataFrame)
     """
     metrics = {}
-    
+
     # Create MetricFrame for group-wise metrics
     mf = MetricFrame(
         metrics={
             'accuracy': accuracy_score,
             'tpr': true_positive_rate,
             'fpr': false_positive_rate,
-            'selection_rate': selection_rate
+            'selection_rate': selection_rate,
         },
         y_true=y_true,
         y_pred=y_pred,
-        sensitive_features=sensitive_features
+        sensitive_features=sensitive_features,
     )
-    
+
     # Demographic parity difference
     metrics['demographic_parity_diff'] = demographic_parity_difference(
         y_true, y_pred, sensitive_features=sensitive_features
     )
-    
+
     # Equalized odds difference
     metrics['equalized_odds_diff'] = equalized_odds_difference(
         y_true, y_pred, sensitive_features=sensitive_features
     )
-    
+
     # TPR and FPR gaps
     tpr_by_group = mf.by_group['tpr']
     fpr_by_group = mf.by_group['fpr']
-    
+
     metrics['tpr_gap'] = tpr_by_group.max() - tpr_by_group.min()
     metrics['fpr_gap'] = fpr_by_group.max() - fpr_by_group.min()
-    
+
     # Worst-group error (1 - accuracy)
     accuracy_by_group = mf.by_group['accuracy']
     metrics['worst_group_error'] = 1 - accuracy_by_group.min()
-    
-    return metrics
+
+    return metrics, mf.by_group
 
 
 def expected_calibration_error(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> float:
@@ -303,10 +306,10 @@ def bootstrap_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: Optional[n
             sample_metrics['ece'] = expected_calibration_error(y_true[bootstrap_mask], y_prob[bootstrap_mask])
         
         # Add fairness metrics
-        fairness_metrics = calculate_fairness_metrics(
-            y_true[bootstrap_mask], 
+        fairness_metrics, _ = calculate_fairness_metrics(
+            y_true[bootstrap_mask],
             y_pred[bootstrap_mask],
-            sensitive_features[bootstrap_mask]
+            sensitive_features[bootstrap_mask],
         )
         sample_metrics.update(fairness_metrics)
         
@@ -327,95 +330,107 @@ def bootstrap_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: Optional[n
     return results
 
 
-def train_and_evaluate_model(model_type: str, X_train: pd.DataFrame, y_train: pd.Series,
-                            X_test: pd.DataFrame, y_test: pd.Series,
-                            sensitive_features_train: pd.Series, sensitive_features_test: pd.Series,
-                            student_ids_test: pd.Series,
-                            fairness_method: str = 'none', calibration_method: str = 'none',
-                            results_dir: Path = None) -> Dict[str, Any]:
-    """Train and evaluate a single model with fairness considerations.
-    
+def train_and_evaluate_model(
+    model_type: str,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    sensitive_features_train: pd.Series,
+    sensitive_features_test: pd.Series,
+    student_ids_test: pd.Series,
+    use_reweighing: bool = False,
+    postprocess: Optional[str] = None,
+    figures_dir: Path = None,
+) -> Dict[str, Any]:
+    """Train and evaluate a model with optional fairness mitigation.
+
     Args:
         model_type: Type of model to train
         X_train, y_train: Training data
         X_test, y_test: Test data
         sensitive_features_train/test: Sensitive attributes
         student_ids_test: Student IDs for bootstrap resampling
-        fairness_method: Fairness mitigation method
-        calibration_method: Calibration method
-        results_dir: Directory to save results
-        
+        use_reweighing: Whether to apply preprocessing reweighing
+        postprocess: Fairness constraint for postprocessing ('equalized_odds',
+            'demographic_parity', or None)
+        figures_dir: Directory to save figures
+
     Returns:
-        Dictionary with all evaluation results
+        Dictionary with evaluation results and fairness report
     """
-    logger.info(f"Training {model_type} with fairness method: {fairness_method}")
-    
-    results = {
-        'model_type': model_type,
-        'fairness_method': fairness_method,
-        'calibration_method': calibration_method
-    }
-    
+    logger.info(
+        f"Training {model_type} with reweighing={use_reweighing} and postprocess={postprocess}"
+    )
+
+    results: Dict[str, Any] = {'model_type': model_type}
+
     # Create and train model
     model = create_model(model_type)
-    
+
     # Apply preprocessing reweighing if requested
     sample_weight = None
-    if fairness_method == 'reweighing':
+    if use_reweighing:
         # Convert sensitive features to binary for AIF360
-        sensitive_binary = (sensitive_features_train == sensitive_features_train.mode()[0]).astype(int)
+        sensitive_binary = (
+            sensitive_features_train == sensitive_features_train.mode()[0]
+        ).astype(int)
         sample_weight = preprocess_reweighing(X_train, y_train, sensitive_binary)
-    
+
     # Train model
     if sample_weight is not None:
         model.fit(X_train, y_train, sample_weight=sample_weight)
     else:
         model.fit(X_train, y_train)
-    
-    # Apply calibration if requested
-    if calibration_method in ['platt', 'isotonic']:
-        logger.info(f"Applying {calibration_method} calibration...")
-        calibrated_model = CalibratedClassifierCV(model, method=calibration_method, cv=3)
-        calibrated_model.fit(X_train, y_train)
-        model = calibrated_model
-    
+
     # Make initial predictions
     y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
-    
+    y_prob = (
+        model.predict_proba(X_test)[:, 1]
+        if hasattr(model, 'predict_proba')
+        else None
+    )
+
     # Apply postprocessing if requested
-    if fairness_method in ['equalized_odds', 'demographic_parity']:
+    if postprocess and postprocess != 'none':
         y_pred, y_prob_post = apply_postprocessing(
-            model, X_train, y_train, X_test,
-            sensitive_features_train, sensitive_features_test,
-            constraint=fairness_method
+            model,
+            X_train,
+            y_train,
+            X_test,
+            sensitive_features_train,
+            sensitive_features_test,
+            constraint=postprocess,
         )
         if y_prob_post is not None:
             y_prob = y_prob_post
-    
+
     # Calculate basic metrics
     results['accuracy'] = accuracy_score(y_test, y_pred)
     results['f1'] = f1_score(y_test, y_pred)
-    
+
     if y_prob is not None:
         results['auc'] = roc_auc_score(y_test, y_prob)
         results['brier'] = brier_score_loss(y_test, y_prob)
         results['ece'] = expected_calibration_error(y_test, y_prob)
-    
-    # Calculate fairness metrics
-    fairness_metrics = calculate_fairness_metrics(y_test, y_pred, sensitive_features_test)
+
+    # Calculate fairness metrics and report
+    fairness_metrics, fairness_by_group = calculate_fairness_metrics(
+        y_test, y_pred, sensitive_features_test
+    )
     results.update(fairness_metrics)
-    
+    results['fairness_by_group'] = fairness_by_group
+
     # Bootstrap confidence intervals
     bootstrap_results = bootstrap_metrics(
         y_test, y_pred, y_prob, sensitive_features_test, student_ids_test
     )
     results['bootstrap'] = bootstrap_results
-    
+
     # Save reliability plot if probabilities available
-    if y_prob is not None and results_dir:
-        save_reliability_plot(y_test, y_prob, results_dir, f"{model_type}_{fairness_method}")
-    
+    if y_prob is not None and figures_dir is not None:
+        save_reliability_plot(y_test, y_prob, figures_dir, f"{model_type}")
+
     return results
 
 
@@ -470,80 +485,99 @@ def save_reliability_plot(y_true: np.ndarray, y_prob: np.ndarray,
 
 
 def main():
-    """CLI interface for training and evaluation."""
+    """CLI interface for training and fairness evaluation."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='Train models with fairness evaluation')
-    parser.add_argument('--config', type=Path, help='Path to JSON config with dataset and split paths')
-    parser.add_argument('--dataset', type=Path, default='data/oulad/processed/oulad_ml.parquet')
-    parser.add_argument('--split', type=Path, default='data/oulad/splits/random_split.json')
-    parser.add_argument('--results-dir', type=Path, default='results/oulad')
-    parser.add_argument('--figures-dir', type=Path, default='figures/oulad')
-    parser.add_argument('--models', nargs='+', default=['logistic', 'random_forest'])
-    parser.add_argument('--fairness-methods', nargs='+', default=['none', 'reweighing', 'equalized_odds'])
-    parser.add_argument('--sensitive-attr', default='sex', help='Sensitive attribute column')
+
+    parser = argparse.ArgumentParser(description="Train model with fairness evaluation")
+    parser.add_argument("--dataset", type=Path, required=True, help="Path to dataset parquet file")
+    parser.add_argument("--split", type=Path, required=True, help="Path to split JSON file")
+    parser.add_argument(
+        "--model",
+        choices=["logistic", "random_forest", "xgboost", "lightgbm"],
+        default="logistic",
+        help="Model type",
+    )
+    parser.add_argument(
+        "--sensitive-attr", default="sex", help="Sensitive attribute column"
+    )
+    parser.add_argument(
+        "--reports-dir", type=Path, default=Path("reports"), help="Directory for reports"
+    )
+    parser.add_argument(
+        "--figures-dir", type=Path, default=Path("figures"), help="Directory for figures"
+    )
+    parser.add_argument(
+        "--reweighing",
+        action="store_true",
+        help="Apply preprocessing reweighing",
+    )
+    parser.add_argument(
+        "--postprocess",
+        choices=["none", "equalized_odds", "demographic_parity"],
+        default="none",
+        help="Postprocessing threshold optimization",
+    )
 
     args = parser.parse_args()
 
-    # Allow configuration file to override paths
-    if args.config and args.config.exists():
-        with open(args.config, 'r') as f:
-            cfg = json.load(f)
-        args.dataset = Path(cfg.get('dataset', args.dataset))
-        args.split = Path(cfg.get('split', args.split))
-
     # Load data
     df, splits = load_oulad_data(args.dataset, args.split)
-    
+
     # Prepare train/test splits
     train_mask = df['id_student'].isin(splits['train'])
     test_mask = df['id_student'].isin(splits['test'])
-    
-    X_train = df[train_mask].drop(columns=['id_student', 'label_pass', 'label_fail_or_withdraw'] + 
-                                         [args.sensitive_attr])
+
+    X_train = df[train_mask].drop(
+        columns=['id_student', 'label_pass', 'label_fail_or_withdraw', args.sensitive_attr]
+    )
     y_train = df[train_mask]['label_pass']
     sensitive_train = df[train_mask][args.sensitive_attr]
-    
-    X_test = df[test_mask].drop(columns=['id_student', 'label_pass', 'label_fail_or_withdraw'] + 
-                                       [args.sensitive_attr])
+
+    X_test = df[test_mask].drop(
+        columns=['id_student', 'label_pass', 'label_fail_or_withdraw', args.sensitive_attr]
+    )
     y_test = df[test_mask]['label_pass']
     sensitive_test = df[test_mask][args.sensitive_attr]
     student_ids_test = df[test_mask]['id_student']
-    
+
     logger.info(f"Training set: {len(X_train)} samples")
     logger.info(f"Test set: {len(X_test)} samples")
-    
-    # Train all model combinations
-    all_results = []
-    
-    for model_type in args.models:
-        for fairness_method in args.fairness_methods:
-            try:
-                results = train_and_evaluate_model(
-                    model_type, X_train, y_train, X_test, y_test,
-                    sensitive_train, sensitive_test, student_ids_test,
-                    fairness_method=fairness_method,
-                    results_dir=args.figures_dir
-                )
-                all_results.append(results)
-                
-                logger.info(f"Completed {model_type} + {fairness_method}")
-                logger.info(f"Accuracy: {results['accuracy']:.3f}, "
-                           f"EO Diff: {results.get('equalized_odds_diff', 'N/A'):.3f}")
-                
-            except Exception as e:
-                logger.error(f"Failed for {model_type} + {fairness_method}: {e}")
-    
-    # Save results
-    args.results_dir.mkdir(parents=True, exist_ok=True)
-    
-    results_df = pd.DataFrame([
-        {k: v for k, v in r.items() if k != 'bootstrap'} 
-        for r in all_results
-    ])
-    results_df.to_csv(args.results_dir / 'model_results.csv', index=False)
-    
-    logger.info(f"Results saved to {args.results_dir}")
+
+    # Train model
+    results = train_and_evaluate_model(
+        args.model,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        sensitive_train,
+        sensitive_test,
+        student_ids_test,
+        use_reweighing=args.reweighing,
+        postprocess=args.postprocess,
+        figures_dir=args.figures_dir,
+    )
+
+    # Save reports
+    args.reports_dir.mkdir(parents=True, exist_ok=True)
+
+    metrics_to_save = {
+        k: (float(v) if isinstance(v, (np.floating, np.float64, np.float32)) else v)
+        for k, v in results.items()
+        if k not in ['bootstrap', 'fairness_by_group']
+    }
+    with open(args.reports_dir / f"{args.model}_metrics.json", "w") as f:
+        json.dump(metrics_to_save, f, indent=2)
+
+    # Fairness report by group
+    fairness_df: pd.DataFrame = results['fairness_by_group']
+    fairness_df.to_csv(args.reports_dir / f"{args.model}_fairness.csv")
+
+    # Bootstrap metrics
+    with open(args.reports_dir / f"{args.model}_bootstrap.json", "w") as f:
+        json.dump(results['bootstrap'], f, indent=2)
+
+    logger.info(f"Reports saved to {args.reports_dir}")
     logger.info("Training and evaluation completed!")
 
 
