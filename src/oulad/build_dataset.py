@@ -200,15 +200,20 @@ def create_labels_and_sensitive_attrs(student_info: pd.DataFrame, student_regist
     return labels_data[result_cols]
 
 
-def build_oulad_dataset(raw_dir: Path, output_path: Path) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Build unified OULAD ML dataset.
-    
+def build_oulad_dataset(
+    raw_dir: Path,
+    output_path: Path = Path("data/oulad/processed/oulad_ml.parquet"),
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Build unified OULAD machine-learning dataset.
+
     Args:
-        raw_dir: Directory containing OULAD CSV files
-        output_path: Path for output parquet file
-        
+        raw_dir: Directory containing OULAD CSV files.
+        output_path: Path for the processed parquet file. Defaults to
+            ``data/oulad/processed/oulad_ml.parquet``.
+
     Returns:
-        Tuple of (main_dataset, group_counts)
+        Tuple containing the processed dataset and the sensitive group
+        counts used for downstream fairness checks.
     """
     logger.info("Loading OULAD tables...")
     tables = load_oulad_tables(raw_dir)

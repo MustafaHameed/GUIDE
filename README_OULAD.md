@@ -48,6 +48,37 @@ The OULAD data requires careful preprocessing to create a unified machine learni
 3. **Missing Data**: Address dropout patterns and incomplete engagement records
 4. **Label Creation**: Binary pass/fail classification from final results
 
+### Feature Definitions
+
+The dataset builder in `src/oulad/build_dataset.py` generates a set of
+aggregated features for each student-module-presentation combination:
+
+- **VLE interaction features**
+  - `vle_total_clicks`: total number of clicks across all VLE materials.
+  - `vle_mean_clicks`: average number of clicks per active day.
+  - `vle_max_clicks`: maximum clicks recorded on any single day.
+  - `vle_first4_clicks`: clicks accumulated in the first four weeks.
+  - `vle_last4_clicks`: clicks during the final four weeks of the course.
+  - `vle_cumulative_clicks`: cumulative clicks across the presentation.
+  - `vle_days_active`: number of distinct days with activity.
+- **Assessment features**
+  - `assessment_count`: number of submitted assessments.
+  - `assessment_mean_score`: average score across assessments.
+  - `assessment_last_score`: score on the most recent assessment.
+  - `assessment_ontime_rate`: proportion of assessments submitted on or before their due date.
+- **Existing registration attributes** such as `studied_credits` and
+  `num_of_prev_attempts` are carried over for modeling.
+
+### Label Creation
+
+Labels are derived from the `studentRegistration` table:
+
+- `label_pass` is 1 when the `final_result` is "Pass" and 0 otherwise.
+- `label_fail_or_withdraw` is 1 for students who either "Fail" or
+  "Withdrawn" and 0 for all other outcomes.
+These binary targets enable downstream classification tasks and fairness
+evaluation.
+
 ## Fairness Considerations
 
 OULAD contains sensitive demographic attributes that enable fairness analysis:
