@@ -4,6 +4,16 @@
 
 The Open University Learning Analytics Dataset (OULAD) contains data about courses, students and their interactions with Virtual Learning Environment (VLE) for seven selected courses and their presentations. The dataset includes demographic data, assessment results, and detailed logs of student interactions with course materials.
 
+## Download
+
+Run the helper script to fetch and extract the raw CSV files:
+
+```bash
+python scripts/oulad_download.py
+```
+
+The data will be stored in `data/oulad/raw/`.
+
 ## Key Characteristics
 
 - **Temporal Coverage**: Multiple course presentations labeled 'B' (February start) and 'J' (October start) from 2013-2014
