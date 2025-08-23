@@ -1,4 +1,10 @@
-"""Student segmentation using clustering algorithms."""
+"""Student segmentation using clustering algorithms.
+
+References
+----------
+- KMeans documentation: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+- AgglomerativeClustering documentation: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
+"""
 
 from __future__ import annotations
 import os
@@ -59,9 +65,9 @@ def segment_students(csv_path: str = "student-mat.csv", n_clusters: int = 3) -> 
     X_scaled = scaler.fit_transform(features)
 
     algorithms = {
-                "kmeans": KMeans(n_clusters=n_clusters, random_state=0, n_init=10),
+        "kmeans": KMeans(n_clusters=n_clusters, random_state=0, n_init=10),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
         # n_init set to explicit integer for compatibility with older scikit-learn
-        "agglomerative": AgglomerativeClustering(n_clusters=n_clusters),
+        "agglomerative": AgglomerativeClustering(n_clusters=n_clusters),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
     }
 
     summaries: list[pd.DataFrame] = []
