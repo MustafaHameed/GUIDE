@@ -196,6 +196,7 @@ from aif360.algorithms.inprocessing import AdversarialDebiasing
 from .data import load_data
 from .preprocessing import build_pipeline
 from .sequence_models import evaluate_sequence_model
+from .uncertainty.conformal import run_conformal_prediction
 
 
 PARAM_GRIDS: dict[str, dict[str, dict]] = {
@@ -431,16 +432,22 @@ def main(
     table_dir = Path('tables')
     table_dir.mkdir(exist_ok=True)
 
-    # Hold-out evaluation
+    # Hold-out evaluation with validation split for calibration
     if task == "regression":
-        X_train, X_test, y_train, y_test = train_test_split(
+        X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
+        )
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=0.25, random_state=42
         )
         grid_dict = REGRESSION_PARAM_GRIDS
         scoring = "neg_mean_squared_error"
     else:
-        X_train, X_test, y_train, y_test = train_test_split(
+        X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, test_size=0.2, stratify=y, random_state=42
+        )
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=0.25, stratify=y_temp, random_state=42
         )
         grid_dict = PARAM_GRIDS
         scoring = "f1"
@@ -685,6 +692,64 @@ def main(
             }
         )
         threshold_df.to_csv(table_dir / "threshold_tuning.csv", index=False)
+
+        # Conformal prediction to generate prediction sets
+        alpha = 0.1
+        if mitigation in ["demographic_parity", "equalized_odds"] and group_cols:
+            y_prob_val = model.predict_proba(
+                X_val, sensitive_features=X_val[group_cols[0]]
+            )[:, 1]
+        else:
+            y_prob_val = model.predict_proba(X_val)[:, 1]
+        groups_test = X_test[group_cols[0]].values if group_cols else None
+        conformal = run_conformal_prediction(
+            y_val.values,
+            y_prob_val,
+            y_test.values,
+            y_prob,
+            groups_test=groups_test,
+            alphas=[alpha],
+        )[alpha]
+
+        pd.DataFrame([conformal["overall"]]).to_csv(
+            table_dir / f"conformal_overall_alpha_{alpha}.csv", index=False
+        )
+        if conformal["by_group"] is not None:
+            conformal["by_group"].to_csv(
+                table_dir
+                / f"conformal_by_{group_cols[0]}_alpha_{alpha}.csv",
+                index=False,
+            )
+            sns.barplot(
+                data=conformal["by_group"], x="group", y="coverage"
+            )
+            plt.axhline(
+                conformal["overall"]["target_coverage"],
+                color="red",
+                linestyle="--",
+                label="target",
+            )
+            plt.ylabel("coverage")
+            plt.tight_layout()
+            plt.savefig(
+                fig_dir
+                / f"conformal_coverage_by_{group_cols[0]}_alpha_{alpha}.png"
+            )
+            plt.close()
+
+        size_counts = (
+            pd.Series(conformal["set_sizes"]).value_counts().sort_index().reset_index()
+        )
+        size_counts.columns = ["set_size", "count"]
+        size_counts.to_csv(
+            table_dir / f"conformal_set_size_dist_alpha_{alpha}.csv", index=False
+        )
+        sns.barplot(data=size_counts, x="set_size", y="count")
+        plt.tight_layout()
+        plt.savefig(
+            fig_dir / f"conformal_set_size_dist_alpha_{alpha}.png"
+        )
+        plt.close()
 
 
     # Export best parameters and search metrics
