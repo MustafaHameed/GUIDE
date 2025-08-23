@@ -11,6 +11,7 @@ References:
 - OULAD presentations B (February) and J (October) represent chronological order
 """
 
+import argparse
 import json
 import logging
 from pathlib import Path
@@ -376,10 +377,8 @@ def create_all_splits(dataset_path: Path, output_dir: Path) -> Dict[str, any]:
     return all_splits
 
 
-def main():
-    """CLI interface for creating OULAD splits."""
-    import argparse
-    
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    """Parse command line arguments for split creation."""
     parser = argparse.ArgumentParser(description='Create OULAD dataset splits')
     parser.add_argument(
         '--dataset',
@@ -389,13 +388,17 @@ def main():
     )
     parser.add_argument(
         '--output-dir',
-        type=Path, 
+        type=Path,
         default='data/oulad/splits',
         help='Directory to save split JSON files'
     )
-    
-    args = parser.parse_args()
-    
+    return parser.parse_args(argv)
+
+
+def main(argv: List[str] | None = None) -> None:
+    """CLI entrypoint for creating OULAD splits."""
+    args = parse_args(argv)
+
     try:
         create_all_splits(args.dataset, args.output_dir)
         logger.info("Split creation completed successfully!")

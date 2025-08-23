@@ -474,6 +474,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Train models with fairness evaluation')
+    parser.add_argument('--config', type=Path, help='Path to JSON config with dataset and split paths')
     parser.add_argument('--dataset', type=Path, default='data/oulad/processed/oulad_ml.parquet')
     parser.add_argument('--split', type=Path, default='data/oulad/splits/random_split.json')
     parser.add_argument('--results-dir', type=Path, default='results/oulad')
@@ -481,9 +482,16 @@ def main():
     parser.add_argument('--models', nargs='+', default=['logistic', 'random_forest'])
     parser.add_argument('--fairness-methods', nargs='+', default=['none', 'reweighing', 'equalized_odds'])
     parser.add_argument('--sensitive-attr', default='sex', help='Sensitive attribute column')
-    
+
     args = parser.parse_args()
-    
+
+    # Allow configuration file to override paths
+    if args.config and args.config.exists():
+        with open(args.config, 'r') as f:
+            cfg = json.load(f)
+        args.dataset = Path(cfg.get('dataset', args.dataset))
+        args.split = Path(cfg.get('split', args.split))
+
     # Load data
     df, splits = load_oulad_data(args.dataset, args.split)
     
