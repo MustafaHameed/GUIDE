@@ -30,6 +30,9 @@ from sklearn.metrics import (
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Explainability
+from explain.importance import ExplainabilityAnalyzer
+
 # Fairness imports
 from fairlearn.metrics import (
     MetricFrame,
@@ -489,6 +492,9 @@ def train_and_evaluate_model(
             save_roc_curve(y_test, y_prob, figures_dir, prefix)
         save_confusion_matrix(y_test, y_pred, figures_dir, prefix)
 
+    # Include trained model for downstream analysis
+    results['model'] = model
+
     return results
 
 
@@ -640,13 +646,31 @@ def main():
         figures_dir=args.figures_dir,
     )
 
+    # After training, create explainability artifacts
+    try:
+        analyzer = ExplainabilityAnalyzer(
+            results['model'],
+            X_train,
+            X_test,
+            y_train,
+            y_test,
+            sensitive_features=sensitive_test,
+        )
+        analyzer.setup_shap_explainer()
+        analyzer.setup_lime_explainer()
+        analyzer.compute_shap_values()
+        analyzer.save_shap_plots(args.figures_dir)
+        analyzer.save_lime_explanations(args.figures_dir, args.reports_dir, [0])
+    except Exception as e:
+        logger.warning(f"Explainability analysis failed: {e}")
+
     # Save reports
     args.reports_dir.mkdir(parents=True, exist_ok=True)
 
     metrics_to_save = {
         k: (float(v) if isinstance(v, (np.floating, np.float64, np.float32)) else v)
         for k, v in results.items()
-        if k not in ['bootstrap', 'fairness_by_group']
+        if k not in ['bootstrap', 'fairness_by_group', 'model']
     }
     with open(args.reports_dir / f"{args.model}_metrics.json", "w") as f:
         json.dump(metrics_to_save, f, indent=2)
