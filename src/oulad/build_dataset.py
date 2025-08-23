@@ -72,7 +72,11 @@ def create_vle_features(student_vle: pd.DataFrame, vle: pd.DataFrame) -> pd.Data
         DataFrame with VLE features per student-presentation
     """
     # Merge VLE interactions with metadata
-    vle_data = student_vle.merge(vle, on=['id_site'], how='left')
+    vle_data = student_vle.merge(
+        vle,
+        on=['id_site', 'code_module', 'code_presentation'],
+        how='left'
+    )
     
     # Calculate weekly aggregates
     vle_features = []
@@ -178,7 +182,7 @@ def create_labels_and_sensitive_attrs(student_info: pd.DataFrame, student_regist
     # Merge student info with registration outcomes
     labels_data = student_registration.merge(
         student_info,
-        on=['id_student'],
+        on=['id_student', 'code_module', 'code_presentation'],
         how='left'
     )
     
