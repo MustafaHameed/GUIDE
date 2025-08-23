@@ -15,6 +15,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
+
 logger = logging.getLogger(__name__)
 
 sns.set_theme(context="paper", style="whitegrid", font_scale=1.2)
@@ -25,14 +30,14 @@ plt.rcParams["savefig.dpi"] = 300
 def _save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
     """Save a table to ``directory`` ensuring the folder exists."""
 
-    directory.mkdir(exist_ok=True)
+    ensure_dir(directory)
     table.to_csv(directory / name)
 
 
 def _save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     """Tighten layout, save and close a figure given an ``Axes`` instance."""
 
-    directory.mkdir(exist_ok=True)
+    ensure_dir(directory)
     fig = ax.get_figure()
     fig.tight_layout()
     fig.savefig(directory / name)

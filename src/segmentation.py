@@ -21,6 +21,11 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
+
 sns.set_theme(context="paper", style="whitegrid", font_scale=1.1)
 plt.rcParams["figure.dpi"] = 150
 plt.rcParams["savefig.dpi"] = 150
@@ -28,13 +33,13 @@ plt.rcParams["savefig.dpi"] = 150
 
 def save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
     """Save a table to disk."""
-    directory.mkdir(exist_ok=True)
+    ensure_dir(directory)
     table.to_csv(directory / name, index=False)
 
 
 def save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     """Tighten layout, save and close a figure given an Axes."""
-    directory.mkdir(exist_ok=True)
+    ensure_dir(directory)
     fig = ax.get_figure()
     fig.tight_layout()
     fig.savefig(directory / name)

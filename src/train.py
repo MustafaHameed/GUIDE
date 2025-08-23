@@ -25,6 +25,10 @@ import itertools
 import logging
 
 from logging_config import setup_logging
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
 
 def _configure_warnings() -> None:
     """Suppress common warnings for cleaner output."""
@@ -444,11 +448,11 @@ def main(
 
     # Prepare output directories
     fig_dir = Path('figures')
-    fig_dir.mkdir(exist_ok=True)
+    ensure_dir(fig_dir)
     report_dir = Path('reports')
-    report_dir.mkdir(exist_ok=True)
+    ensure_dir(report_dir)
     table_dir = Path('tables')
-    table_dir.mkdir(exist_ok=True)
+    ensure_dir(table_dir)
 
     # Hold-out evaluation with validation split for calibration
     if task == "regression":
@@ -951,7 +955,7 @@ def main(
             logger.warning("Skipping PDP for %s due to error: %s", feat, e)
     # Cross-validation across all models
     table_dir = Path("tables")
-    table_dir.mkdir(exist_ok=True)
+    ensure_dir(table_dir)
     performance: list[dict[str, float | str]] = []
     for m in PARAM_GRIDS.keys():
         try:

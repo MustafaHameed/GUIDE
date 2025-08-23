@@ -14,6 +14,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
+from .utils import ensure_dir
+
 
 def _prepare_sequences(csv_path: str) -> tuple[np.ndarray, np.ndarray]:
     """Load data and construct sequential inputs.
@@ -116,13 +118,13 @@ def _train_rnn(
         attrs = ig.attribute(X_test_t, target=1)
         step_importance = attrs.abs().sum(dim=2).mean(dim=0).detach().cpu().numpy()
         table_dir = Path("tables")
-        table_dir.mkdir(exist_ok=True)
+        ensure_dir(table_dir)
         df_imp = pd.DataFrame(
             {"step": np.arange(1, len(step_importance) + 1), "importance": step_importance}
         )
         df_imp.to_csv(table_dir / "sequence_step_importance.csv", index=False)
         fig_dir = Path("figures")
-        fig_dir.mkdir(exist_ok=True)
+        ensure_dir(fig_dir)
         plt.figure()
         plt.bar(df_imp["step"], df_imp["importance"])
         plt.xlabel("Time Step")
@@ -225,6 +227,6 @@ def evaluate_sequence_model(
 
     df = pd.DataFrame(results)
     table_dir = Path("tables")
-    table_dir.mkdir(exist_ok=True)
+    ensure_dir(table_dir)
     df.to_csv(table_dir / f"sequence_{model_type}_performance.csv", index=False)
     return df

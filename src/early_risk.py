@@ -17,6 +17,11 @@ from sklearn.metrics import classification_report, RocCurveDisplay
 from sklearn.inspection import permutation_importance
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
 from fairlearn.metrics import (
     MetricFrame,
     selection_rate,
@@ -87,8 +92,8 @@ def train_early(
         if hasattr(pipeline, "predict_proba")
         else None
     )
-    fig_dir = Path("figures"); fig_dir.mkdir(parents=True, exist_ok=True)
-    report_dir = Path("reports"); report_dir.mkdir(parents=True, exist_ok=True)
+    fig_dir = Path("figures"); ensure_dir(fig_dir)
+    report_dir = Path("reports"); ensure_dir(report_dir)
 
     # Simple train ROC (no hold-out in this quick utility)
     if y_prob is not None:

@@ -7,6 +7,11 @@ import pandas as pd
 import numpy as np
 import warnings
 
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
+
 # Filter external library warnings when possible
 warnings.filterwarnings('ignore', category=FutureWarning,
                        module='dowhy.causal_estimators.regression_estimator')
@@ -75,7 +80,7 @@ def estimate_concept_effects(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
 
 def export_concept_importance(effects: pd.DataFrame, out_dir: Path) -> Path:
     """Save concept importance to a CSV file."""
-    out_dir.mkdir(exist_ok=True)
+    ensure_dir(out_dir)
     path = out_dir / "concept_importance.csv"
     effects.to_csv(path, index=False)
     return path
