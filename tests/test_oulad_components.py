@@ -9,7 +9,12 @@ import json
 
 # Import modules to test
 from src.oulad.build_dataset import load_oulad_tables, create_labels_and_sensitive_attrs
-from src.oulad.splits import check_leakage, random_split
+from src.oulad.splits import (
+    check_leakage,
+    random_split,
+    chronological_split,
+    module_holdout_split,
+)
 from src.uncertainty.conformal import InductiveConformalPredictor, test_conformal_prediction
 
 
@@ -105,6 +110,43 @@ class TestOULADSplits:
             
             # Check split file exists
             assert (Path(temp_dir) / 'random_split.json').exists()
+
+    def test_chronological_split(self, tmp_path):
+        """Chronological split uses presentation order without leakage."""
+        df = pd.DataFrame(
+            {
+                'id_student': [1, 2, 3, 4],
+                'code_module': ['AAA'] * 4,
+                'code_presentation': ['2013B', '2013J', '2014B', '2014J'],
+            }
+        )
+
+        split = chronological_split(df, tmp_path)
+
+        assert split['metadata']['split_type'] == 'chronological'
+        assert split['metadata']['train_presentations'] == ['2013B', '2013J']
+        assert split['metadata']['val_presentations'] == ['2014B']
+        assert split['metadata']['test_presentations'] == ['2014J']
+        assert check_leakage(split['train'], split['val'], split['test'])
+
+    def test_module_holdout_split(self, tmp_path):
+        """Each module acts as test set once without leakage."""
+        df = pd.DataFrame(
+            {
+                'id_student': range(6),
+                'code_module': ['AAA', 'AAA', 'AAA', 'BBB', 'BBB', 'BBB'],
+                'code_presentation': ['2013J'] * 6,
+                'label_pass': [1, 0, 1, 0, 1, 0],
+                'sex': ['Female', 'Male'] * 3,
+            }
+        )
+
+        splits = module_holdout_split(df, tmp_path)
+
+        assert set(splits.keys()) == {'AAA', 'BBB'}
+        for module, split in splits.items():
+            assert split['metadata']['test_module'] == module
+            assert check_leakage(split['train'], split['val'], split['test'])
 
 
 class TestConformalPrediction:

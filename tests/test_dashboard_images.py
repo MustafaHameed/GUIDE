@@ -1,5 +1,33 @@
 import logging
 from pathlib import Path
+import sys
+import types
+
+# Provide minimal stubs only if dashboard dependencies are missing
+try:  # pragma: no cover - we don't exercise the real modules in tests
+    import streamlit  # noqa: F401
+    import altair  # noqa: F401
+except Exception:  # pragma: no cover
+    streamlit_stub = types.ModuleType("streamlit")
+    streamlit_stub.set_page_config = lambda *a, **k: None
+    streamlit_stub.sidebar = types.SimpleNamespace(text_input=lambda *a, **k: "")
+    streamlit_stub.warning = lambda *a, **k: None
+    streamlit_stub.stop = lambda *a, **k: None
+    streamlit_stub.title = lambda *a, **k: None
+    streamlit_stub.caption = lambda *a, **k: None
+    streamlit_stub.write = lambda *a, **k: None
+    streamlit_stub.cache_data = lambda *a, **k: (lambda f: f)
+
+    components_stub = types.ModuleType("streamlit.components")
+    components_v1_stub = types.ModuleType("streamlit.components.v1")
+    components_v1_stub.html = lambda *a, **k: None
+    components_stub.v1 = components_v1_stub
+    streamlit_stub.components = components_stub
+
+    sys.modules.setdefault("streamlit", streamlit_stub)
+    sys.modules.setdefault("streamlit.components", components_stub)
+    sys.modules.setdefault("streamlit.components.v1", components_v1_stub)
+    sys.modules.setdefault("altair", types.ModuleType("altair"))
 
 logging.getLogger("streamlit").setLevel("ERROR")
 

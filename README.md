@@ -99,8 +99,10 @@ Group-specific reports will be written to `reports/` and figures to `figures/`.
 
 ```bash
 pip install -r requirements.txt
-pytest
+PYTHONHASHSEED=0 pytest
 ```
+
+Setting `PYTHONHASHSEED` ensures deterministic hashing for reproducible results.
 
 After training, a feature-importance ranking is saved to `reports/feature_importance.csv`
 and a corresponding plot to `figures/feature_importance.png`. The script uses
