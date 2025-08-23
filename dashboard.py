@@ -31,7 +31,7 @@ import altair as alt
 # These will work when you run from the project root.
 from src.data import load_data
 from src.preprocessing import build_pipeline
-from src.dashboard_utils import (
+from src import (
     _safe_read_csv,
     _list_images,
     _show_images_grid,

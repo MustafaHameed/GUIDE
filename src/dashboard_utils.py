@@ -7,6 +7,14 @@ import streamlit as st
 
 CACHE_TTL = 600
 
+__all__ = [
+    "_safe_read_csv",
+    "_list_images",
+    "_show_images_grid",
+    "_show_table",
+    "clear_caches",
+]
+
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def _safe_read_csv(path: Path) -> pd.DataFrame | None:
     if path.exists() and path.is_file():

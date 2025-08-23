@@ -10,7 +10,7 @@ import altair as alt
 import streamlit as st
 
 from src.data import load_data
-from src.dashboard_utils import _list_images, _show_images_grid, _show_table
+from src import _list_images, _show_images_grid, _show_table
 
 PROJECT_DIR = Path(__file__).resolve().parent
 FIGURES_DIR = PROJECT_DIR / "figures"

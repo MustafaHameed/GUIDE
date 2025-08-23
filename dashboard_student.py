@@ -12,7 +12,7 @@ import streamlit as st
 
 from src.data import load_data
 from src.preprocessing import build_pipeline
-from src.dashboard_utils import _safe_read_csv, clear_caches
+from src import _safe_read_csv, clear_caches
 
 PROJECT_DIR = Path(__file__).resolve().parent
 TABLES_DIR = PROJECT_DIR / "tables"
