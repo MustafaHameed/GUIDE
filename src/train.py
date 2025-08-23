@@ -1,3 +1,5 @@
+"""Training utilities for building, evaluating, and explaining models."""
+
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate
 from sklearn.metrics import (
     classification_report,
@@ -20,17 +22,30 @@ import numpy as np
 from pathlib import Path
 import warnings
 import itertools
+import logging
 
-# Suppress common warnings for cleaner output
-warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
-warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
-warnings.filterwarnings("ignore", category=Warning, module="lightgbm")
 
-from lime.lime_tabular import LimeTabularExplainer
+def _configure_warnings() -> None:
+    """Suppress common warnings for cleaner output."""
+    warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
+    warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
+    warnings.filterwarnings("ignore", category=Warning, module="lightgbm")
+
+
+_configure_warnings()
+
+try:
+    from lime.lime_tabular import LimeTabularExplainer
+except ImportError:
+    LimeTabularExplainer = None
+
 try:
     import dice_ml
 except ImportError:
     dice_ml = None
+
+
+logger = logging.getLogger(__name__)
 
 def positive_predictive_value(y_true, y_pred):
     return precision_score(y_true, y_pred, zero_division=0)
@@ -112,7 +127,9 @@ def _compute_fairness_tables(
                 plt.savefig(fig_dir / f"fairness_{col}_{suffix}.png")
                 plt.close()
             else:
-                print(f"Skipping fairness plot for {col} due to missing metric columns")
+                logger.warning(
+                    "Skipping fairness plot for %s due to missing metric columns", col
+                )
         results[col] = df
 
     # Intersectional fairness for combinations of columns
@@ -483,7 +500,9 @@ def main(
         model = search.best_estimator_
         best_params = model.named_steps["model"].get_params()
         best_score = search.best_score_
-        print(f"Best params from search: {best_params} (score={best_score:.3f})")
+        logger.info(
+            "Best params from search: %s (score=%.3f)", best_params, best_score
+        )
     else:
         model = pipeline
         model.fit(X_train, y_train)
@@ -495,7 +514,7 @@ def main(
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        print(f"RMSE: {rmse:.3f}\nMAE: {mae:.3f}\nR^2: {r2:.3f}")
+        logger.info("RMSE: %.3f\nMAE: %.3f\nR^2: %.3f", rmse, mae, r2)
         pd.DataFrame({"rmse": [rmse], "mae": [mae], "r2": [r2]}).to_csv(
             report_dir / "regression_metrics.csv", index=False
         )
@@ -574,7 +593,7 @@ def main(
             y_prob = getattr(pred_ds, "scores", None)
             model = adv
         else:
-            print(
+            logger.warning(
                 "Mitigation requested but no group column provided. Proceeding without mitigation."
             )
 
@@ -589,8 +608,9 @@ def main(
             baseline=pre_fairness,
             fig_dir=fig_dir,
         )
-    print("Hold-out classification report:")
-    print(classification_report(y_test, y_pred))
+    logger.info(
+        "Hold-out classification report:\n%s", classification_report(y_test, y_pred)
+    )
 
     # Export classification report as a table
     report = classification_report(y_test, y_pred, output_dict=True)
@@ -763,7 +783,7 @@ def main(
         overall_fpr = false_positive_rate(y_test, y_pred)
         for col in group_cols:
             if col not in X_test.columns:
-                print(f"Column '{col}' not in dataset. Skipping.")
+                logger.warning("Column '%s' not in dataset. Skipping.", col)
                 continue
             # Per-group classification artifacts
             for group_value in X_test[col].unique():
@@ -772,8 +792,10 @@ def main(
                 y_pred_g = y_pred[mask]
                 y_prob_g = y_prob[mask] if y_prob is not None else None
                 if y_true_g.nunique() < 2:
-                    print(
-                        f"Skipping group {col}={group_value} due to single class in y_true."
+                    logger.warning(
+                        "Skipping group %s=%s due to single class in y_true.",
+                        col,
+                        group_value,
                     )
                     continue
 
@@ -859,14 +881,16 @@ def main(
                 if dice is not None:
                     cf = dice.generate_counterfactuals(
                         query_df, total_CFs=1, desired_class="opposite"
-                    )
+                )
                     cf.cf_examples_list[0].final_cfs_df.to_csv(
                         report_dir / f"counterfactual_{idx}.csv", index=False
                     )
             except Exception as e:
-                print(f"Counterfactual generation failed for index {idx}: {e}")    
+                logger.warning(
+                    "Counterfactual generation failed for index %s: %s", idx, e
+                )
     except Exception as e:
-        print(f"Skipping LIME explanations due to error: {e}")
+        logger.warning("Skipping LIME explanations due to error: %s", e)
 
     # Feature importance
     fi_csv = report_dir / "feature_importance.csv"
@@ -923,7 +947,7 @@ def main(
             plt.savefig(fig_dir / f"ice_{safe_name}.png")
             plt.close()
         except Exception as e:
-            print(f"Skipping PDP for {feat} due to error: {e}")
+            logger.warning("Skipping PDP for %s due to error: %s", feat, e)
     # Cross-validation across all models
     table_dir = Path("tables")
     table_dir.mkdir(exist_ok=True)
@@ -942,7 +966,7 @@ def main(
                 }
             )
         except Exception as e:
-            print(f"Skipping {m} due to error: {e}")
+            logger.warning("Skipping %s due to error: %s", m, e)
     perf_df = pd.DataFrame(performance)
     perf_df.to_csv(table_dir / "model_performance.csv", index=False)
 
