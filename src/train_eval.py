@@ -241,6 +241,44 @@ def calculate_fairness_metrics(
     return metrics, mf.by_group
 
 
+def compute_fairness_table(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sensitive_features: pd.Series,
+    attr_name: str,
+) -> pd.DataFrame:
+    """Compute per-group fairness metrics expected by the dashboard."""
+    overall_tpr = true_positive_rate(y_true, y_pred)
+    overall_fpr = false_positive_rate(y_true, y_pred)
+
+    mf = MetricFrame(
+        metrics={
+            "demographic_parity": selection_rate,
+            "true_positive_rate": true_positive_rate,
+            "false_positive_rate": false_positive_rate,
+        },
+        y_true=y_true,
+        y_pred=y_pred,
+        sensitive_features=sensitive_features,
+    )
+
+    records: List[Dict[str, Any]] = []
+    for group_val, row in mf.by_group.iterrows():
+        eo = max(
+            abs(row["true_positive_rate"] - overall_tpr),
+            abs(row["false_positive_rate"] - overall_fpr),
+        )
+        records.append(
+            {
+                attr_name: group_val,
+                "demographic_parity": row["demographic_parity"],
+                "equalized_odds": eo,
+            }
+        )
+
+    return pd.DataFrame(records)
+
+
 def expected_calibration_error(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> float:
     """Calculate Expected Calibration Error (ECE).
     
@@ -384,17 +422,25 @@ def train_and_evaluate_model(
     else:
         model.fit(X_train, y_train)
 
-    # Make initial predictions
-    y_pred = model.predict(X_test)
+    # Make initial predictions (pre-mitigation)
+    y_pred_pre = model.predict(X_test)
     y_prob = (
         model.predict_proba(X_test)[:, 1]
         if hasattr(model, 'predict_proba')
         else None
     )
 
+    attr_name = sensitive_features_test.name
+    fairness_pre_table = compute_fairness_table(
+        y_test, y_pred_pre, sensitive_features_test, attr_name
+    )
+
+    # Start with pre-mitigation predictions
+    y_pred = y_pred_pre
+
     # Apply postprocessing if requested
     if postprocess and postprocess != 'none':
-        y_pred, y_prob_post = apply_postprocessing(
+        y_pred_post, y_prob_post = apply_postprocessing(
             model,
             X_train,
             y_train,
@@ -403,8 +449,13 @@ def train_and_evaluate_model(
             sensitive_features_test,
             constraint=postprocess,
         )
+        y_pred = y_pred_post
         if y_prob_post is not None:
             y_prob = y_prob_post
+
+    fairness_post_table = compute_fairness_table(
+        y_test, y_pred, sensitive_features_test, attr_name
+    )
 
     # Calculate basic metrics
     results['accuracy'] = accuracy_score(y_test, y_pred)
@@ -415,12 +466,14 @@ def train_and_evaluate_model(
         results['brier'] = brier_score_loss(y_test, y_prob)
         results['ece'] = expected_calibration_error(y_test, y_prob)
 
-    # Calculate fairness metrics and report
+    # Calculate fairness metrics and report for post-mitigation predictions
     fairness_metrics, fairness_by_group = calculate_fairness_metrics(
         y_test, y_pred, sensitive_features_test
     )
     results.update(fairness_metrics)
     results['fairness_by_group'] = fairness_by_group
+    results['fairness_pre_table'] = fairness_pre_table
+    results['fairness_post_table'] = fairness_post_table
 
     # Bootstrap confidence intervals
     bootstrap_results = bootstrap_metrics(
@@ -604,9 +657,18 @@ def main():
     metrics_df = pd.DataFrame([metrics_to_save])
     metrics_df.to_csv(tables_dir / f"oulad_{args.model}_metrics.csv", index=False)
 
-    # Fairness report by group
+    # Fairness reports
     fairness_df: pd.DataFrame = results['fairness_by_group']
     fairness_df.to_csv(args.reports_dir / f"{args.model}_fairness.csv")
+
+    fairness_pre_df: pd.DataFrame = results['fairness_pre_table']
+    fairness_post_df: pd.DataFrame = results['fairness_post_table']
+    fairness_pre_df.to_csv(
+        args.reports_dir / f"fairness_{args.sensitive_attr}_pre.csv", index=False
+    )
+    fairness_post_df.to_csv(
+        args.reports_dir / f"fairness_{args.sensitive_attr}_post.csv", index=False
+    )
 
     # Bootstrap metrics
     with open(args.reports_dir / f"{args.model}_bootstrap.json", "w") as f:

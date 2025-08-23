@@ -92,6 +92,23 @@ OULAD contains sensitive demographic attributes that enable fairness analysis:
 - Index of Multiple Deprivation (IMD) bands
 - Regional indicators
 
+### Generating Fairness Reports
+
+After building the dataset and split definitions, you can train a model and
+produce pre- and post-mitigation fairness tables with:
+
+```bash
+python src/train_eval.py \
+    --dataset path/to/oulad.parquet \
+    --split configs/oulad_default.json \
+    --sensitive-attr sex \
+    --reports-dir reports \
+    --postprocess equalized_odds
+```
+
+This will create `reports/fairness_<attr>_pre.csv` and
+`reports/fairness_<attr>_post.csv` for the specified sensitive attribute.
+
 ## References
 
 - [OU Analyse Dataset Portal](https://analyse.kmi.open.ac.uk/open-dataset)
