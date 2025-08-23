@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.segmentation import segment_students
+from src.segmentation import segment_students, save_figure, save_table
 
 
 @pytest.fixture
@@ -32,7 +32,23 @@ def test_segment_students_creates_outputs(small_csv, run_in_tmp):
 
     # Assert that each algorithm produced exactly two clusters
     assert summary.groupby("algorithm")["cluster"].nunique().eq(2).all()
+    assert set(summary["algorithm"]) == {"kmeans", "agglomerative"}
+    assert list(summary.columns) == ["algorithm", "cluster", "count", "avg_G3"]
 
-    # Verify that expected output files were created
+    # Verify that expected output files were created for both algorithms
     assert Path("figures/segmentation_kmeans.png").exists()
+    assert Path("figures/segmentation_agglomerative.png").exists()
     assert Path("tables/segmentation_summary.csv").exists()
+
+
+def test_save_helpers_create_files(tmp_path):
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    save_table(df, "test.csv", tmp_path)
+    assert (tmp_path / "test.csv").exists()
+
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [0, 1])
+    save_figure(ax, "test.png", tmp_path)
+    assert (tmp_path / "test.png").exists()
