@@ -16,4 +16,5 @@ streamlit
 dowhy
 # Sequence models
 torch
+torch-geometric
 hmmlearn
