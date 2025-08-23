@@ -1,4 +1,10 @@
-"""Train a classifier using early grade data for risk assessment."""
+"""Train a classifier using early grade data for risk assessment.
+
+References
+----------
+- StratifiedKFold documentation: https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.StratifiedKFold.html
+- Fairlearn metrics: https://fairlearn.org/
+"""
 
 from __future__ import annotations
 from pathlib import Path
@@ -60,7 +66,7 @@ def train_early(
         plt.savefig(fig_dir / f"early_roc_G{upto_grade}.png")
         plt.close()
 
-    # Per-group fairness metrics
+    # Per-group fairness metrics via Fairlearn (https://fairlearn.org/)
     if group_cols:
         for col in group_cols:
             if col not in X.columns:

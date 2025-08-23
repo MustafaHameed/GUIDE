@@ -1,3 +1,11 @@
+"""Sequence models for grade prediction.
+
+References
+----------
+- Attention mechanism: https://arxiv.org/abs/1409.0473
+- Integrated Gradients: https://doi.org/10.1109/TPAMI.2017.2992093
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -51,10 +59,15 @@ def _train_rnn(
     When ``save_importance`` is True, per-step importance scores are computed
     using Integrated Gradients and stored under ``tables/`` with a
     corresponding bar plot in ``figures/``.
+
+    References
+    ----------
+    - Attention mechanism: https://arxiv.org/abs/1409.0473
+    - Integrated Gradients: https://doi.org/10.1109/TPAMI.2017.2992093
     """
     import torch
     from torch import nn
-    from captum.attr import IntegratedGradients
+    from captum.attr import IntegratedGradients  # Reference: https://doi.org/10.1109/TPAMI.2017.2992093
     import matplotlib.pyplot as plt
 
     input_size = X_train.shape[2]
@@ -128,8 +141,13 @@ def _train_hmm(
     y_test: np.ndarray,
     n_components: int = 1,
 ) -> float:
-    """Train class-specific HMMs and return accuracy."""
-    from hmmlearn.hmm import GaussianHMM
+    """Train class-specific HMMs and return accuracy.
+
+    References
+    ----------
+    - Hidden Markov models tutorial: https://doi.org/10.1109/5.18626
+    """
+    from hmmlearn.hmm import GaussianHMM  # Reference: https://doi.org/10.1109/5.18626
 
     models: dict[int, GaussianHMM] = {}
     for cls in np.unique(y_train):

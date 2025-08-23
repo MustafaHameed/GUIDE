@@ -197,3 +197,13 @@ recommended for shared deployments.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
+
+## Bibliography
+
+- Cawley, G. C., & Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
+- Sundararajan, M., Taly, A., & Yan, Q. (2017). Axiomatic Attribution for Deep Networks. https://doi.org/10.1109/TPAMI.2017.2992093
+- Rabiner, L. R. (1989). A Tutorial on Hidden Markov Models and Selected Applications in Speech Recognition. https://doi.org/10.1109/5.18626
+- scikit-learn documentation. https://scikit-learn.org/stable/
+- Fairlearn documentation. https://fairlearn.org/
+- SHAP documentation. https://shap.readthedocs.io/
+- LIME documentation. https://lime-ml.readthedocs.io/

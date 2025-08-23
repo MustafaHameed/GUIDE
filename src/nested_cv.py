@@ -1,3 +1,10 @@
+"""Nested cross-validation for regression models.
+
+References
+----------
+- Cawley and Talbot, 2010: https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
+"""
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -96,7 +103,13 @@ def run_inner_cv(X_train, y_train, model, param_grid):
     return pipe
         
 def nested_cv(X, y, models, repeats=1):
-    outer_cv = RepeatedKFold(n_splits=10, n_repeats=repeats, random_state=0)
+    """Run nested cross-validation.
+
+    References
+    ----------
+    - Cawley and Talbot, 2010: https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
+    """
+    outer_cv = RepeatedKFold(n_splits=10, n_repeats=repeats, random_state=0)  # Nested CV reference above
     results: list[dict] = []
     preds: list[pd.DataFrame] = []
     for model_name, estimator, param_grid in models:
