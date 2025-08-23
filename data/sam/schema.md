@@ -73,7 +73,11 @@ student_002,login,2023-09-15T10:00:00Z,student,CS250,true
 
 This schema enables analysis of:
 - Learning behavior patterns
-- Activity sequences and variants  
+- Activity sequences and variants
 - Performance bottlenecks
 - Conformance to expected learning paths
 - Resource utilization patterns
+
+## License
+
+The SAM dataset schema is provided without an explicit license. Verify permissions with the data owner before distribution or reuse.

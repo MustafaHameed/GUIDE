@@ -14,6 +14,10 @@ python scripts/oulad_download.py
 
 The data will be stored in `data/oulad/raw/`.
 
+## License
+
+The OULAD data is released under the [Creative Commons Attribution 4.0 International license](https://creativecommons.org/licenses/by/4.0/) as noted on the [dataset portal](https://analyse.kmi.open.ac.uk/open-dataset/).
+
 ## Key Characteristics
 
 - **Temporal Coverage**: Multiple course presentations labeled 'B' (February start) and 'J' (October start) from 2013-2014
