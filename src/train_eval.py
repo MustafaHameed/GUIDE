@@ -772,11 +772,25 @@ def main():
         default="none",
         help="Postprocessing threshold optimization",
     )
+    parser.add_argument(
+        "--autoenc-feats",
+        type=Path,
+        default=None,
+        help="Path to autoencoder latent features parquet",
+    )
 
     args = parser.parse_args()
 
     # Load data
     df, splits = load_oulad_data(args.dataset, args.split)
+
+    if args.autoenc_feats is not None:
+        logger.info(f"Loading autoencoder features from {args.autoenc_feats}")
+        ae_df = pd.read_parquet(args.autoenc_feats)
+        df = df.merge(ae_df, on="id_student", how="left")
+        ae_cols = [c for c in ae_df.columns if c.startswith("autoenc_feat")]
+        if ae_cols:
+            df[ae_cols] = df[ae_cols].fillna(0)
 
     # Prepare train/test splits
     train_mask = df['id_student'].isin(splits['train'])
