@@ -2,11 +2,15 @@ import hashlib
 import logging
 from pathlib import Path
 from zipfile import ZipFile
+import sys
 
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
+
+sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+from logging_config import setup_logging
 
 OULAD_URL = "https://analyse.kmi.open.ac.uk/open-dataset/download"
 DEST_DIR = Path("data/oulad/raw")
@@ -20,7 +24,7 @@ CORE_TABLES = {
     "assessments.csv",
 }
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def md5(path: Path) -> str:
@@ -59,11 +63,11 @@ def summarize_tables(dest: Path) -> None:
     for name in sorted(CORE_TABLES):
         csv_path = dest / name
         if not csv_path.exists():
-            logging.warning("%s not found", name)
+            logger.warning("%s not found", name)
             continue
         checksum = md5(csv_path)
         df = pd.read_csv(csv_path)
-        logging.info(
+        logger.info(
             "%s: md5=%s rows=%d cols=%d", name, checksum, df.shape[0], df.shape[1]
         )
 
@@ -72,21 +76,22 @@ def main() -> None:
     DEST_DIR.mkdir(parents=True, exist_ok=True)
     zip_path = DEST_DIR / ZIP_NAME
 
-    logging.info("Downloading OULAD dataset...")
+    logger.info("Downloading OULAD dataset...")
     download_file(OULAD_URL, zip_path)
-    logging.info("Zip MD5: %s", md5(zip_path))
+    logger.info("Zip MD5: %s", md5(zip_path))
 
-    logging.info("Extracting files...")
+    logger.info("Extracting files...")
     extract_zip(zip_path, DEST_DIR)
 
-    logging.info("Extracted CSV files:")
+    logger.info("Extracted CSV files:")
     for p in sorted(DEST_DIR.glob("*.csv")):
         size_mb = p.stat().st_size / 1_000_000
-        logging.info("%s - %.2f MB", p.name, size_mb)
+        logger.info("%s - %.2f MB", p.name, size_mb)
 
-    logging.info("Summary statistics for core tables:")
+    logger.info("Summary statistics for core tables:")
     summarize_tables(DEST_DIR)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

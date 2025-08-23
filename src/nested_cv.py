@@ -5,6 +5,8 @@ References
 - Cawley and Talbot, 2010: https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
 """
 
+import logging
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -50,6 +52,10 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
     shap = None  # type: ignore
     HAS_SHAP = False
 
+
+from logging_config import setup_logging
+
+logger = logging.getLogger(__name__)
 
 def load_regression_data(csv_path: str = "student-mat.csv"):
     df = pd.read_csv(csv_path)
@@ -469,4 +475,5 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

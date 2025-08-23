@@ -24,6 +24,7 @@ import warnings
 import itertools
 import logging
 
+from logging_config import setup_logging
 
 def _configure_warnings() -> None:
     """Suppress common warnings for cleaner output."""
@@ -982,6 +983,7 @@ def main(
 
 
 if __name__ == '__main__':
+    setup_logging()
     parser = argparse.ArgumentParser(description='Train model with fairness evaluation')
     parser.add_argument('--csv-path', default='student-mat.csv')
     parser.add_argument('--pass-threshold', type=int, default=10,
