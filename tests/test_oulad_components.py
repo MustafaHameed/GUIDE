@@ -33,6 +33,8 @@ class TestOULADDataProcessing:
         # Create mock data
         student_info = pd.DataFrame({
             'id_student': [1, 2, 3],
+            'code_module': ['AAA', 'BBB', 'AAA'],
+            'code_presentation': ['2013J', '2013J', '2014B'],
             'gender': ['F', 'M', 'F'],
             'age_band': ['0-35', '35-55', '0-35'],
             'highest_education': ['A Level', 'HE Qualification', 'Lower Than A Level'],
