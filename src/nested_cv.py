@@ -30,6 +30,10 @@ from sklearn.neural_network import MLPRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+try:
+    from .utils import ensure_dir
+except ImportError:  # pragma: no cover - fallback for direct execution
+    from utils import ensure_dir
 try:  # statistical tests
     from statsmodels.stats.anova import AnovaRM
     from statsmodels.stats.multicomp import MultiComparison
@@ -242,7 +246,7 @@ def shap_analysis(best_model, X):
     shap_values = explainer(X_sel)
 
     fig_dir = Path("figures")
-    fig_dir.mkdir(exist_ok=True)
+    ensure_dir(fig_dir)
 
     shap.summary_plot(shap_values, features=X_sel, feature_names=selected_features, show=False)
     plt.tight_layout()
@@ -267,7 +271,7 @@ def shap_analysis(best_model, X):
 
 def residual_plots(preds_df, base_model):
     fig_dir = Path("figures")
-    fig_dir.mkdir(exist_ok=True)
+    ensure_dir(fig_dir)
     df = preds_df[preds_df["model"] == base_model].copy()
     df["residual"] = df["y_true"] - df["y_pred"]
     sns.boxplot(data=df, x="sex", y="residual")
@@ -303,7 +307,7 @@ def residual_plots(preds_df, base_model):
 
 def learning_curve_plot(best_model, X, y):
     fig_dir = Path("figures")
-    fig_dir.mkdir(exist_ok=True)
+    ensure_dir(fig_dir)
     train_sizes, train_scores, test_scores = learning_curve(
         best_model,
         X,
@@ -435,7 +439,7 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
     results_df, preds_df = nested_cv(X, y, models=models, repeats=repeats)
 
     table_dir = Path("tables")
-    table_dir.mkdir(exist_ok=True)
+    ensure_dir(table_dir)
     results_df.to_csv(table_dir / "nested_cv_regression_metrics.csv", index=False)
 
     base_model = models[0][0]
@@ -453,7 +457,7 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
 
     # Comparison visualization
     fig_dir = Path("figures")
-    fig_dir.mkdir(exist_ok=True)
+    ensure_dir(fig_dir)
     order = results_df["model"].unique()
     sns.boxplot(data=results_df, x="model", y="rmse", order=order)
     if ci_df is not None:
