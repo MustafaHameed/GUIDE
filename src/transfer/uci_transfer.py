@@ -337,15 +337,22 @@ def transfer_experiment(source_data: pd.DataFrame, target_data: pd.DataFrame,
     return results
 
 
-def run_bidirectional_transfer(oulad_data_path: str, uci_data_path: str, 
-                              output_dir: Path) -> Dict[str, Dict]:
+def run_bidirectional_transfer(
+    oulad_data_path: str,
+    uci_data_path: str,
+    output_dir: Path,
+    table_path: Path = Path("tables/transfer_results.csv"),
+    figure_path: Path = Path("figures/transfer_performance.png"),
+) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
-    
+
     Args:
         oulad_data_path: Path to OULAD parquet file
         uci_data_path: Path to UCI CSV file
-        output_dir: Directory to save results
-        
+        output_dir: Directory to save intermediate results
+        table_path: Location to save combined performance and fairness metrics
+        figure_path: Location to save transfer performance visualization
+
     Returns:
         Dictionary with transfer results
     """
@@ -409,18 +416,37 @@ def run_bidirectional_transfer(oulad_data_path: str, uci_data_path: str,
     
     # Save results
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save summary CSV
+
+    # Save summary CSV in results directory
     results_df = pd.DataFrame([results[k] for k in results.keys()])
-    results_df.to_csv(output_dir / 'transfer_summary.csv', index=False)
-    
+    results_df.to_csv(output_dir / "transfer_summary.csv", index=False)
+
     # Save feature mapping
     mapping_df = pd.DataFrame([
-        {'feature': fname, 'oulad_col': config['oulad_col'], 'uci_col': config['uci_col']}
-        for fname, config in feature_mapping['shared_features'].items()
+        {"feature": fname, "oulad_col": config["oulad_col"], "uci_col": config["uci_col"]}
+        for fname, config in feature_mapping["shared_features"].items()
     ])
-    mapping_df.to_csv(output_dir / 'feature_mapping.csv', index=False)
-    
+    mapping_df.to_csv(output_dir / "feature_mapping.csv", index=False)
+
+    # Persist combined metrics table
+    table_path.parent.mkdir(parents=True, exist_ok=True)
+    results_df.to_csv(table_path, index=False)
+
+    # Visualize transfer performance
+    figure_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        plt.figure(figsize=(8, 4))
+        sns.barplot(data=results_df, x="direction", y="accuracy", hue="model")
+        plt.title("Transfer Accuracy by Direction and Model")
+        plt.tight_layout()
+        plt.savefig(figure_path)
+        plt.close()
+    except Exception as exc:  # pragma: no cover - visualization is best effort
+        logger.warning(f"Visualization failed: {exc}")
+
     logger.info(f"Transfer learning results saved to {output_dir}")
     
     return results
