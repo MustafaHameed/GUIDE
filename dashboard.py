@@ -195,6 +195,7 @@ elif current_tab == "Model Performance":
     candidate_tables = [
         ("Model Performance Comparison", TABLES_DIR / "model_performance.csv"),
         ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),  # Changed from REPORTS_DIR to TABLES_DIR
+        ("OULAD Regression Metrics", TABLES_DIR / "oulad_regression_metrics.csv"),
         ("Classification Report",      REPORTS_DIR / "classification_report.csv"),
         ("Best Hyperparameters",       REPORTS_DIR / "best_params.csv"),
         ("Threshold Tuning",           TABLES_DIR / "threshold_tuning.csv"),
