@@ -58,6 +58,9 @@ def _train_rnn(
 ) -> float:
     """Train an attention-based RNN classifier and return accuracy.
 
+    Requires optional dependencies ``torch`` and ``captum``. If they are not
+    available, a message is logged and ``float('nan')`` is returned.
+
     When ``save_importance`` is True, per-step importance scores are computed
     using Integrated Gradients and stored under ``tables/`` with a
     corresponding bar plot in ``figures/``.
@@ -67,9 +70,24 @@ def _train_rnn(
     - Attention mechanism: https://arxiv.org/abs/1409.0473
     - Integrated Gradients: https://doi.org/10.1109/TPAMI.2017.2992093
     """
-    import torch
-    from torch import nn
-    from captum.attr import IntegratedGradients  # Reference: https://doi.org/10.1109/TPAMI.2017.2992093
+    import logging
+
+    logger = logging.getLogger(__name__)
+    try:
+        import torch
+        from torch import nn
+    except ImportError:
+        logger.error(
+            "PyTorch is required for `_train_rnn`. Install torch to use the RNN model."
+        )
+        return float("nan")
+    try:
+        from captum.attr import IntegratedGradients  # Reference: https://doi.org/10.1109/TPAMI.2017.2992093
+    except ImportError:
+        logger.error(
+            "captum is required for `_train_rnn`. Install captum to use this feature."
+        )
+        return float("nan")
     import matplotlib.pyplot as plt
 
     input_size = X_train.shape[2]

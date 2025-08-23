@@ -147,6 +147,10 @@ The training script can also evaluate grade sequences with an RNN or HMM:
 python -m src.train --sequence-model rnn
 ```
 
+The RNN implementation depends on the optional `torch` and `captum`
+packages. Install them separately if you plan to train the sequence model or
+compute importance scores.
+
 When using the RNN, the hidden size, number of epochs, and learning rate can be
 adjusted via ``--hidden-size``, ``--epochs``, and ``--learning-rate``. The
 defaults are 8, 50, and 0.01 respectively.
