@@ -184,20 +184,29 @@ missing, the script will skip the associated plots.
 
 ### Streamlit dashboard
 
-An interactive dashboard can display the generated tables and figures.
-First make sure the analysis scripts above have produced outputs in the
-`tables/` and `figures/` directories. Then launch the app with:
+Interactive dashboards built with Streamlit can display the generated tables and
+figures. First make sure the analysis scripts above have produced outputs in the
+`tables/` and `figures/` directories. Then launch one of the apps:
 
 ```bash
-streamlit run dashboard.py
+streamlit run dashboard.py          # project overview
+streamlit run dashboard_teacher.py  # class-level view for instructors
+streamlit run dashboard_student.py  # personalized view for a single student
 ```
-The sidebar lets you switch between exploratory plots, model performance
-summaries, and per‑group fairness metrics.
+The main `dashboard.py` sidebar lets you switch between exploratory plots,
+model performance summaries, and per‑group fairness metrics. The teacher
+dashboard focuses on class summaries, at-risk students, and fairness by
+subgroup, while the student dashboard reports an individual learner’s predicted
+risk and recommended resources.
 
-To secure a deployment (e.g. on Streamlit Community Cloud), set a
-`DASHBOARD_PASSWORD` environment variable. The app will prompt for the token
-on startup and only continue when it matches. This basic auth is optional but
-recommended for shared deployments.
+To secure the overview or teacher dashboards (e.g. on Streamlit Community
+Cloud), set a `DASHBOARD_PASSWORD` environment variable. The app will prompt for
+the token on startup and only continue when it matches. The student dashboard
+supports optional token-based auth via a `STUDENT_TOKENS` environment variable
+formatted as comma-separated `id:token` pairs, e.g. `STUDENT_TOKENS="42:alpha,84:beta"`.
+Each token grants access to the corresponding student ID’s view.
+
+These basic auth features are optional but recommended for shared deployments.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
