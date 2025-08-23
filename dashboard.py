@@ -22,6 +22,7 @@ Optional (Windows/MKL): set OMP threads to avoid KMeans warning/leak
 from contextlib import contextmanager
 from pathlib import Path
 import io
+import os
 import pandas as pd
 import streamlit as st
 from streamlit.components.v1 import html as st_html
@@ -44,6 +45,15 @@ REPORTS_DIR = PROJECT_DIR / "reports"
 CACHE_TTL = 600
 
 st.set_page_config(page_title="Student Performance Dashboard", layout="wide")
+
+# Optional simple authentication: set DASHBOARD_PASSWORD env var
+AUTH_TOKEN = os.getenv("DASHBOARD_PASSWORD")
+if AUTH_TOKEN:
+    entered = st.sidebar.text_input("Access token", type="password")
+    if entered != AUTH_TOKEN:
+        st.warning("Invalid token" if entered else "Enter access token")
+        st.stop()
+
 st.title("Student Performance Dashboard")
 st.caption(
     "GUIDE: A Framework for Guiding Unbiased and Interpretable Decisions in "
@@ -150,7 +160,10 @@ def _show_table(csv_path: Path, title: str):
 tab_names = [
     "EDA Plots",
     "Model Performance",
+    "OULAD Experiments",
     "Fairness Metrics",
+    "Uncertainty Analysis",
+    "Transfer Experiments",
     "Counterfactuals",
     "Explanations",
     "Concept Explanations",
@@ -208,6 +221,20 @@ elif current_tab == "Model Performance":
         st.info(
             "No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`."
         )
+
+elif current_tab == "OULAD Experiments":
+    st.header("OULAD Experiments")
+    st.markdown(
+        "Results for the Open University Learning Analytics Dataset. "
+        "Generate outputs with `src/oulad` utilities to populate this section."
+    )
+    oulad_tables = sorted(TABLES_DIR.glob("oulad_*.csv"))
+    for path in oulad_tables:
+        _show_table(path, path.stem.replace("_", " ").title())
+    if not oulad_tables:
+        st.info("No OULAD tables found. Run OULAD experiments to create them.")
+    oulad_imgs = [p for p in _list_images(FIGURES_DIR) if "oulad" in p.stem.lower()]
+    _show_images_grid(oulad_imgs, cols=2)
 
 elif current_tab == "Fairness Metrics":
     st.header("Fairness Metrics")
@@ -311,6 +338,40 @@ elif current_tab == "Fairness Metrics":
     st.subheader("Fairness Figures")
     fairness_imgs = [p for p in _list_images(FIGURES_DIR) if "fair" in p.stem.lower()]
     _show_images_grid(fairness_imgs, cols=2)
+
+elif current_tab == "Uncertainty Analysis":
+    st.header("Uncertainty Analysis")
+    st.markdown(
+        "Displays conformal prediction and other uncertainty estimates. "
+        "Run uncertainty scripts to generate these artifacts."
+    )
+    unc_tables = sorted(TABLES_DIR.glob("conformal_*.csv")) + sorted(
+        TABLES_DIR.glob("uncertainty_*.csv")
+    )
+    for path in unc_tables:
+        _show_table(path, path.stem.replace("_", " ").title())
+    if not unc_tables:
+        st.info("No uncertainty tables found. Run uncertainty experiments to create them.")
+    unc_imgs = [
+        p
+        for p in _list_images(FIGURES_DIR)
+        if any(tag in p.stem.lower() for tag in ("uncert", "conformal"))
+    ]
+    _show_images_grid(unc_imgs, cols=2)
+
+elif current_tab == "Transfer Experiments":
+    st.header("Transfer Experiments")
+    st.markdown(
+        "Results from cross-dataset transfer learning experiments." 
+        "Use scripts in `src/transfer` to produce these outputs."
+    )
+    transfer_tables = sorted(TABLES_DIR.glob("transfer_*.csv"))
+    for path in transfer_tables:
+        _show_table(path, path.stem.replace("_", " ").title())
+    if not transfer_tables:
+        st.info("No transfer experiment tables found. Run transfer scripts to create them.")
+    transfer_imgs = [p for p in _list_images(FIGURES_DIR) if "transfer" in p.stem.lower()]
+    _show_images_grid(transfer_imgs, cols=2)
 
 elif current_tab == "Counterfactuals":
     st.header("Counterfactual Examples")
