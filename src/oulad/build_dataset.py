@@ -206,6 +206,8 @@ def create_labels_and_sensitive_attrs(student_info: pd.DataFrame, student_regist
 def build_oulad_dataset(
     raw_dir: Path,
     output_path: Path = Path("data/oulad/processed/oulad_ml.parquet"),
+    include_graph: bool = False,
+    graph_output_path: Optional[Path] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Build unified OULAD machine-learning dataset.
 
@@ -213,6 +215,13 @@ def build_oulad_dataset(
         raw_dir: Directory containing OULAD CSV files.
         output_path: Path for the processed parquet file. Defaults to
             ``data/oulad/processed/oulad_ml.parquet``.
+        include_graph: If ``True`` and VLE tables are available, a
+            bipartite student–VLE graph is constructed using
+            :func:`src.oulad.graph.build_student_vle_graph` and optionally
+            saved to ``graph_output_path``.
+        graph_output_path: Location where the graph object will be saved
+        using :func:`torch.save`. Ignored if ``include_graph`` is
+        ``False``.
 
     Returns:
         Tuple containing the processed dataset and the sensitive group
@@ -243,6 +252,19 @@ def build_oulad_dataset(
             how='left'
         )
         logger.info(f"Added VLE features. Shape: {main_data.shape}")
+
+        if include_graph:
+            logger.info("Building student-VLE interaction graph...")
+            from .graph import build_student_vle_graph  # Local import to avoid heavy dependency when unused
+            graph_result = build_student_vle_graph(tables['studentVle'], tables['vle'])
+            if graph_output_path is not None:
+                try:
+                    import torch
+                    graph_output_path.parent.mkdir(parents=True, exist_ok=True)
+                    torch.save(graph_result.graph, graph_output_path)
+                    logger.info(f"Saved graph data to {graph_output_path}")
+                except Exception as exc:
+                    logger.warning(f"Could not save graph data: {exc}")
     
     # Add assessment features if available
     if 'studentAssessment' in tables and 'assessments' in tables:
@@ -312,16 +334,32 @@ def main():
         help='Directory containing OULAD CSV files'
     )
     parser.add_argument(
-        '--output', 
-        type=Path, 
+        '--output',
+        type=Path,
         default='data/oulad/processed/oulad_ml.parquet',
         help='Output path for processed parquet file'
+    )
+    parser.add_argument(
+        '--include-graph',
+        action='store_true',
+        help='Also build and save the student-VLE interaction graph'
+    )
+    parser.add_argument(
+        '--graph-output',
+        type=Path,
+        default='data/oulad/processed/oulad_graph.pt',
+        help='Where to store the serialized graph object (requires --include-graph)'
     )
     
     args = parser.parse_args()
     
     try:
-        dataset, group_counts = build_oulad_dataset(args.raw_dir, args.output)
+        dataset, group_counts = build_oulad_dataset(
+            args.raw_dir,
+            args.output,
+            include_graph=args.include_graph,
+            graph_output_path=args.graph_output if args.include_graph else None,
+        )
         logger.info("OULAD dataset building completed successfully!")
         logger.info(f"Dataset shape: {dataset.shape}")
         if not group_counts.empty:
