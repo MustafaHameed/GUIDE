@@ -61,6 +61,10 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
 
     monkeypatch.setattr(uci_transfer, "create_shared_feature_mapping", patched_mapping)
 
+    # Speed up MLP training during tests
+    monkeypatch.setattr(uci_transfer, "MLP_PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(uci_transfer, "MLP_FINETUNE_EPOCHS", 1)
+
     table_path = tmp_path / "tables" / "transfer_results.csv"
     figure_path = tmp_path / "figures" / "transfer_performance.png"
     output_dir = tmp_path / "output"
@@ -83,3 +87,32 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
     assert "worst_group_accuracy" in results_df.columns
 
     assert figure_path.exists()
+
+
+def test_transfer_experiment_mlp(monkeypatch):
+    """Ensure the MLP branch trains and returns metrics."""
+    # Minimal numeric dataset with encoded sex column
+    source = pd.DataFrame(
+        {
+            "feat": [0.1, 0.9, 0.3, 0.7],
+            "sex": [0, 1, 0, 1],
+            "label": [0, 1, 0, 1],
+        }
+    )
+    target = pd.DataFrame(
+        {
+            "feat": [0.2, 0.8],
+            "sex": [0, 1],
+            "label": [0, 1],
+        }
+    )
+
+    # Speed up training for unit test
+    monkeypatch.setattr(uci_transfer, "MLP_PRETRAIN_EPOCHS", 1)
+    monkeypatch.setattr(uci_transfer, "MLP_FINETUNE_EPOCHS", 1)
+
+    results = uci_transfer.transfer_experiment(source, target, model_type="mlp")
+    assert "accuracy" in results
+    assert "auc" in results
+    # Should include sex-specific accuracy metrics
+    assert any(k.startswith("accuracy_") for k in results)
