@@ -10,6 +10,7 @@ References:
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
@@ -41,67 +42,103 @@ logger = logging.getLogger(__name__)
 
 
 class SAMProcessMiner:
-    """Process mining pipeline for SAM (Student Action Mining) dataset."""
-    
-    def __init__(self, output_dir: Path):
+    """Process mining pipeline for the SAM (Student Action Mining) dataset."""
+
+    def __init__(
+        self,
+        output_dir: Path,
+        figures_dir: Path = Path("figures"),
+        tables_dir: Path = Path("tables"),
+    ):
         """Initialize process miner.
-        
+
         Args:
-            output_dir: Directory to save outputs
+            output_dir: Directory to save general outputs
+            figures_dir: Directory to export visual artifacts
+            tables_dir: Directory to export tabular reports
         """
+
         if not HAS_PM4PY:
-            raise ImportError("PM4Py is required for process mining. Install with: pip install pm4py")
-        
+            raise ImportError(
+                "PM4Py is required for process mining. Install with: pip install pm4py"
+            )
+
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.figures_dir = figures_dir
+        self.figures_dir.mkdir(parents=True, exist_ok=True)
+
+        self.tables_dir = tables_dir
+        self.tables_dir.mkdir(parents=True, exist_ok=True)
+
         self.event_log = None
         self.dfg = None
         self.petri_net = None
         self.initial_marking = None
         self.final_marking = None
-        
-        logger.info(f"Initialized SAM process miner with output directory: {output_dir}")
-    
-    def load_and_validate_sam_data(self, sam_csv_path: Path) -> pd.DataFrame:
-        """Load SAM CSV and validate schema according to spec.
-        
-        Args:
-            sam_csv_path: Path to SAM CSV file
-            
-        Returns:
-            Validated DataFrame
-        """
-        logger.info(f"Loading SAM data from {sam_csv_path}")
-        
+
+        logger.info(
+            "Initialized SAM process miner with output directory: %s", output_dir
+        )
+
+    def _parse_schema(self, schema_path: Path) -> Dict[str, List[str]]:
+        """Parse schema markdown file to retrieve required and optional fields."""
+
+        schema_text = schema_path.read_text(encoding="utf-8")
+        required: List[str] = []
+        optional: List[str] = []
+        current: Optional[List[str]] = None
+
+        for line in schema_text.splitlines():
+            line = line.strip()
+            if re.match(r"##+\s+Required Fields", line, re.IGNORECASE):
+                current = required
+            elif re.match(r"##+\s+Optional Fields", line, re.IGNORECASE):
+                current = optional
+            elif line.startswith("###") and current is not None:
+                field = line.strip("# ")
+                current.append(field)
+
+        return {"required": required, "optional": optional}
+
+    def load_and_validate_sam_data(self, sam_csv_path: Path, schema_path: Path) -> pd.DataFrame:
+        """Load SAM CSV and validate schema according to spec."""
+
+        logger.info("Loading SAM data from %s", sam_csv_path)
+
         if not sam_csv_path.exists():
             raise FileNotFoundError(f"SAM file not found: {sam_csv_path}")
-        
+
         df = pd.read_csv(sam_csv_path)
-        logger.info(f"Loaded {len(df)} records from SAM dataset")
-        
-        # Validate required columns based on schema
-        required_columns = ['case_id', 'activity', 'timestamp']
+        logger.info("Loaded %s records from SAM dataset", len(df))
+
+        schema = self._parse_schema(schema_path)
+        required_columns = schema.get("required", ["case_id", "activity", "timestamp"])
         missing_columns = [col for col in required_columns if col not in df.columns]
-        
+
         if missing_columns:
-            logger.warning(f"Missing required columns: {missing_columns}")
-            # Try to infer column mappings
+            logger.warning("Missing required columns: %s", missing_columns)
             df = self._infer_column_mapping(df)
-        
-        # Validate timestamp format
+
         df = self._validate_timestamps(df)
-        
-        # Add optional attributes if missing
-        if 'resource' not in df.columns:
-            df['resource'] = 'system'  # Default resource
-        
-        # Validate case_id and activity are not null
+
+        if "resource" not in df.columns and "resource" in schema.get("optional", []):
+            df["resource"] = "system"
+
         initial_size = len(df)
-        df = df.dropna(subset=['case_id', 'activity'])
+        df = df.dropna(subset=["case_id", "activity"])
         if len(df) < initial_size:
-            logger.warning(f"Dropped {initial_size - len(df)} records with missing case_id or activity")
-        
-        logger.info(f"Validated SAM data: {len(df)} records, {df['case_id'].nunique()} cases")
+            logger.warning(
+                "Dropped %s records with missing case_id or activity",
+                initial_size - len(df),
+            )
+
+        logger.info(
+            "Validated SAM data: %s records, %s cases",
+            len(df),
+            df["case_id"].nunique(),
+        )
         return df
     
     def _infer_column_mapping(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -410,108 +447,99 @@ class SAMProcessMiner:
         return bottlenecks[:10]  # Top 10 bottlenecks
     
     def save_visualizations(self) -> None:
-        """Save process visualizations to output directory."""
+        """Save process visualizations to figures directory."""
         logger.info("Saving process visualizations...")
-        
-        # Save DFG visualization
+
         if self.dfg is not None:
             try:
                 start_activities = pm4py.get_start_activities(self.event_log)
                 end_activities = pm4py.get_end_activities(self.event_log)
-                
                 gviz = dfg_visualization.apply(
-                    self.dfg, 
+                    self.dfg,
                     start_activities=start_activities,
-                    end_activities=end_activities
+                    end_activities=end_activities,
                 )
-                dfg_visualization.save(gviz, str(self.output_dir / 'dfg_model.png'))
+                dfg_visualization.save(
+                    gviz, str(self.figures_dir / "sam_dfg.png")
+                )
                 logger.info("DFG visualization saved")
             except Exception as e:
-                logger.error(f"Failed to save DFG visualization: {e}")
-        
-        # Save Petri net visualization
+                logger.error("Failed to save DFG visualization: %s", e)
+
         if self.petri_net is not None:
             try:
-                gviz = pn_vis.apply(self.petri_net, self.initial_marking, self.final_marking)
-                pn_vis.save(gviz, str(self.output_dir / 'petri_net_model.png'))
+                gviz = pn_vis.apply(
+                    self.petri_net, self.initial_marking, self.final_marking
+                )
+                pn_vis.save(gviz, str(self.figures_dir / "sam_petri_net.png"))
                 logger.info("Petri net visualization saved")
             except Exception as e:
-                logger.error(f"Failed to save Petri net visualization: {e}")
+                logger.error("Failed to save Petri net visualization: %s", e)
     
-    def save_reports(self, performance_results: Dict, conformance_results: Dict, 
-                    bottlenecks: List[Dict], variants: List[Dict]) -> None:
-        """Save analysis reports to CSV files.
-        
-        Args:
-            performance_results: Performance analysis results
-            conformance_results: Conformance analysis results  
-            bottlenecks: Bottleneck analysis results
-            variants: Process variants
-        """
+    def save_reports(
+        self,
+        performance_results: Dict,
+        conformance_results: Dict,
+        bottlenecks: List[Dict],
+        variants: List[Dict],
+    ) -> None:
+        """Save analysis reports to CSV files."""
+
         logger.info("Saving analysis reports...")
-        
-        # Save performance report
-        if 'activity_frequency' in performance_results:
-            activity_df = pd.DataFrame([
-                {'activity': activity, 'frequency': freq}
-                for activity, freq in performance_results['activity_frequency'].items()
-            ])
-            activity_df.to_csv(self.output_dir / 'activity_frequency.csv', index=False)
-        
-        # Save variant analysis
+
+        if "activity_frequency" in performance_results:
+            activity_df = pd.DataFrame(
+                [
+                    {"activity": act, "frequency": freq}
+                    for act, freq in performance_results["activity_frequency"].items()
+                ]
+            )
+            activity_df.to_csv(
+                self.output_dir / "activity_frequency.csv", index=False
+            )
+
         if variants:
             variant_df = pd.DataFrame(variants)
-            variant_df.to_csv(self.output_dir / 'process_variants.csv', index=False)
-        
-        # Save bottleneck analysis
+            variant_df.to_csv(self.output_dir / "process_variants.csv", index=False)
+
         if bottlenecks:
             bottleneck_df = pd.DataFrame(bottlenecks)
-            bottleneck_df.to_csv(self.output_dir / 'bottleneck_analysis.csv', index=False)
-        
-        # Save conformance report
+            bottleneck_df.to_csv(
+                self.output_dir / "bottleneck_analysis.csv", index=False
+            )
+
         if conformance_results:
             conformance_df = pd.DataFrame([conformance_results])
-            conformance_df.to_csv(self.output_dir / 'conformance_report.csv', index=False)
+            conformance_df.to_csv(
+                self.tables_dir / "sam_conformance.csv", index=False
+            )
     
-    def run_full_pipeline(self, sam_csv_path: Path) -> Dict[str, Any]:
-        """Run complete process mining pipeline.
-        
-        Args:
-            sam_csv_path: Path to SAM CSV file
-            
-        Returns:
-            Dictionary with all analysis results
-        """
+    def run_full_pipeline(
+        self, sam_csv_path: Path, schema_path: Path
+    ) -> Dict[str, Any]:
+        """Run complete process mining pipeline."""
+
         logger.info("Starting complete process mining pipeline...")
-        
-        # Step 1: Load and validate data
-        sam_df = self.load_and_validate_sam_data(sam_csv_path)
-        
-        # Step 2: Convert to event log
+
+        sam_df = self.load_and_validate_sam_data(sam_csv_path, schema_path)
+
         self.convert_to_event_log(sam_df)
-        
-        # Step 3: Export XES
+
         xes_path = self.export_xes()
-        
-        # Step 4: Discover models
+
         dfg, start_activities, end_activities = self.discover_dfg()
         net, initial_marking, final_marking = self.discover_petri_net()
-        
-        # Step 5: Performance analysis
+
         performance_results = self.analyze_performance()
-        
-        # Step 6: Conformance analysis
         conformance_results = self.analyze_conformance()
-        
-        # Step 7: Bottleneck analysis
         bottlenecks = self.identify_bottlenecks()
-        
-        # Step 8: Save visualizations
+
         self.save_visualizations()
-        
-        # Step 9: Save reports
-        variants = performance_results.get('top_variants', [])
-        self.save_reports(performance_results, conformance_results, bottlenecks, variants)
+
+        variants = performance_results.get("top_variants", [])
+        self.save_reports(
+            performance_results, conformance_results, bottlenecks, variants
+        )
         
         # Compile final results
         results = {
@@ -541,34 +569,37 @@ def main():
     import argparse
     import json
     
-    parser = argparse.ArgumentParser(description='SAM dataset process mining pipeline')
+    parser = argparse.ArgumentParser(
+        description="SAM dataset process mining pipeline"
+    )
     parser.add_argument(
-        '--sam-file',
+        "--sam-csv",
         type=Path,
-        default='data/sam/raw/sam_data.csv',
-        help='Path to SAM CSV file'
+        default=Path("data/sam/events.csv"),
+        help="Path to SAM CSV file",
     )
     parser.add_argument(
-        '--output-dir',
-        type=Path, 
-        default='results/process_mining',
-        help='Output directory for results'
+        "--out-dir",
+        type=Path,
+        default=Path("reports/process_mining"),
+        help="Output directory for results",
     )
-    
+    parser.add_argument(
+        "--schema",
+        type=Path,
+        default=Path("data/sam/schema.md"),
+        help="Path to schema markdown file",
+    )
+
     args = parser.parse_args()
-    
+
     try:
-        # Initialize process miner
-        miner = SAMProcessMiner(args.output_dir)
-        
-        # Run full pipeline
-        results = miner.run_full_pipeline(args.sam_file)
-        
-        # Save summary results
-        with open(args.output_dir / 'pipeline_results.json', 'w') as f:
+        miner = SAMProcessMiner(args.out_dir)
+        results = miner.run_full_pipeline(args.sam_csv, args.schema)
+
+        with open(args.out_dir / "pipeline_results.json", "w") as f:
             json.dump(results, f, indent=2, default=str)
-        
-        # Print summary
+
         print("\nProcess Mining Results Summary:")
         print("=" * 50)
         print(f"Total Events: {results['data_summary']['total_events']}")
@@ -577,14 +608,16 @@ def main():
         print(f"DFG Edges: {results['process_discovery']['dfg_edges']}")
         print(f"Petri Net Places: {results['process_discovery']['petri_net_places']}")
         print(f"Petri Net Transitions: {results['process_discovery']['petri_net_transitions']}")
-        
-        if 'average_fitness' in results['conformance']:
-            print(f"Average Fitness: {results['conformance']['average_fitness']:.3f}")
-        
+
+        if "average_fitness" in results["conformance"]:
+            print(
+                f"Average Fitness: {results['conformance']['average_fitness']:.3f}"
+            )
+
         print(f"\nResults saved to: {results['output_directory']}")
-        
+
     except Exception as e:
-        logger.error(f"Process mining pipeline failed: {e}")
+        logger.error("Process mining pipeline failed: %s", e)
         raise
 
 
