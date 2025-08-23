@@ -47,6 +47,11 @@ from fairlearn.preprocessing import CorrelationRemover
 from aif360.datasets import BinaryLabelDataset
 from aif360.algorithms.preprocessing import Reweighing
 
+# Deep learning imports
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+
 # Optional imports for additional models
 try:
     import xgboost as xgb
@@ -80,8 +85,158 @@ def load_oulad_data(dataset_path: Path, split_path: Path) -> Tuple[pd.DataFrame,
     logger.info(f"Loading splits from {split_path}")
     with open(split_path, 'r') as f:
         splits = json.load(f)
-    
+
     return df, splits
+
+
+class DnnClassifier:
+    """Simple feed-forward neural network for tabular data.
+
+    Handles categorical features via embeddings and normalizes numeric
+    features. Implements a scikit-learn like interface with `fit`,
+    `predict`, and `predict_proba` methods.
+    """
+
+    def __init__(
+        self,
+        num_layers: int = 2,
+        hidden_units: int = 64,
+        dropout: float = 0.0,
+        epochs: int = 10,
+        batch_size: int = 32,
+        lr: float = 1e-3,
+    ) -> None:
+        self.num_layers = num_layers
+        self.hidden_units = hidden_units
+        self.dropout = dropout
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.lr = lr
+
+        self.cat_cols: List[str] = []
+        self.num_cols: List[str] = []
+        self.cat_mapping: Dict[str, Dict[Any, int]] = {}
+        self.num_means: pd.Series = pd.Series(dtype=float)
+        self.num_stds: pd.Series = pd.Series(dtype=float)
+        self.model: Optional[nn.Module] = None
+
+    def _prepare_tensors(self, X: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Transform DataFrame into tensors using fitted statistics."""
+        if self.cat_cols:
+            cat_arrays = []
+            for col in self.cat_cols:
+                mapping = self.cat_mapping[col]
+                cat_arrays.append(
+                    X[col].map(mapping).fillna(0).astype("int64").values
+                )
+            x_cat = torch.tensor(np.vstack(cat_arrays).T, dtype=torch.long)
+        else:
+            x_cat = torch.zeros(len(X), 0, dtype=torch.long)
+
+        if self.num_cols:
+            nums = (X[self.num_cols] - self.num_means) / self.num_stds
+            x_num = torch.tensor(nums.values, dtype=torch.float32)
+        else:
+            x_num = torch.zeros(len(X), 0, dtype=torch.float32)
+
+        return x_cat, x_num
+
+    def fit(self, X: pd.DataFrame, y: pd.Series, sample_weight: Optional[np.ndarray] = None) -> "DnnClassifier":
+        self.cat_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
+        self.num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+
+        emb_dims = []
+        cat_data = []
+        for col in self.cat_cols:
+            codes, uniques = pd.factorize(X[col])
+            mapping = {cat: i + 1 for i, cat in enumerate(uniques)}
+            self.cat_mapping[col] = mapping
+            cat_data.append(codes + 1)
+            n_categories = len(uniques) + 1
+            emb_dim = min(50, (n_categories + 1) // 2)
+            emb_dims.append((n_categories, emb_dim))
+        if cat_data:
+            x_cat = torch.tensor(np.vstack(cat_data).T, dtype=torch.long)
+        else:
+            x_cat = torch.zeros(len(X), 0, dtype=torch.long)
+
+        if self.num_cols:
+            self.num_means = X[self.num_cols].mean()
+            self.num_stds = X[self.num_cols].std().replace(0, 1)
+            nums = (X[self.num_cols] - self.num_means) / self.num_stds
+            x_num = torch.tensor(nums.values, dtype=torch.float32)
+        else:
+            x_num = torch.zeros(len(X), 0, dtype=torch.float32)
+
+        y_tensor = torch.tensor(y.values, dtype=torch.float32)
+
+        if sample_weight is not None:
+            w_tensor = torch.tensor(sample_weight, dtype=torch.float32)
+            dataset = TensorDataset(x_cat, x_num, y_tensor, w_tensor)
+        else:
+            dataset = TensorDataset(x_cat, x_num, y_tensor)
+
+        class TabularNN(nn.Module):
+            def __init__(self, emb_dims, n_numeric, hidden_units, dropout, num_layers):
+                super().__init__()
+                self.embeddings = nn.ModuleList(
+                    [nn.Embedding(n, d) for n, d in emb_dims]
+                )
+                input_dim = n_numeric + sum(d for _, d in emb_dims)
+                layers = []
+                for _ in range(num_layers):
+                    layers.append(nn.Linear(input_dim, hidden_units))
+                    layers.append(nn.ReLU())
+                    if dropout > 0:
+                        layers.append(nn.Dropout(dropout))
+                    input_dim = hidden_units
+                self.layers = nn.Sequential(*layers)
+                self.output = nn.Linear(input_dim, 1)
+
+            def forward(self, x_cat, x_num):
+                if self.embeddings:
+                    embeds = [emb(x_cat[:, i]) for i, emb in enumerate(self.embeddings)]
+                    x = torch.cat(embeds, dim=1)
+                    if x_num.shape[1] > 0:
+                        x = torch.cat([x, x_num], dim=1)
+                else:
+                    x = x_num
+                x = self.layers(x)
+                return self.output(x).squeeze(-1)
+
+        self.model = TabularNN(emb_dims, x_num.shape[1], self.hidden_units, self.dropout, self.num_layers)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        criterion = nn.BCEWithLogitsLoss(reduction="none")
+
+        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        self.model.train()
+        for _ in range(self.epochs):
+            for batch in loader:
+                optimizer.zero_grad()
+                if sample_weight is not None:
+                    xb_cat, xb_num, yb, wb = batch
+                    logits = self.model(xb_cat, xb_num)
+                    loss = (criterion(logits, yb) * wb).mean()
+                else:
+                    xb_cat, xb_num, yb = batch
+                    logits = self.model(xb_cat, xb_num)
+                    loss = criterion(logits, yb).mean()
+                loss.backward()
+                optimizer.step()
+
+        return self
+
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        self.model.eval()
+        with torch.no_grad():
+            x_cat, x_num = self._prepare_tensors(X)
+            logits = self.model(x_cat, x_num)
+            probs = torch.sigmoid(logits).cpu().numpy()
+        return np.vstack([1 - probs, probs]).T
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        probs = self.predict_proba(X)[:, 1]
+        return (probs >= 0.5).astype(int)
 
 
 def create_model(model_type: str, **kwargs) -> Any:
@@ -97,6 +252,7 @@ def create_model(model_type: str, **kwargs) -> Any:
     models = {
         'logistic': LogisticRegression(random_state=42, max_iter=1000, **kwargs),
         'random_forest': RandomForestClassifier(random_state=42, n_estimators=100, **kwargs),
+        'dnn': DnnClassifier(**kwargs),
     }
     
     if HAS_XGB:
@@ -384,6 +540,7 @@ def train_and_evaluate_model(
     use_reweighing: bool = False,
     postprocess: Optional[str] = None,
     figures_dir: Path = None,
+    model_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Train and evaluate a model with optional fairness mitigation.
 
@@ -397,6 +554,7 @@ def train_and_evaluate_model(
         postprocess: Fairness constraint for postprocessing ('equalized_odds',
             'demographic_parity', or None)
         figures_dir: Directory to save figures
+        model_params: Additional parameters for model creation
 
     Returns:
         Dictionary with evaluation results and fairness report
@@ -408,7 +566,7 @@ def train_and_evaluate_model(
     results: Dict[str, Any] = {'model_type': model_type}
 
     # Create and train model
-    model = create_model(model_type)
+    model = create_model(model_type, **(model_params or {}))
 
     # Apply preprocessing reweighing if requested
     sample_weight = None
@@ -581,9 +739,18 @@ def main():
     parser.add_argument("--split", type=Path, required=True, help="Path to split JSON file")
     parser.add_argument(
         "--model",
-        choices=["logistic", "random_forest", "xgboost", "lightgbm"],
+        choices=["logistic", "random_forest", "xgboost", "lightgbm", "dnn"],
         default="logistic",
         help="Model type",
+    )
+    parser.add_argument(
+        "--dnn-layers", type=int, default=2, help="Number of hidden layers for DNN"
+    )
+    parser.add_argument(
+        "--dnn-hidden-units", type=int, default=64, help="Units per hidden layer"
+    )
+    parser.add_argument(
+        "--dnn-dropout", type=float, default=0.0, help="Dropout rate for DNN"
     )
     parser.add_argument(
         "--sensitive-attr", default="sex", help="Sensitive attribute column"
@@ -632,6 +799,14 @@ def main():
     logger.info(f"Test set: {len(X_test)} samples")
 
     # Train model
+    model_params = None
+    if args.model == "dnn":
+        model_params = {
+            "num_layers": args.dnn_layers,
+            "hidden_units": args.dnn_hidden_units,
+            "dropout": args.dnn_dropout,
+        }
+
     results = train_and_evaluate_model(
         args.model,
         X_train,
@@ -644,6 +819,7 @@ def main():
         use_reweighing=args.reweighing,
         postprocess=args.postprocess,
         figures_dir=args.figures_dir,
+        model_params=model_params,
     )
 
     # After training, create explainability artifacts
