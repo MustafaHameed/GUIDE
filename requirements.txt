@@ -6,6 +6,8 @@ aif360
 seaborn
 matplotlib
 statsmodels
+requests
+tqdm
 # Optional: model explainability
 shap
 lime
