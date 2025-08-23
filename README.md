@@ -198,6 +198,12 @@ recommended for shared deployments.
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
 
+## Data provenance and licenses
+
+- **OULAD** – The Open University Learning Analytics Dataset is distributed under a [Creative Commons Attribution 4.0 International license](https://creativecommons.org/licenses/by/4.0/) [source](https://analyse.kmi.open.ac.uk/open-dataset/).
+- **UCI Student Performance** – Data obtained from the UCI Machine Learning Repository and released under a [Creative Commons Attribution 4.0 International license](https://creativecommons.org/licenses/by/4.0/legalcode) [source](https://archive.ics.uci.edu/ml/datasets/student+performance).
+- **SAM** – Student Action Mining event log schema provided in this repository with no explicit license; confirm licensing with the data owner before use.
+
 ## Bibliography
 
 - Cawley, G. C., & Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
