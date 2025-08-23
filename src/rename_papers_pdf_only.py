@@ -13,13 +13,16 @@ Dependencies:  pip install pymupdf pypdf
 
 import argparse
 import csv
+import logging
 import re
 import sys
 import unicodedata
 from pathlib import Path
 from typing import Optional, Tuple, List
+from logging_config import setup_logging
 
 # ---- YOUR DEFAULT FOLDER ----
+logger = logging.getLogger(__name__)
 DEFAULT_FOLDER = r"G:\My Drive\~01ResearchWork\recent_Articles"
 
 # Prefer PyMuPDF (fitz) for speed; fallback to pypdf
@@ -256,7 +259,7 @@ def main():
 
     base = Path(args.folder)
     if not base.exists():
-        print(f"Folder not found: {base}", file=sys.stderr)
+        logger.error("Folder not found: %s", base)
         sys.exit(2)
 
     rows = []
@@ -312,9 +315,14 @@ def main():
         w.writerow(["old_name", "new_name", "year", "title", "ext", "status", "notes"])
         w.writerows(rows)
 
-    print(f"Processed: {count_total} files")
-    print(f"Renamed:   {count_renamed} files" + (" (dry-run)" if not args.apply else ""))
-    print(f"Audit CSV: {csv_path.resolve()}")
+    logger.info("Processed: %d files", count_total)
+    logger.info(
+        "Renamed:   %d files%s",
+        count_renamed,
+        " (dry-run)" if not args.apply else "",
+    )
+    logger.info("Audit CSV: %s", csv_path.resolve())
 
 if __name__ == "__main__":
+    setup_logging()
     main()

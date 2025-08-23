@@ -3,6 +3,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Tuple
+import logging
 import pandas as pd
 import numpy as np
 import warnings
@@ -21,6 +22,8 @@ try:
     HAS_DOWHY = True
 except ImportError:
     HAS_DOWHY = False
+
+logger = logging.getLogger(__name__)
 
 CONCEPT_GROUPS: Dict[str, List[str]] = {
     "attendance": ["absences", "failures"],
@@ -73,7 +76,11 @@ def estimate_concept_effects(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
             effect_value = abs(estimate.value)
             effects.append({"concept": concept, "effect": effect_value})
         except Exception as e:
-            print(f"DoWhy failed for '{concept}': {e}. Falling back to correlation.")
+            logger.warning(
+                "DoWhy failed for '%s': %s. Falling back to correlation.",
+                concept,
+                e,
+            )
             effects.append({"concept": concept, "effect": C[concept].corr(y)})
 
     return pd.DataFrame(effects).sort_values("effect", ascending=False)
@@ -88,8 +95,11 @@ def export_concept_importance(effects: pd.DataFrame, out_dir: Path) -> Path:
 if __name__ == "__main__":
     # Use a relative import to correctly locate the 'data' module
     from .data import load_data
+    from .logging_config import setup_logging
+
+    setup_logging()
     X, y = load_data("student-mat.csv")
     concept_effects = estimate_concept_effects(X, y)
-    print("Estimated Concept Effects:")
-    print(concept_effects)
+    logger.info("Estimated Concept Effects:")
+    logger.info("%s", concept_effects)
     export_concept_importance(concept_effects, Path("reports"))
