@@ -185,9 +185,13 @@ First make sure the analysis scripts above have produced outputs in the
 ```bash
 streamlit run dashboard.py
 ```
-
 The sidebar lets you switch between exploratory plots, model performance
 summaries, and per‑group fairness metrics.
+
+To secure a deployment (e.g. on Streamlit Community Cloud), set a
+`DASHBOARD_PASSWORD` environment variable. The app will prompt for the token
+on startup and only continue when it matches. This basic auth is optional but
+recommended for shared deployments.
 ## File
 
 - `student-mat.csv` – raw dataset sourced from the UCI Machine Learning Repository.
