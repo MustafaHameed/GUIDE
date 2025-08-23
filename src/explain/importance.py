@@ -505,12 +505,12 @@ class ExplainabilityAnalyzer:
                     num_features=10
                 )
 
-                # Save HTML report
-                lime_exp.save_to_file(reports_dir / f'lime_explanation_{idx}.html')
+                # Save HTML report (for dashboard display)
+                lime_exp.save_to_file(reports_dir / f'lime_{idx}.html')
 
-                # Save PNG figure
+                # Save PNG figure for quick preview if desired
                 fig = lime_exp.as_pyplot_figure()
-                fig.savefig(figures_dir / f'lime_explanation_{idx}.png',
+                fig.savefig(figures_dir / f'lime_{idx}.png',
                             dpi=300, bbox_inches='tight')
                 plt.close(fig)
 
