@@ -13,6 +13,10 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
             "age_band": ["0-35", "35-55", "0-35"],
             "imd_band": ["0-10%", "20-30%", "30-40%"],
             "vle_total_clicks": [100, 200, 150],
+            "studytime": [2, 3, 1],
+            "higher": ["Yes", "No", "Yes"],
+            "famsup": ["No", "Yes", "No"],
+            "goout": [3, 4, 2],
             "label_pass": [1, 0, 1],
         }
     )
@@ -26,6 +30,10 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
             "age": [18, 20, 22],
             "Medu": [2, 3, 1],
             "absences": [5, 3, 10],
+            "studytime": [2, 3, 1],
+            "higher": ["yes", "no", "yes"],
+            "famsup": ["no", "yes", "no"],
+            "goout": [3, 4, 2],
             "G3": [12, 8, 15],
         }
     )
@@ -85,6 +93,13 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
     results_df = pd.read_csv(table_path)
     assert "accuracy" in results_df.columns
     assert "worst_group_accuracy" in results_df.columns
+    # With new shared features, we expect at least eight features in the mapping
+    assert results_df["n_features"].min() >= 8
+
+    # Mapping file should include the new feature entries
+    mapping_df = pd.read_csv(output_dir / "feature_mapping.csv")
+    for col in ["studytime", "higher", "famsup", "goout"]:
+        assert col in mapping_df["feature"].values
 
     assert figure_path.exists()
 

@@ -64,11 +64,47 @@ def create_shared_feature_mapping() -> Dict[str, Dict]:
                 'transform': 'ses_standardize'
             },
             
-            # Attendance/engagement proxy  
+            # Attendance/engagement proxy
             'attendance_proxy': {
                 'oulad_col': 'vle_total_clicks',  # VLE engagement
                 'uci_col': 'absences',            # School absences
                 'transform': 'attendance_normalize'
+            },
+
+            # Study time - directly shared numeric category
+            'studytime': {
+                'oulad_col': 'studytime',
+                'uci_col': 'studytime'
+            },
+
+            # Higher education intention
+            'higher': {
+                'oulad_col': 'higher',
+                'uci_col': 'higher',
+                'mapping': {
+                    'Yes': 'yes',
+                    'No': 'no',
+                    'Y': 'yes',
+                    'N': 'no'
+                }
+            },
+
+            # Family support
+            'famsup': {
+                'oulad_col': 'famsup',
+                'uci_col': 'famsup',
+                'mapping': {
+                    'Yes': 'yes',
+                    'No': 'no',
+                    'Y': 'yes',
+                    'N': 'no'
+                }
+            },
+
+            # Social outings frequency
+            'goout': {
+                'oulad_col': 'goout',
+                'uci_col': 'goout'
             }
         },
         
@@ -174,20 +210,28 @@ def prepare_oulad_features(oulad_df: pd.DataFrame, feature_mapping: Dict) -> pd.
             if feature_name == 'sex':
                 # Direct mapping for sex
                 shared_data[feature_name] = oulad_df[oulad_col]
-                
+
             elif feature_name == 'age_band':
                 # Use existing age_band
                 shared_data[feature_name] = oulad_df[oulad_col]
-                
+
             elif feature_name == 'ses_proxy':
                 # Transform IMD to SES proxy
                 ses_values, _ = ses_standardize_transform(oulad_df[oulad_col], None)
                 shared_data[feature_name] = ses_values
-                
+
             elif feature_name == 'attendance_proxy':
                 # Transform VLE clicks to attendance proxy
                 attend_values, _ = attendance_normalize_transform(oulad_df[oulad_col], None)
                 shared_data[feature_name] = attend_values
+
+            elif 'mapping' in config:
+                # Apply simple value mapping if provided
+                shared_data[feature_name] = oulad_df[oulad_col].map(config['mapping']).fillna(oulad_df[oulad_col])
+
+            else:
+                # Direct copy for shared numeric/categorical features
+                shared_data[feature_name] = oulad_df[oulad_col]
     
     # Add label
     if feature_mapping['label_mapping']['oulad_label'] in oulad_df.columns:
@@ -226,20 +270,28 @@ def prepare_uci_features(uci_csv_path: str, feature_mapping: Dict) -> pd.DataFra
             if feature_name == 'sex':
                 # Direct mapping for sex (already F/M in UCI)
                 shared_data[feature_name] = uci_df[uci_col]
-                
+
             elif feature_name == 'age_band':
                 # Transform age to bands
                 shared_data[feature_name] = age_to_band_transform(uci_df[uci_col])
-                
+
             elif feature_name == 'ses_proxy':
                 # Transform mother's education to SES proxy
                 _, ses_values = ses_standardize_transform(None, uci_df[uci_col])
                 shared_data[feature_name] = ses_values
-                
+
             elif feature_name == 'attendance_proxy':
                 # Transform absences to attendance proxy
                 _, attend_values = attendance_normalize_transform(None, uci_df[uci_col])
                 shared_data[feature_name] = attend_values
+
+            elif 'mapping' in config:
+                # Apply value mapping if provided
+                shared_data[feature_name] = uci_df[uci_col].map(config['mapping']).fillna(uci_df[uci_col])
+
+            else:
+                # Direct copy for shared numeric/categorical features
+                shared_data[feature_name] = uci_df[uci_col]
     
     # Add label
     shared_data['label'] = uci_df['pass']
