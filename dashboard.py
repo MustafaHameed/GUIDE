@@ -228,7 +228,7 @@ elif current_tab == "OULAD Experiments":
         "Results for the Open University Learning Analytics Dataset. "
         "Generate outputs with `src/oulad` utilities to populate this section."
     )
-    oulad_tables = sorted(TABLES_DIR.glob("oulad_*.csv"))
+    oulad_tables = sorted(TABLES_DIR.glob("oulad_*_metrics.csv"))
     for path in oulad_tables:
         _show_table(path, path.stem.replace("_", " ").title())
     if not oulad_tables:
