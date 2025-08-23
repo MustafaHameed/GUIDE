@@ -154,6 +154,19 @@ compute importance scores.
 When using the RNN, the hidden size, number of epochs, and learning rate can be
 adjusted via ``--hidden-size``, ``--epochs``, and ``--learning-rate``. The
 defaults are 8, 50, and 0.01 respectively.
+
+### Cross-dataset transfer learning
+
+Transfer learning experiments can evaluate how models trained on one dataset
+perform on another. The `src/transfer/uci_transfer.py` script supports logistic
+regression, random forests, and a small PyTorch-based multilayer perceptron
+(MLP) that is pretrained on the source data and fine-tuned on the target.
+
+```bash
+python -m src.transfer.uci_transfer --models logistic random_forest mlp
+```
+
+The CLI accepts a `--models` list to run a subset of the available models.
 ### Exploratory data analysis
 
 An exploratory analysis script generates publication-ready figures and summary tables:

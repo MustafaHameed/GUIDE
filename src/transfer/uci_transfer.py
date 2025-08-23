@@ -29,6 +29,11 @@ from data import load_data
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Epoch defaults for the optional MLP model. Tests may monkeypatch these to
+# reduce training time.
+MLP_PRETRAIN_EPOCHS = 20
+MLP_FINETUNE_EPOCHS = 10
+
 
 def create_shared_feature_mapping() -> Dict[str, Dict]:
     """Define mapping between OULAD and UCI features for transfer learning.
@@ -295,20 +300,86 @@ def transfer_experiment(source_data: pd.DataFrame, target_data: pd.DataFrame,
     X_source_scaled = scaler.fit_transform(X_source)
     X_target_scaled = scaler.transform(X_target)
     
-    # Create model
-    if model_type == 'logistic':
-        model = LogisticRegression(random_state=42, max_iter=1000)
-    elif model_type == 'random_forest':
-        model = RandomForestClassifier(random_state=42, n_estimators=100)
+    if model_type in {'logistic', 'random_forest'}:
+        # Classical sklearn models
+        if model_type == 'logistic':
+            model = LogisticRegression(random_state=42, max_iter=1000)
+        else:
+            model = RandomForestClassifier(random_state=42, n_estimators=100)
+
+        # Train on source dataset
+        model.fit(X_source_scaled, y_source)
+
+        # Evaluate on target dataset
+        y_pred = model.predict(X_target_scaled)
+        y_prob = (
+            model.predict_proba(X_target_scaled)[:, 1]
+            if hasattr(model, "predict_proba")
+            else None
+        )
+    elif model_type == 'mlp':
+        # Delayed import to keep torch optional
+        import torch
+        from torch import nn
+        from torch.utils.data import DataLoader, TensorDataset
+
+        input_dim = X_source_scaled.shape[1]
+
+        class SimpleMLP(nn.Module):
+            def __init__(self, in_dim: int):
+                super().__init__()
+                self.feature = nn.Sequential(
+                    nn.Linear(in_dim, 32),
+                    nn.ReLU(),
+                    nn.Linear(32, 16),
+                    nn.ReLU(),
+                )
+                self.classifier = nn.Linear(16, 1)
+
+            def forward(self, x):
+                x = self.feature(x)
+                return self.classifier(x)
+
+        def _train(model, dl, epochs):
+            crit = nn.BCEWithLogitsLoss()
+            opt = torch.optim.Adam(model.parameters(), lr=0.01)
+            model.train()
+            for _ in range(epochs):
+                for xb, yb in dl:
+                    opt.zero_grad()
+                    out = model(xb).squeeze()
+                    loss = crit(out, yb.float())
+                    loss.backward()
+                    opt.step()
+
+        # Pretrain on source
+        model = SimpleMLP(input_dim)
+        source_ds = TensorDataset(
+            torch.tensor(X_source_scaled, dtype=torch.float32),
+            torch.tensor(y_source.values, dtype=torch.float32),
+        )
+        source_dl = DataLoader(source_ds, batch_size=32, shuffle=True)
+        _train(model, source_dl, MLP_PRETRAIN_EPOCHS)
+
+        # Replace final layer and fine-tune on target data
+        model.classifier = nn.Linear(16, 1)
+        target_ds = TensorDataset(
+            torch.tensor(X_target_scaled, dtype=torch.float32),
+            torch.tensor(y_target.values, dtype=torch.float32),
+        )
+        target_dl = DataLoader(target_ds, batch_size=32, shuffle=True)
+        _train(model, target_dl, MLP_FINETUNE_EPOCHS)
+
+        # Predictions on target
+        model.eval()
+        with torch.no_grad():
+            logits = model(
+                torch.tensor(X_target_scaled, dtype=torch.float32)
+            ).squeeze()
+            y_prob = torch.sigmoid(logits).cpu().numpy()
+            y_pred = (y_prob > 0.5).astype(int)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
-    
-    # Train on source dataset
-    model.fit(X_source_scaled, y_source)
-    
-    # Evaluate on target dataset
-    y_pred = model.predict(X_target_scaled)
-    y_prob = model.predict_proba(X_target_scaled)[:, 1] if hasattr(model, 'predict_proba') else None
     
     # Calculate metrics
     results = {
@@ -344,6 +415,7 @@ def run_bidirectional_transfer(
     output_dir: Path,
     table_path: Path = Path("tables/transfer_results.csv"),
     figure_path: Path = Path("figures/transfer_performance.png"),
+    models: Optional[List[str]] = None,
 ) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
 
@@ -353,6 +425,8 @@ def run_bidirectional_transfer(
         output_dir: Directory to save intermediate results
         table_path: Location to save combined performance and fairness metrics
         figure_path: Location to save transfer performance visualization
+        models: Which model types to evaluate. Defaults to logistic,
+            random forest, and a small MLP.
 
     Returns:
         Dictionary with transfer results
@@ -395,8 +469,9 @@ def run_bidirectional_transfer(
     
     # Run transfer experiments
     results = {}
-    
-    models = ['logistic', 'random_forest']
+
+    if models is None:
+        models = ['logistic', 'random_forest', 'mlp']
     
     for model_type in models:
         # OULAD -> UCI transfer
@@ -476,14 +551,21 @@ def main():
         default='results/transfer',
         help='Output directory for results'
     )
-    
+    parser.add_argument(
+        '--models',
+        nargs='+',
+        default=['logistic', 'random_forest', 'mlp'],
+        help='Models to evaluate: logistic, random_forest, mlp'
+    )
+
     args = parser.parse_args()
-    
+
     try:
         results = run_bidirectional_transfer(
-            args.oulad_data, 
+            args.oulad_data,
             args.uci_data,
-            args.output_dir
+            args.output_dir,
+            models=args.models
         )
         
         # Log summary
