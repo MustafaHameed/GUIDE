@@ -111,6 +111,18 @@ features are also written to `figures/` as `pdp_<feature>.png` and
 `ice_<feature>.png`.
 LIME explanations for up to three misclassified or representative students are
 exported to `figures/` as `lime_<index>.html` and `lime_<index>.png`.
+
+### Explain stored models
+
+Run the explainability CLI on a saved model and dataset:
+
+```bash
+python src/explain/importance.py --model-path models/model.pkl --data-path data.parquet
+```
+
+SHAP summary plots and PDP/ICE curves are written to `figures/`, while
+LIME HTML explanations and a markdown report citing SHAP and LIME are
+written to `reports/`.
 ### Early risk assessment
 
 To assess student risk using only early grade information, run:

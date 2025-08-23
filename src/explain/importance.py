@@ -442,19 +442,57 @@ class ExplainabilityAnalyzer:
         except Exception as e:
             logger.error(f"Failed to save SHAP plots: {e}")
     
-    def save_lime_explanations(self, output_dir: Path, instance_indices: List[int]) -> None:
-        """Save LIME explanations as HTML files.
-        
+    def save_pdp_ice_plots(self, output_dir: Path,
+                            features: Optional[List[str]] = None) -> None:
+        """Save partial dependence and ICE plots for selected features.
+
         Args:
-            output_dir: Directory to save explanations
+            output_dir: Directory to save plots
+            features: Optional list of feature names. If ``None``,
+                the top three features by global importance are used.
+        """
+        if not HAS_PD:
+            logger.warning("Partial dependence utilities not available")
+            return
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if features is None:
+            importance_df = self.global_feature_importance()
+            features = importance_df['feature'].head(3).tolist()
+
+        for feature in features:
+            try:
+                fig, ax = plt.subplots(figsize=(8, 6))
+                PartialDependenceDisplay.from_estimator(
+                    self.model,
+                    self.X_test,
+                    [feature],
+                    kind="both",
+                    ax=ax
+                )
+                fig.savefig(output_dir / f'pdp_ice_{feature}.png',
+                            dpi=300, bbox_inches='tight')
+                plt.close(fig)
+            except Exception as e:
+                logger.warning(f"Failed to save PDP/ICE plot for {feature}: {e}")
+
+    def save_lime_explanations(self, figures_dir: Path, reports_dir: Path,
+                               instance_indices: List[int]) -> None:
+        """Save LIME explanations to figures and reports directories.
+
+        Args:
+            figures_dir: Directory to save PNG figures
+            reports_dir: Directory to save HTML reports
             instance_indices: Indices of instances to explain
         """
         if not HAS_LIME or self.lime_explainer is None:
             logger.warning("LIME not available")
             return
-            
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
         for idx in instance_indices:
             try:
                 instance = self.X_test.iloc[idx].values
@@ -463,19 +501,44 @@ class ExplainabilityAnalyzer:
                     self.model.predict_proba,
                     num_features=10
                 )
-                
-                # Save as HTML
-                lime_exp.save_to_file(output_dir / f'lime_explanation_{idx}.html')
-                
-                # Save as PNG
+
+                # Save HTML report
+                lime_exp.save_to_file(reports_dir / f'lime_explanation_{idx}.html')
+
+                # Save PNG figure
                 fig = lime_exp.as_pyplot_figure()
-                fig.savefig(output_dir / f'lime_explanation_{idx}.png', dpi=300, bbox_inches='tight')
+                fig.savefig(figures_dir / f'lime_explanation_{idx}.png',
+                            dpi=300, bbox_inches='tight')
                 plt.close(fig)
-                
+
             except Exception as e:
                 logger.warning(f"Failed to save LIME explanation for instance {idx}: {e}")
-        
-        logger.info(f"LIME explanations saved to {output_dir}")
+
+        logger.info(
+            f"LIME explanations saved to {figures_dir} (figures) and {reports_dir} (reports)")
+
+    def generate_report(self, report_dir: Path, usage: str) -> None:
+        """Generate a markdown report summarizing outputs with references.
+
+        Args:
+            report_dir: Directory to save the report
+            usage: Example CLI usage string to include
+        """
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / 'explainability_report.md'
+        with open(report_path, 'w') as f:
+            f.write('# Explainability Report\n\n')
+            f.write('Global feature importance: `reports/global_importance.csv`.\n\n')
+            f.write('SHAP summary, PDP/ICE plots, and LIME figures are stored in `figures/`.\n')
+            f.write('LIME HTML reports are stored in `reports/`.\n\n')
+            f.write('## Usage\n')
+            f.write('```bash\n')
+            f.write(f'{usage}\n')
+            f.write('```\n\n')
+            f.write('## References\n')
+            f.write('- SHAP documentation: https://shap.readthedocs.io/\n')
+            f.write('- LIME documentation: https://lime.readthedocs.io/en/latest/\n')
+        logger.info(f"Explainability report written to {report_path}")
 
 
 def main():
@@ -486,7 +549,8 @@ def main():
     parser = argparse.ArgumentParser(description='Model explainability analysis')
     parser.add_argument('--model-path', type=Path, required=True, help='Path to trained model')
     parser.add_argument('--data-path', type=Path, required=True, help='Path to dataset')
-    parser.add_argument('--output-dir', type=Path, default='explanations', help='Output directory')
+    parser.add_argument('--figures-dir', type=Path, default=Path('figures'), help='Directory for figure outputs')
+    parser.add_argument('--reports-dir', type=Path, default=Path('reports'), help='Directory for reports')
     parser.add_argument('--max-samples', type=int, default=100, help='Max samples for explanation')
     parser.add_argument('--sensitive-attr', default='sex', help='Sensitive attribute for stability')
     
@@ -522,7 +586,8 @@ def main():
     
     # Global importance
     importance_df = analyzer.global_feature_importance()
-    importance_df.to_csv(args.output_dir / 'global_importance.csv', index=False)
+    args.reports_dir.mkdir(parents=True, exist_ok=True)
+    importance_df.to_csv(args.reports_dir / 'global_importance.csv', index=False)
     
     # Local explanations for a few instances
     local_explanations = analyzer.local_explanations([0, 1, 2])
@@ -534,9 +599,14 @@ def main():
     stability = analyzer.stability_by_group(args.sensitive_attr)
     
     # Save plots
-    analyzer.save_shap_plots(args.output_dir)
-    analyzer.save_lime_explanations(args.output_dir, [0, 1, 2])
-    
+    analyzer.save_shap_plots(args.figures_dir)
+    analyzer.save_pdp_ice_plots(args.figures_dir)
+    analyzer.save_lime_explanations(args.figures_dir, args.reports_dir, [0, 1, 2])
+
+    # Generate summary report
+    usage = f"python src/explain/importance.py --model-path {args.model_path} --data-path {args.data_path}"
+    analyzer.generate_report(args.reports_dir, usage)
+
     logger.info("Explainability analysis completed!")
 
 
