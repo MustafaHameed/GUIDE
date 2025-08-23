@@ -10,6 +10,10 @@ Uses existing UCI loader and creates bidirectional transfer experiments.
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from logging_config import setup_logging
 
 import pandas as pd
 import numpy as np
@@ -20,12 +24,9 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 # Import existing UCI data loader
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
 from data import load_data
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -505,4 +506,5 @@ def main():
 
 
 if __name__ == '__main__':
+    setup_logging()
     main()

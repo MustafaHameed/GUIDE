@@ -14,6 +14,10 @@ import re
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from logging_config import setup_logging
 
 import pandas as pd
 import numpy as np
@@ -37,7 +41,6 @@ except ImportError:
     pm4py = None
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -622,4 +625,5 @@ def main():
 
 
 if __name__ == '__main__':
+    setup_logging()
     main()

@@ -16,13 +16,16 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from logging_config import setup_logging
 
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -408,4 +411,5 @@ def main(argv: List[str] | None = None) -> None:
 
 
 if __name__ == '__main__':
+    setup_logging()
     main()
