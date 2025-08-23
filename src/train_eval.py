@@ -25,7 +25,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import (
     accuracy_score, roc_auc_score, f1_score, brier_score_loss,
-    confusion_matrix, classification_report
+    confusion_matrix, classification_report, RocCurveDisplay
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -428,14 +428,18 @@ def train_and_evaluate_model(
     )
     results['bootstrap'] = bootstrap_results
 
-    # Save reliability plot if probabilities available
-    if y_prob is not None and figures_dir is not None:
-        save_reliability_plot(y_test, y_prob, figures_dir, f"{model_type}")
+    # Save performance figures if requested
+    if figures_dir is not None:
+        prefix = f"oulad_{model_type}"
+        if y_prob is not None:
+            save_reliability_plot(y_test, y_prob, figures_dir, prefix)
+            save_roc_curve(y_test, y_prob, figures_dir, prefix)
+        save_confusion_matrix(y_test, y_pred, figures_dir, prefix)
 
     return results
 
 
-def save_reliability_plot(y_true: np.ndarray, y_prob: np.ndarray, 
+def save_reliability_plot(y_true: np.ndarray, y_prob: np.ndarray,
                          output_dir: Path, filename_prefix: str) -> None:
     """Save reliability diagram for probability calibration.
     
@@ -481,7 +485,31 @@ def save_reliability_plot(y_true: np.ndarray, y_prob: np.ndarray,
     
     # Save plot
     output_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_dir / f'reliability_{filename_prefix}.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / f"{filename_prefix}_reliability.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def save_roc_curve(y_true: np.ndarray, y_prob: np.ndarray,
+                   output_dir: Path, filename_prefix: str) -> None:
+    """Save ROC curve plot."""
+    roc_disp = RocCurveDisplay.from_predictions(y_true, y_prob)
+    roc_disp.ax_.set_title(f"ROC Curve - {filename_prefix}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_dir / f"{filename_prefix}_roc.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def save_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray,
+                          output_dir: Path, filename_prefix: str) -> None:
+    """Save confusion matrix heatmap."""
+    cm = confusion_matrix(y_true, y_pred)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+    ax.set_xlabel("Predicted label")
+    ax.set_ylabel("True label")
+    ax.set_title(f"Confusion Matrix - {filename_prefix}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_dir / f"{filename_prefix}_confusion.png", dpi=300, bbox_inches='tight')
     plt.close()
 
 
@@ -569,6 +597,12 @@ def main():
     }
     with open(args.reports_dir / f"{args.model}_metrics.json", "w") as f:
         json.dump(metrics_to_save, f, indent=2)
+
+    # Export metrics to tables for dashboard
+    tables_dir = Path("tables")
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    metrics_df = pd.DataFrame([metrics_to_save])
+    metrics_df.to_csv(tables_dir / f"oulad_{args.model}_metrics.csv", index=False)
 
     # Fairness report by group
     fairness_df: pd.DataFrame = results['fairness_by_group']
