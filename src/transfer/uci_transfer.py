@@ -486,18 +486,21 @@ def main():
             args.output_dir
         )
         
-        # Print summary
-        print("\nTransfer Learning Results Summary:")
-        print("=" * 50)
+        # Log summary
+        logger.info("\nTransfer Learning Results Summary:")
+        logger.info("=" * 50)
         for exp_name, result in results.items():
-            print(f"{exp_name}:")
-            print(f"  Accuracy: {result['accuracy']:.3f}")
+            logger.info("%s:", exp_name)
+            logger.info("  Accuracy: %.3f", result['accuracy'])
             if 'auc' in result:
-                print(f"  AUC: {result['auc']:.3f}")
+                logger.info("  AUC: %.3f", result['auc'])
             if 'worst_group_accuracy' in result:
-                print(f"  Worst Group Accuracy: {result['worst_group_accuracy']:.3f}")
-            print()
-        
+                logger.info(
+                    "  Worst Group Accuracy: %.3f",
+                    result['worst_group_accuracy'],
+                )
+            logger.info("")
+
         logger.info("Transfer learning experiments completed successfully!")
         
     except Exception as e:

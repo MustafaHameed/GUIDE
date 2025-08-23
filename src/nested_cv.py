@@ -233,7 +233,7 @@ def anova_and_tukey(results_df: pd.DataFrame):
 
 def shap_analysis(best_model, X):
     if not HAS_SHAP:
-        print("shap is not installed; skipping SHAP analysis.")
+        logger.warning("shap is not installed; skipping SHAP analysis.")
         return
 
     preprocess = best_model.named_steps["preprocess"]
@@ -293,7 +293,7 @@ def residual_plots(preds_df, base_model):
             line_kws={"color": "red"},
         )
     except RuntimeError:
-        print("statsmodels not installed; falling back to simple linear fit.")
+        logger.warning("statsmodels not installed; falling back to simple linear fit.")
         sns.regplot(
             data=df,
             x="y_true",

@@ -603,21 +603,43 @@ def main():
         with open(args.out_dir / "pipeline_results.json", "w") as f:
             json.dump(results, f, indent=2, default=str)
 
-        print("\nProcess Mining Results Summary:")
-        print("=" * 50)
-        print(f"Total Events: {results['data_summary']['total_events']}")
-        print(f"Total Cases: {results['data_summary']['total_cases']}")
-        print(f"Unique Activities: {results['data_summary']['unique_activities']}")
-        print(f"DFG Edges: {results['process_discovery']['dfg_edges']}")
-        print(f"Petri Net Places: {results['process_discovery']['petri_net_places']}")
-        print(f"Petri Net Transitions: {results['process_discovery']['petri_net_transitions']}")
+        logger.info("\nProcess Mining Results Summary:")
+        logger.info("=" * 50)
+        logger.info(
+            "Total Events: %s",
+            results['data_summary']['total_events'],
+        )
+        logger.info(
+            "Total Cases: %s",
+            results['data_summary']['total_cases'],
+        )
+        logger.info(
+            "Unique Activities: %s",
+            results['data_summary']['unique_activities'],
+        )
+        logger.info(
+            "DFG Edges: %s",
+            results['process_discovery']['dfg_edges'],
+        )
+        logger.info(
+            "Petri Net Places: %s",
+            results['process_discovery']['petri_net_places'],
+        )
+        logger.info(
+            "Petri Net Transitions: %s",
+            results['process_discovery']['petri_net_transitions'],
+        )
 
         if "average_fitness" in results["conformance"]:
-            print(
-                f"Average Fitness: {results['conformance']['average_fitness']:.3f}"
+            logger.info(
+                "Average Fitness: %.3f",
+                results['conformance']['average_fitness'],
             )
 
-        print(f"\nResults saved to: {results['output_directory']}")
+        logger.info(
+            "\nResults saved to: %s",
+            results['output_directory'],
+        )
 
     except Exception as e:
         logger.error("Process mining pipeline failed: %s", e)
