@@ -12,6 +12,7 @@ References:
 
 import json
 import logging
+import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -67,6 +68,18 @@ except ImportError:
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+def set_random_seed(seed: int) -> None:
+    """Set random seed for reproducibility across libraries."""
+    random.seed(seed)
+    np.random.seed(seed)
+    try:
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except Exception:
+        pass
 
 
 def load_oulad_data(dataset_path: Path, split_path: Path) -> Tuple[pd.DataFrame, Dict[str, List[int]]]:
@@ -559,6 +572,7 @@ def train_and_evaluate_model(
     Returns:
         Dictionary with evaluation results and fairness report
     """
+    set_random_seed(42)
     logger.info(
         f"Training {model_type} with reweighing={use_reweighing} and postprocess={postprocess}"
     )
@@ -894,4 +908,5 @@ def main():
 
 if __name__ == '__main__':
     setup_logging()
+    set_random_seed(42)
     main()
