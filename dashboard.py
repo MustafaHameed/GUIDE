@@ -102,33 +102,91 @@ elif current_tab == "Model Performance":
     # Common tables (show any that exist)
     candidate_tables = [
         ("Model Performance Comparison", TABLES_DIR / "model_performance.csv"),
-        ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),  # Changed from REPORTS_DIR to TABLES_DIR
+        ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),
         ("OULAD Regression Metrics", TABLES_DIR / "oulad_regression_metrics.csv"),
-        ("Classification Report",      REPORTS_DIR / "classification_report.csv"),
-        ("Best Hyperparameters",       REPORTS_DIR / "best_params.csv"),
-        ("Threshold Tuning",           TABLES_DIR / "threshold_tuning.csv"),
+        ("Classification Report", REPORTS_DIR / "classification_report.csv"),
+        ("Best Hyperparameters", REPORTS_DIR / "best_params.csv"),
+        ("Threshold Tuning", TABLES_DIR / "threshold_tuning.csv"),
     ]
-    for title, path in candidate_tables:
-        _show_table(path, title)
+
+    available_tables = {
+        title: path for title, path in candidate_tables if path.exists()
+    }
+    if available_tables:
+        table_selection = st.multiselect(
+            "Select performance tables to display", list(available_tables.keys()),
+            default=list(available_tables.keys()),
+        )
+        for title in table_selection:
+            df = _safe_read_csv(available_tables[title])
+            if df is not None:
+                st.subheader(title)
+                metric_selection = st.multiselect(
+                    f"Metrics for {title}", list(df.columns), default=list(df.columns),
+                    key=f"metric_select_{title}",
+                )
+                st.dataframe(df[metric_selection], use_container_width=True)
+    else:
+        st.info("No performance tables found in `tables/` or `reports/`.")
 
     st.subheader("Performance Figures")
-    pr_path = FIGURES_DIR / "pr_curve.png"
-    if pr_path.exists():
-        st.image(str(pr_path), caption="Precision-Recall Curve")
-    perf_imgs = [
+    # Prepare figure options
+    figure_options = {}
+    roc_csv = TABLES_DIR / "roc_curve.csv"
+    pr_csv = TABLES_DIR / "pr_curve.csv"
+    roc_img = FIGURES_DIR / "roc_curve.png"
+    pr_img = FIGURES_DIR / "pr_curve.png"
+    if roc_csv.exists() or roc_img.exists():
+        figure_options["ROC Curve"] = (roc_csv, roc_img)
+    if pr_csv.exists() or pr_img.exists():
+        figure_options["Precision-Recall Curve"] = (pr_csv, pr_img)
+
+    # Include other performance-related images
+    other_imgs = [
         p
         for p in _list_images(FIGURES_DIR)
         if any(
             tag in p.stem.lower()
-            for tag in ("roc", "confusion", "learning_curve", "residual", "calibration")
+            for tag in ("confusion", "learning_curve", "residual", "calibration")
         )
-        and p != pr_path
+        and p.name not in {roc_img.name, pr_img.name}
     ]
-    if perf_imgs:
-        _show_images_grid(perf_imgs, cols=2)
-    elif not pr_path.exists():
+    for img in other_imgs:
+        figure_options[img.stem.replace("_", " ").title()] = (None, img)
+
+    if figure_options:
+        figure_selection = st.multiselect(
+            "Select performance figures", list(figure_options.keys()),
+            default=list(figure_options.keys()),
+        )
+        for title in figure_selection:
+            csv_path, img_path = figure_options[title]
+            if csv_path is not None and csv_path.exists():
+                df = _safe_read_csv(csv_path)
+                if df is not None and not df.empty:
+                    if "roc" in title.lower():
+                        chart = (
+                            alt.Chart(df)
+                            .mark_line()
+                            .encode(x=alt.X("fpr", title="False Positive Rate"), y=alt.Y("tpr", title="True Positive Rate"))
+                            .interactive()
+                        )
+                    elif "precision" in title.lower():
+                        chart = (
+                            alt.Chart(df)
+                            .mark_line()
+                            .encode(x=alt.X("recall", title="Recall"), y=alt.Y("precision", title="Precision"))
+                            .interactive()
+                        )
+                    else:
+                        chart = alt.Chart(df).mark_line().encode(x=list(df.columns)[0], y=list(df.columns)[1]).interactive()
+                    st.altair_chart(chart, use_container_width=True)
+                    continue
+            if img_path is not None and img_path.exists():
+                st.image(str(img_path), caption=title)
+    else:
         st.info(
-            "No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/`."
+            "No performance figures found. Save ROC/PR/confusion/learning-curve plots into `figures/` or `tables/`."
         )
 
 elif current_tab == "OULAD Experiments":
