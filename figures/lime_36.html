@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divN6E4Q96876VP8ZW"></div>
+        <div class="lime top_div" id="top_divRS0IJRM2WFSZLXO"></div>
         
         <script>
-        var top_div = d3.select('#top_divN6E4Q96876VP8ZW').classed('lime top_div', true);
+        var top_div = d3.select('#top_divRS0IJRM2WFSZLXO').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.9092947403029288, 0.09070525969707122]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.33927211178923866, 0.6607278882107613]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.6125423145574838], ["num__G1 <= -0.88", -0.19992188727798157], ["0.04 < num__famrel <= 1.18", 0.10605354868743791], ["ord__Walc <= 0.00", -0.08916637068216232], ["0.00 < cat__Fjob_other <= 1.00", 0.06263030399440256]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.6195618119910711], ["ord__Walc > 2.00", 0.1186358139494538], ["0.04 < num__famrel <= 1.18", 0.09748219930485245], ["cat__schoolsup_yes <= 0.00", 0.062104060711594765], ["0.00 < cat__Fjob_other <= 1.00", 0.057071193089845686]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.49", -0.6125423145574838], ["num__G1", "-0.88", -0.19992188727798157], ["num__famrel", "1.18", 0.10605354868743791], ["ord__Walc", "0.00", -0.08916637068216232], ["cat__Fjob_other", "1.00", 0.06263030399440256]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-1.03", -0.6195618119910711], ["ord__Walc", "3.00", 0.1186358139494538], ["num__famrel", "1.18", 0.09748219930485245], ["cat__schoolsup_yes", "0.00", 0.062104060711594765], ["cat__Fjob_other", "1.00", 0.057071193089845686]], 1, raw_div);
         
         </script>
         </body></html>

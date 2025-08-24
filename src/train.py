@@ -24,10 +24,11 @@ import warnings
 import itertools
 import logging
 
-from logging_config import setup_logging
 try:
+    from .logging_config import setup_logging
     from .utils import ensure_dir
 except ImportError:  # pragma: no cover - fallback for direct execution
+    from logging_config import setup_logging
     from utils import ensure_dir
 
 def _configure_warnings() -> None:
