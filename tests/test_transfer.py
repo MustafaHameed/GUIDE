@@ -92,6 +92,8 @@ def test_run_bidirectional_transfer_aligns_and_saves(tmp_path, monkeypatch):
     assert table_path.exists()
     results_df = pd.read_csv(table_path)
     assert "accuracy" in results_df.columns
+    assert "balanced_accuracy" in results_df.columns
+    assert "f1" in results_df.columns
     assert "worst_group_accuracy" in results_df.columns
     # With new shared features, we expect at least eight features in the mapping
     assert results_df["n_features"].min() >= 8
@@ -128,6 +130,8 @@ def test_transfer_experiment_mlp(monkeypatch):
 
     results = uci_transfer.transfer_experiment(source, target, model_type="mlp")
     assert "accuracy" in results
+    assert "balanced_accuracy" in results
+    assert "f1" in results
     assert "auc" in results
     # Should include sex-specific accuracy metrics
     assert any(k.startswith("accuracy_") for k in results)
@@ -154,3 +158,5 @@ def test_transfer_experiment_cv():
         source, target, model_type="logistic", use_cv=True
     )
     assert "accuracy" in results
+    assert "balanced_accuracy" in results
+    assert "f1" in results

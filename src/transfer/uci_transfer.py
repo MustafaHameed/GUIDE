@@ -20,7 +20,12 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import GridSearchCV, train_test_split
 
 # Import existing UCI data loader
@@ -405,7 +410,9 @@ def transfer_experiment(
             proportional to class frequency within each sex group
         
     Returns:
-        Dictionary with performance metrics
+        Dictionary with performance metrics including accuracy,
+        balanced accuracy, F1 score, and optionally AUC and group
+        accuracies
     """
     logger.info(f"Running transfer experiment: {model_type}")
 
@@ -589,6 +596,8 @@ def transfer_experiment(
     # Calculate metrics
     results = {
         'accuracy': accuracy_score(y_target, y_pred),
+        'balanced_accuracy': balanced_accuracy_score(y_target, y_pred),
+        'f1': f1_score(y_target, y_pred),
         'source_size': len(X_source),
         'target_size': len(X_target),
         'n_features': len(feature_cols)
@@ -628,6 +637,7 @@ def run_bidirectional_transfer(
     hidden_sizes: Optional[List[int]] = None,
     dropout: float = 0.0,
     reweight_sex: bool = False,
+    plot_metrics: Optional[List[str]] = None,
 ) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
 
@@ -647,6 +657,8 @@ def run_bidirectional_transfer(
         dropout: Dropout rate for the MLP
         reweight_sex: If True, weight training data by inverse class
             frequency within each sex during classical model training
+        plot_metrics: Metrics to visualize in output figures. Defaults to
+            ['accuracy'].
 
     Returns:
         Dictionary with transfer results
@@ -755,13 +767,20 @@ def run_bidirectional_transfer(
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
-
-        plt.figure(figsize=(8, 4))
-        sns.barplot(data=results_df, x="direction", y="accuracy", hue="model")
-        plt.title("Transfer Accuracy by Direction and Model")
-        plt.tight_layout()
-        plt.savefig(figure_path)
-        plt.close()
+        if plot_metrics is None:
+            plot_metrics = ["accuracy"]
+        for metric in plot_metrics:
+            plt.figure(figsize=(8, 4))
+            sns.barplot(data=results_df, x="direction", y=metric, hue="model")
+            plt.title(f"Transfer {metric.replace('_', ' ').title()} by Direction and Model")
+            plt.tight_layout()
+            metric_path = (
+                figure_path
+                if len(plot_metrics) == 1
+                else figure_path.with_name(f"{figure_path.stem}_{metric}{figure_path.suffix}")
+            )
+            plt.savefig(metric_path)
+            plt.close()
     except Exception as exc:  # pragma: no cover - visualization is best effort
         logger.warning(f"Visualization failed: {exc}")
 
