@@ -105,6 +105,42 @@ def create_shared_feature_mapping() -> Dict[str, Dict]:
             'goout': {
                 'oulad_col': 'goout',
                 'uci_col': 'goout'
+            },
+
+            # Internet access
+            'internet': {
+                'oulad_col': 'vle_total_clicks',
+                'uci_col': 'internet',
+                'transform': 'clicks_to_binary',
+                'mapping': {
+                    'yes': 'yes',
+                    'no': 'no'
+                }
+            },
+
+            # Participation in activities
+            'activities': {
+                'oulad_col': 'goout',
+                'uci_col': 'activities',
+                'transform': 'goout_to_binary',
+                'mapping': {
+                    'yes': 'yes',
+                    'no': 'no'
+                }
+            },
+
+            # Free time (inverse of study time)
+            'freetime': {
+                'oulad_col': 'studytime',
+                'uci_col': 'freetime',
+                'transform': 'studytime_to_freetime'
+            },
+
+            # Family relationship quality
+            'famrel': {
+                'oulad_col': 'famsup',
+                'uci_col': 'famrel',
+                'transform': 'famsup_to_famrel'
             }
         },
         
@@ -224,6 +260,26 @@ def prepare_oulad_features(oulad_df: pd.DataFrame, feature_mapping: Dict) -> pd.
                 # Transform VLE clicks to attendance proxy
                 attend_values, _ = attendance_normalize_transform(oulad_df[oulad_col], None)
                 shared_data[feature_name] = attend_values
+
+            elif feature_name == 'internet':
+                # Derive internet access from VLE activity
+                shared_data[feature_name] = np.where(oulad_df[oulad_col] > 0, 'yes', 'no')
+
+            elif feature_name == 'activities':
+                # Use social outings as proxy for extracurricular activities
+                shared_data[feature_name] = np.where(oulad_df[oulad_col] > 3, 'yes', 'no')
+
+            elif feature_name == 'freetime':
+                # Approximate free time as inverse of study time
+                shared_data[feature_name] = 5 - oulad_df[oulad_col].astype(float)
+
+            elif feature_name == 'famrel':
+                # Map family support to a coarse relationship quality score
+                shared_data[feature_name] = (
+                    oulad_df[oulad_col]
+                    .map({'Yes': 4, 'No': 2, 'Y': 4, 'N': 2})
+                    .fillna(3)
+                )
 
             elif 'mapping' in config:
                 # Apply simple value mapping if provided
