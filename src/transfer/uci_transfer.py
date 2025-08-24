@@ -21,7 +21,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split
 
 # Import existing UCI data loader
 from data import load_data
@@ -377,14 +377,19 @@ def encode_categorical_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict]:
     return df_encoded, encoders
 
 
-def transfer_experiment(source_data: pd.DataFrame, target_data: pd.DataFrame, 
-                       model_type: str = 'logistic') -> Dict[str, float]:
+def transfer_experiment(
+    source_data: pd.DataFrame,
+    target_data: pd.DataFrame,
+    model_type: str = "logistic",
+    use_cv: bool = False,
+) -> Dict[str, float]:
     """Run transfer learning experiment from source to target dataset.
     
     Args:
         source_data: Source dataset with shared features and labels
         target_data: Target dataset with shared features and labels
         model_type: Type of model to use
+        use_cv: Whether to perform hyperparameter search with cross-validation
         
     Returns:
         Dictionary with performance metrics
@@ -408,15 +413,32 @@ def transfer_experiment(source_data: pd.DataFrame, target_data: pd.DataFrame,
     X_source_scaled = scaler.fit_transform(X_source)
     X_target_scaled = scaler.transform(X_target)
     
-    if model_type in {'logistic', 'random_forest'}:
-        # Classical sklearn models
-        if model_type == 'logistic':
-            model = LogisticRegression(random_state=42, max_iter=1000)
+    if model_type in {"logistic", "random_forest"}:
+        # Classical sklearn models with optional hyperparameter search
+        if model_type == "logistic":
+            base_model = LogisticRegression(random_state=42, max_iter=1000)
+            if use_cv:
+                param_grid = {"C": [0.01, 0.1, 1, 10]}
+                search = GridSearchCV(base_model, param_grid, cv=3)
+                search.fit(X_source_scaled, y_source)
+                model = search.best_estimator_
+            else:
+                base_model.fit(X_source_scaled, y_source)
+                model = base_model
         else:
-            model = RandomForestClassifier(random_state=42, n_estimators=100)
-
-        # Train on source dataset
-        model.fit(X_source_scaled, y_source)
+            base_model = RandomForestClassifier(random_state=42)
+            if use_cv:
+                param_grid = {
+                    "n_estimators": [50, 100, 200],
+                    "max_depth": [None, 5, 10],
+                }
+                search = GridSearchCV(base_model, param_grid, cv=3)
+                search.fit(X_source_scaled, y_source)
+                model = search.best_estimator_
+            else:
+                base_model.set_params(n_estimators=100)
+                base_model.fit(X_source_scaled, y_source)
+                model = base_model
 
         # Evaluate on target dataset
         y_pred = model.predict(X_target_scaled)
@@ -524,6 +546,7 @@ def run_bidirectional_transfer(
     table_path: Path = Path("tables/transfer_results.csv"),
     figure_path: Path = Path("figures/transfer_performance.png"),
     models: Optional[List[str]] = None,
+    use_cv: bool = False,
 ) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
 
@@ -535,6 +558,7 @@ def run_bidirectional_transfer(
         figure_path: Location to save transfer performance visualization
         models: Which model types to evaluate. Defaults to logistic,
             random forest, and a small MLP.
+        use_cv: Whether to perform hyperparameter search for classical models.
 
     Returns:
         Dictionary with transfer results
@@ -580,18 +604,22 @@ def run_bidirectional_transfer(
 
     if models is None:
         models = ['logistic', 'random_forest', 'mlp']
-    
+
     for model_type in models:
         # OULAD -> UCI transfer
-        oulad_to_uci = transfer_experiment(oulad_final, uci_final, model_type)
+        oulad_to_uci = transfer_experiment(
+            oulad_final, uci_final, model_type, use_cv=use_cv
+        )
         oulad_to_uci['direction'] = 'OULAD_to_UCI'
         oulad_to_uci['model'] = model_type
-        
-        # UCI -> OULAD transfer  
-        uci_to_oulad = transfer_experiment(uci_final, oulad_final, model_type)
+
+        # UCI -> OULAD transfer
+        uci_to_oulad = transfer_experiment(
+            uci_final, oulad_final, model_type, use_cv=use_cv
+        )
         uci_to_oulad['direction'] = 'UCI_to_OULAD'
         uci_to_oulad['model'] = model_type
-        
+
         results[f'{model_type}_oulad_to_uci'] = oulad_to_uci
         results[f'{model_type}_uci_to_oulad'] = uci_to_oulad
         
@@ -665,6 +693,11 @@ def main():
         default=['logistic', 'random_forest', 'mlp'],
         help='Models to evaluate: logistic, random_forest, mlp'
     )
+    parser.add_argument(
+        '--cv',
+        action='store_true',
+        help='Enable hyperparameter search with cross-validation'
+    )
 
     args = parser.parse_args()
 
@@ -673,7 +706,8 @@ def main():
             args.oulad_data,
             args.uci_data,
             args.output_dir,
-            models=args.models
+            models=args.models,
+            use_cv=args.cv
         )
         
         # Log summary

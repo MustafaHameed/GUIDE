@@ -131,3 +131,26 @@ def test_transfer_experiment_mlp(monkeypatch):
     assert "auc" in results
     # Should include sex-specific accuracy metrics
     assert any(k.startswith("accuracy_") for k in results)
+
+
+def test_transfer_experiment_cv():
+    """Ensure cross-validation path executes for classical models."""
+    source = pd.DataFrame(
+        {
+            "feat": [0, 1, 0, 1, 0, 1, 0, 1],
+            "sex": [0, 1, 0, 1, 0, 1, 0, 1],
+            "label": [0, 1, 0, 1, 0, 1, 0, 1],
+        }
+    )
+    target = pd.DataFrame(
+        {
+            "feat": [0, 1],
+            "sex": [0, 1],
+            "label": [0, 1],
+        }
+    )
+
+    results = uci_transfer.transfer_experiment(
+        source, target, model_type="logistic", use_cv=True
+    )
+    assert "accuracy" in results
