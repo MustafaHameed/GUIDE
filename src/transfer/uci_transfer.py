@@ -382,6 +382,11 @@ def transfer_experiment(
     target_data: pd.DataFrame,
     model_type: str = "logistic",
     use_cv: bool = False,
+    mlp_pretrain_epochs: Optional[int] = None,
+    mlp_finetune_epochs: Optional[int] = None,
+    mlp_lr: float = 0.01,
+    hidden_sizes: Optional[List[int]] = None,
+    dropout: float = 0.0,
 ) -> Dict[str, float]:
     """Run transfer learning experiment from source to target dataset.
     
@@ -390,11 +395,21 @@ def transfer_experiment(
         target_data: Target dataset with shared features and labels
         model_type: Type of model to use
         use_cv: Whether to perform hyperparameter search with cross-validation
+        mlp_pretrain_epochs: Epochs for pretraining when using MLP
+        mlp_finetune_epochs: Epochs for fine-tuning when using MLP
+        mlp_lr: Learning rate for the MLP optimizer
+        hidden_sizes: Hidden layer sizes for the MLP
+        dropout: Dropout rate applied after activations in the MLP
         
     Returns:
         Dictionary with performance metrics
     """
     logger.info(f"Running transfer experiment: {model_type}")
+
+    if mlp_pretrain_epochs is None:
+        mlp_pretrain_epochs = MLP_PRETRAIN_EPOCHS
+    if mlp_finetune_epochs is None:
+        mlp_finetune_epochs = MLP_FINETUNE_EPOCHS
     
     # Prepare features and labels
     feature_cols = [col for col in source_data.columns if col != 'label']
@@ -451,61 +466,89 @@ def transfer_experiment(
         # Delayed import to keep torch optional
         import torch
         from torch import nn
-        from torch.utils.data import DataLoader, TensorDataset
+        from torch.utils.data import DataLoader, TensorDataset, random_split
 
         input_dim = X_source_scaled.shape[1]
 
         class SimpleMLP(nn.Module):
-            def __init__(self, in_dim: int):
+            def __init__(
+                self,
+                in_dim: int,
+                hidden_sizes: Optional[List[int]] = None,
+                dropout: float = 0.0,
+            ):
                 super().__init__()
-                self.feature = nn.Sequential(
-                    nn.Linear(in_dim, 32),
-                    nn.ReLU(),
-                    nn.Linear(32, 16),
-                    nn.ReLU(),
-                )
-                self.classifier = nn.Linear(16, 1)
+                if hidden_sizes is None:
+                    hidden_sizes = [32, 16]
+                layers = []
+                last = in_dim
+                for h in hidden_sizes:
+                    layers.append(nn.Linear(last, h))
+                    layers.append(nn.ReLU())
+                    layers.append(nn.Dropout(dropout))
+                    last = h
+                self.feature = nn.Sequential(*layers)
+                self.classifier = nn.Linear(last, 1)
 
             def forward(self, x):
                 x = self.feature(x)
                 return self.classifier(x)
 
-        def _train(model, dl, epochs):
-            crit = nn.BCEWithLogitsLoss()
-            opt = torch.optim.Adam(model.parameters(), lr=0.01)
-            model.train()
-            for _ in range(epochs):
-                for xb, yb in dl:
-                    opt.zero_grad()
-                    out = model(xb).squeeze()
-                    loss = crit(out, yb.float())
-                    loss.backward()
-                    opt.step()
+        def _train(model, dataset, epochs, lr=0.01, patience=5):
+                crit = nn.BCEWithLogitsLoss()
+                opt = torch.optim.Adam(model.parameters(), lr=lr)
+                val_size = max(1, int(0.1 * len(dataset)))
+                train_size = len(dataset) - val_size
+                train_ds, val_ds = random_split(dataset, [train_size, val_size])
+                train_dl = DataLoader(train_ds, batch_size=32, shuffle=True)
+                val_dl = DataLoader(val_ds, batch_size=32)
+                best_val = float('inf')
+                epochs_no_improve = 0
+                for _ in range(epochs):
+                    model.train()
+                    for xb, yb in train_dl:
+                        opt.zero_grad()
+                        out = model(xb).squeeze(-1)
+                        loss = crit(out, yb.float())
+                        loss.backward()
+                        opt.step()
+                    model.eval()
+                    val_loss = 0.0
+                    with torch.no_grad():
+                        for xb, yb in val_dl:
+                            out = model(xb).squeeze(-1)
+                            val_loss += crit(out, yb.float()).item() * len(xb)
+                    val_loss /= len(val_dl.dataset)
+                    if val_loss < best_val - 1e-4:
+                        best_val = val_loss
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
+                        if epochs_no_improve >= patience:
+                            break
 
         # Pretrain on source
-        model = SimpleMLP(input_dim)
+        model = SimpleMLP(input_dim, hidden_sizes=hidden_sizes, dropout=dropout)
         source_ds = TensorDataset(
             torch.tensor(X_source_scaled, dtype=torch.float32),
             torch.tensor(y_source.values, dtype=torch.float32),
         )
-        source_dl = DataLoader(source_ds, batch_size=32, shuffle=True)
-        _train(model, source_dl, MLP_PRETRAIN_EPOCHS)
+        _train(model, source_ds, mlp_pretrain_epochs, lr=mlp_lr)
 
         # Replace final layer and fine-tune on target data
-        model.classifier = nn.Linear(16, 1)
+        model.classifier = nn.Linear(model.classifier.in_features, 1)
         target_ds = TensorDataset(
             torch.tensor(X_target_scaled, dtype=torch.float32),
             torch.tensor(y_target.values, dtype=torch.float32),
         )
-        target_dl = DataLoader(target_ds, batch_size=32, shuffle=True)
-        _train(model, target_dl, MLP_FINETUNE_EPOCHS)
+        _train(model, target_ds, mlp_finetune_epochs, lr=mlp_lr)
 
         # Predictions on target
         model.eval()
         with torch.no_grad():
             logits = model(
                 torch.tensor(X_target_scaled, dtype=torch.float32)
-            ).squeeze()
+            ).squeeze(-1)
             y_prob = torch.sigmoid(logits).cpu().numpy()
             y_pred = (y_prob > 0.5).astype(int)
     else:
@@ -547,6 +590,11 @@ def run_bidirectional_transfer(
     figure_path: Path = Path("figures/transfer_performance.png"),
     models: Optional[List[str]] = None,
     use_cv: bool = False,
+    mlp_pretrain_epochs: Optional[int] = None,
+    mlp_finetune_epochs: Optional[int] = None,
+    mlp_lr: float = 0.01,
+    hidden_sizes: Optional[List[int]] = None,
+    dropout: float = 0.0,
 ) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
 
@@ -559,6 +607,11 @@ def run_bidirectional_transfer(
         models: Which model types to evaluate. Defaults to logistic,
             random forest, and a small MLP.
         use_cv: Whether to perform hyperparameter search for classical models.
+        mlp_pretrain_epochs: Epochs for MLP pretraining
+        mlp_finetune_epochs: Epochs for MLP fine-tuning
+        mlp_lr: Learning rate for MLP optimizer
+        hidden_sizes: Hidden layer sizes for the MLP
+        dropout: Dropout rate for the MLP
 
     Returns:
         Dictionary with transfer results
@@ -608,14 +661,30 @@ def run_bidirectional_transfer(
     for model_type in models:
         # OULAD -> UCI transfer
         oulad_to_uci = transfer_experiment(
-            oulad_final, uci_final, model_type, use_cv=use_cv
+            oulad_final,
+            uci_final,
+            model_type,
+            use_cv=use_cv,
+            mlp_pretrain_epochs=mlp_pretrain_epochs,
+            mlp_finetune_epochs=mlp_finetune_epochs,
+            mlp_lr=mlp_lr,
+            hidden_sizes=hidden_sizes,
+            dropout=dropout,
         )
         oulad_to_uci['direction'] = 'OULAD_to_UCI'
         oulad_to_uci['model'] = model_type
 
         # UCI -> OULAD transfer
         uci_to_oulad = transfer_experiment(
-            uci_final, oulad_final, model_type, use_cv=use_cv
+            uci_final,
+            oulad_final,
+            model_type,
+            use_cv=use_cv,
+            mlp_pretrain_epochs=mlp_pretrain_epochs,
+            mlp_finetune_epochs=mlp_finetune_epochs,
+            mlp_lr=mlp_lr,
+            hidden_sizes=hidden_sizes,
+            dropout=dropout,
         )
         uci_to_oulad['direction'] = 'UCI_to_OULAD'
         uci_to_oulad['model'] = model_type
@@ -698,6 +767,24 @@ def main():
         action='store_true',
         help='Enable hyperparameter search with cross-validation'
     )
+    parser.add_argument(
+        '--mlp-pretrain-epochs',
+        type=int,
+        default=MLP_PRETRAIN_EPOCHS,
+        help='Epochs for MLP pretraining'
+    )
+    parser.add_argument(
+        '--mlp-finetune-epochs',
+        type=int,
+        default=MLP_FINETUNE_EPOCHS,
+        help='Epochs for MLP fine-tuning'
+    )
+    parser.add_argument(
+        '--mlp-lr',
+        type=float,
+        default=0.01,
+        help='Learning rate for MLP'
+    )
 
     args = parser.parse_args()
 
@@ -707,7 +794,10 @@ def main():
             args.uci_data,
             args.output_dir,
             models=args.models,
-            use_cv=args.cv
+            use_cv=args.cv,
+            mlp_pretrain_epochs=args.mlp_pretrain_epochs,
+            mlp_finetune_epochs=args.mlp_finetune_epochs,
+            mlp_lr=args.mlp_lr
         )
         
         # Log summary
