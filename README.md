@@ -60,6 +60,50 @@ df = pd.read_csv('student-mat.csv')
 print(df.head())
 ```
 
+### Comprehensive Exploratory Data Analysis
+
+Run the enhanced EDA to generate comprehensive visualizations and insights:
+
+```bash
+python -c "from src.eda import run_eda; import pandas as pd; run_eda(pd.read_csv('student-mat.csv'))"
+```
+
+Or programmatically:
+
+```python
+from src.eda import run_eda
+import pandas as pd
+
+df = pd.read_csv('student-mat.csv')
+run_eda(df)  # Generates figures/, tables/, and reports/
+```
+
+The enhanced EDA generates:
+
+**Publication-quality visualizations** (saved to `figures/`):
+- Distribution analysis for all grade variables with pass/fail thresholds
+- Categorical feature importance ranking plot
+- Categorical correlation heatmap using Cramer's V
+- Grade distributions by key categorical variables (sex, school, major job, etc.)
+- Comprehensive numeric correlation analysis
+- Advanced scatter plots with regression lines for key relationships
+- Pass/fail outcome analysis for absences and study time
+
+**Data tables** (saved to `tables/`):
+- `eda_categorical_feature_importance.csv`: Importance scores using multiple methods (mutual information, chi-square, correlation ratio)
+- `eda_categorical_correlations.csv`: Categorical variable associations using Cramer's V
+- `eda_numeric_correlation_matrix.csv`: Traditional Pearson correlations for numeric variables
+- `eda_summary_statistics.csv`: Comprehensive descriptive statistics
+
+**Narrative insights** (saved to `reports/`):
+- `eda_comprehensive_report.md`: Auto-generated summary with key findings, feature importance insights, and actionable recommendations
+
+The EDA uses advanced statistical methods for categorical variables:
+- **Mutual Information**: Measures non-linear dependencies between categorical features and academic performance
+- **Cramer's V**: Quantifies associations between categorical variables (0=no association, 1=perfect association)  
+- **Correlation Ratio (η²)**: Measures how well categorical variables explain variance in numeric outcomes
+- **Chi-square tests**: Statistical significance of categorical associations
+
 ### Train a baseline model
 
 The project code now lives in the `src/` package:
