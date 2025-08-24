@@ -22,7 +22,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, GridSearchCV, RandomizedSearchCV
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import (
     accuracy_score, roc_auc_score, f1_score, brier_score_loss,
@@ -579,8 +579,15 @@ def train_and_evaluate_model(
 
     results: Dict[str, Any] = {'model_type': model_type}
 
-    # Create and train model
-    model = create_model(model_type, **(model_params or {}))
+    # Separate model initialization params from search params
+    model_params = (model_params or {}).copy()
+    param_grid = model_params.pop('param_grid', None)
+    param_distributions = model_params.pop('param_distributions', None)
+    cv = model_params.pop('cv', 5)
+    n_iter = model_params.pop('n_iter', 10)
+
+    # Create model
+    model = create_model(model_type, **model_params)
 
     # Apply preprocessing reweighing if requested
     sample_weight = None
@@ -591,11 +598,56 @@ def train_and_evaluate_model(
         ).astype(int)
         sample_weight = preprocess_reweighing(X_train, y_train, sensitive_binary)
 
-    # Train model
-    if sample_weight is not None:
-        model.fit(X_train, y_train, sample_weight=sample_weight)
+    # Cross-validation before final training
+    fit_params_cv = {'sample_weight': sample_weight} if sample_weight is not None else {}
+    try:
+        cv_acc = cross_val_score(
+            model, X_train, y_train, cv=cv, scoring='accuracy', fit_params=fit_params_cv
+        )
+        results['cv_accuracy_mean'] = float(cv_acc.mean())
+        results['cv_accuracy_std'] = float(cv_acc.std())
+        if hasattr(model, 'predict_proba'):
+            cv_auc = cross_val_score(
+                model, X_train, y_train, cv=cv, scoring='roc_auc', fit_params=fit_params_cv
+            )
+            results['cv_auc_mean'] = float(cv_auc.mean())
+            results['cv_auc_std'] = float(cv_auc.std())
+    except Exception as e:
+        logger.warning(f"Cross-validation scoring failed: {e}")
+
+    # Train model or perform hyperparameter search
+    fit_params = {'sample_weight': sample_weight} if sample_weight is not None else {}
+    best_params = None
+    if param_grid is not None or param_distributions is not None:
+        scoring = 'roc_auc' if hasattr(model, 'predict_proba') else 'accuracy'
+        if param_grid is not None:
+            search = GridSearchCV(model, param_grid, cv=cv, scoring=scoring, n_jobs=-1)
+        else:
+            search = RandomizedSearchCV(
+                model,
+                param_distributions,
+                n_iter=n_iter,
+                cv=cv,
+                scoring=scoring,
+                n_jobs=-1,
+                random_state=42,
+            )
+        search.fit(X_train, y_train, **fit_params)
+        model = search.best_estimator_
+        best_params = search.best_params_
     else:
-        model.fit(X_train, y_train)
+        model.fit(X_train, y_train, **fit_params)
+
+    if best_params is not None:
+        results['best_params'] = best_params
+        reports_dir = Path('reports')
+        reports_dir.mkdir(exist_ok=True)
+        best_params_file = reports_dir / 'best_params.csv'
+        df_bp = pd.DataFrame([{**{'model_type': model_type}, **best_params}])
+        if best_params_file.exists():
+            existing = pd.read_csv(best_params_file)
+            df_bp = pd.concat([existing, df_bp], ignore_index=True)
+        df_bp.to_csv(best_params_file, index=False)
 
     # Make initial predictions (pre-mitigation)
     y_pred_pre = model.predict(X_test)
