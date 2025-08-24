@@ -387,6 +387,7 @@ def transfer_experiment(
     mlp_lr: float = 0.01,
     hidden_sizes: Optional[List[int]] = None,
     dropout: float = 0.0,
+    reweight_sex: bool = False,
 ) -> Dict[str, float]:
     """Run transfer learning experiment from source to target dataset.
     
@@ -400,6 +401,8 @@ def transfer_experiment(
         mlp_lr: Learning rate for the MLP optimizer
         hidden_sizes: Hidden layer sizes for the MLP
         dropout: Dropout rate applied after activations in the MLP
+        reweight_sex: If True, weight training samples inversely
+            proportional to class frequency within each sex group
         
     Returns:
         Dictionary with performance metrics
@@ -430,15 +433,38 @@ def transfer_experiment(
     
     if model_type in {"logistic", "random_forest"}:
         # Classical sklearn models with optional hyperparameter search
+
+        sample_weight = None
+        if reweight_sex and 'sex' in source_data.columns:
+            group_counts = (
+                source_data.groupby(['sex', 'label']).size()
+            )
+            weights = source_data[['sex', 'label']].apply(
+                lambda r: 1.0 / group_counts.loc[r['sex'], r['label']], axis=1
+            )
+            # Normalize weights to maintain comparable scale
+            weights = weights * len(weights) / weights.sum()
+            sample_weight = weights.values
+
+        fit_kwargs = {}
+        if sample_weight is not None:
+            fit_kwargs["sample_weight"] = sample_weight
+
         if model_type == "logistic":
             base_model = LogisticRegression(random_state=42, max_iter=1000)
             if use_cv:
                 param_grid = {"C": [0.01, 0.1, 1, 10]}
                 search = GridSearchCV(base_model, param_grid, cv=3)
-                search.fit(X_source_scaled, y_source)
+                search.fit(
+                    X_source_scaled,
+                    y_source,
+                    **fit_kwargs,
+                )
                 model = search.best_estimator_
             else:
-                base_model.fit(X_source_scaled, y_source)
+                base_model.fit(
+                    X_source_scaled, y_source, **fit_kwargs
+                )
                 model = base_model
         else:
             base_model = RandomForestClassifier(random_state=42)
@@ -448,11 +474,17 @@ def transfer_experiment(
                     "max_depth": [None, 5, 10],
                 }
                 search = GridSearchCV(base_model, param_grid, cv=3)
-                search.fit(X_source_scaled, y_source)
+                search.fit(
+                    X_source_scaled,
+                    y_source,
+                    **fit_kwargs,
+                )
                 model = search.best_estimator_
             else:
                 base_model.set_params(n_estimators=100)
-                base_model.fit(X_source_scaled, y_source)
+                base_model.fit(
+                    X_source_scaled, y_source, **fit_kwargs
+                )
                 model = base_model
 
         # Evaluate on target dataset
@@ -595,6 +627,7 @@ def run_bidirectional_transfer(
     mlp_lr: float = 0.01,
     hidden_sizes: Optional[List[int]] = None,
     dropout: float = 0.0,
+    reweight_sex: bool = False,
 ) -> Dict[str, Dict]:
     """Run bidirectional transfer learning experiments.
 
@@ -612,6 +645,8 @@ def run_bidirectional_transfer(
         mlp_lr: Learning rate for MLP optimizer
         hidden_sizes: Hidden layer sizes for the MLP
         dropout: Dropout rate for the MLP
+        reweight_sex: If True, weight training data by inverse class
+            frequency within each sex during classical model training
 
     Returns:
         Dictionary with transfer results
@@ -670,6 +705,7 @@ def run_bidirectional_transfer(
             mlp_lr=mlp_lr,
             hidden_sizes=hidden_sizes,
             dropout=dropout,
+            reweight_sex=reweight_sex,
         )
         oulad_to_uci['direction'] = 'OULAD_to_UCI'
         oulad_to_uci['model'] = model_type
@@ -685,6 +721,7 @@ def run_bidirectional_transfer(
             mlp_lr=mlp_lr,
             hidden_sizes=hidden_sizes,
             dropout=dropout,
+            reweight_sex=reweight_sex,
         )
         uci_to_oulad['direction'] = 'UCI_to_OULAD'
         uci_to_oulad['model'] = model_type
@@ -785,6 +822,12 @@ def main():
         default=0.01,
         help='Learning rate for MLP'
     )
+    parser.add_argument(
+        '--reweight-sex',
+        action='store_true',
+        help='Reweight classes inversely within each sex for classical models',
+    )
+
 
     args = parser.parse_args()
 
@@ -797,7 +840,8 @@ def main():
             use_cv=args.cv,
             mlp_pretrain_epochs=args.mlp_pretrain_epochs,
             mlp_finetune_epochs=args.mlp_finetune_epochs,
-            mlp_lr=args.mlp_lr
+            mlp_lr=args.mlp_lr,
+            reweight_sex=args.reweight_sex,
         )
         
         # Log summary
