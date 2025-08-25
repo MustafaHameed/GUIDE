@@ -1,0 +1,110 @@
+# Fairness Analysis Configuration
+# Settings for bias detection and mitigation
+
+# Dataset and model
+data:
+  path: "student-mat.csv"
+  delimiter: ";"
+  model_path: "models/model.pkl"
+  
+# Sensitive attributes for fairness analysis
+sensitive_attributes:
+  primary: "sex"  # Primary attribute for analysis
+  secondary: ["school", "address"]  # Additional attributes
+  
+  # Custom groupings
+  custom_groups:
+    ses:  # Socioeconomic status
+      high: ["Medu >= 3", "Fedu >= 3"]
+      medium: ["Medu == 2", "Fedu == 2"] 
+      low: ["Medu <= 1", "Fedu <= 1"]
+    age_group:
+      young: "age <= 17"
+      older: "age > 17"
+
+# Fairness metrics to compute
+metrics:
+  demographic_parity: true
+  equalized_odds: true
+  predictive_parity: true
+  calibration: true
+  individual_fairness: false  # Computationally expensive
+  
+  # Thresholds for fairness violations
+  thresholds:
+    demographic_parity: 0.1
+    equalized_odds: 0.1
+    predictive_parity: 0.1
+
+# Bias mitigation methods
+mitigation:
+  preprocessing:
+    - "reweighing"
+    - "correlation_removal"
+  
+  postprocessing:
+    - "threshold_optimization"
+    - "equalized_odds_postprocessing"
+  
+  # Mitigation parameters
+  params:
+    correlation_removal:
+      alpha: 1.0
+    threshold_optimization:
+      constraint: "equalized_odds"
+      grid_size: 1000
+
+# Multi-attribute analysis
+multi_attribute:
+  enabled: true
+  combinations:
+    - ["sex", "school"]
+    - ["sex", "ses"]
+    - ["school", "ses"]
+  max_combinations: 3
+
+# Visualization settings
+visualization:
+  create_plots: true
+  plot_types:
+    - "demographic_parity_bar"
+    - "roc_by_group"
+    - "calibration_plot"
+    - "bias_heatmap"
+  
+  figure_size: [10, 6]
+  color_palette: "viridis"
+  save_format: "png"
+  dpi: 300
+
+# Output settings
+output:
+  figures_dir: "figures"
+  tables_dir: "tables" 
+  reports_dir: "reports"
+  
+  # File naming
+  prefix: "fairness"
+  include_timestamp: false
+  
+  # Report generation
+  generate_summary: true
+  summary_format: "markdown"  # markdown, html, pdf
+
+# Statistical analysis
+statistics:
+  bootstrap_samples: 1000
+  confidence_level: 0.95
+  significance_level: 0.05
+  multiple_testing_correction: "bonferroni"
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+
+# Logging
+logging:
+  level: "INFO"
+  save_logs: true
+  log_file: "fairness.log"

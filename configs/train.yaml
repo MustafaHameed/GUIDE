@@ -1,0 +1,68 @@
+# Training Configuration
+# Default settings for model training pipeline
+
+# Dataset settings
+data:
+  path: "student-mat.csv"
+  delimiter: ";"
+  pass_threshold: 10
+  task: "classification"  # classification or regression
+  
+# Model configuration
+model:
+  type: "logistic"  # logistic, random_forest, stacking, bagging, lstm, gru
+  random_state: 42
+  
+  # Hyperparameter search
+  param_grid: "default"  # none, default, extensive
+  cv_folds: 5
+  n_jobs: -1
+  
+  # Ensemble settings (for stacking/bagging)
+  estimators: ["logistic", "random_forest"]
+  final_estimator: "logistic"
+  base_estimator: "decision_tree"
+  
+  # Sequence model settings
+  sequence_model:
+    hidden_size: 8
+    epochs: 50
+    learning_rate: 0.01
+    batch_size: 32
+    device: "cpu"  # cpu or cuda
+
+# Preprocessing
+preprocessing:
+  scale_features: true
+  handle_categorical: "onehot"  # onehot, label, target
+  feature_selection: false
+  n_features: null  # null for all features
+
+# Training settings
+training:
+  test_size: 0.2
+  val_size: 0.15  # For calibration
+  stratify: true
+  shuffle: true
+  
+# Output settings
+output:
+  figures_dir: "figures"
+  tables_dir: "tables"
+  reports_dir: "reports"
+  models_dir: "models"
+  save_predictions: true
+  save_probabilities: true
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+  set_cuda_deterministic: true
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  save_logs: true
+  log_file: "training.log"
