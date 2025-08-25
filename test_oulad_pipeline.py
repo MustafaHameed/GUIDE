@@ -139,10 +139,8 @@ def test_pipeline_reproducibility():
 
 def test_eda_module_import():
     """Test that OULAD EDA module can be imported and used."""
-    sys.path.append(str(Path(__file__).resolve().parent.parent / "src" / "oulad"))
-    
     try:
-        import eda as oulad_eda
+        from src.oulad import eda as oulad_eda
         assert hasattr(oulad_eda, 'run_oulad_eda'), "OULAD EDA should have main function"
     except ImportError:
         pytest.fail("Could not import OULAD EDA module")
