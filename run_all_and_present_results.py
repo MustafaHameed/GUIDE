@@ -90,6 +90,8 @@ def run_pipeline_components():
          "Nested Cross-Validation"),
         ("export PYTHONHASHSEED=0 && python -m src.transfer.uci_transfer", 
          "Transfer Learning Analysis"),
+        ("export PYTHONHASHSEED=0 && python run_enhanced_feature_engineering_comparison.py", 
+         "Enhanced Feature Engineering ML/DL Comparison"),
     ]
     
     results = {}
@@ -119,6 +121,13 @@ def copy_and_organize_results():
     if REPORTS_DIR.exists():
         shutil.copytree(REPORTS_DIR, RESULTS_DIR / "reports", dirs_exist_ok=True)
         print(f"📄 Copied {len(list(REPORTS_DIR.glob('**/*')))} report files")
+    
+    # Copy enhanced feature engineering results
+    enhanced_fe_dir = PROJECT_ROOT / "enhanced_feature_engineering_results"
+    if enhanced_fe_dir.exists():
+        target_enhanced_dir = RESULTS_DIR / "enhanced_feature_engineering"
+        shutil.copytree(enhanced_fe_dir, target_enhanced_dir, dirs_exist_ok=True)
+        print(f"🔧 Copied {len(list(enhanced_fe_dir.glob('**/*')))} enhanced feature engineering files")
 
 def analyze_generated_figures():
     """Analyze and categorize all generated figures."""
