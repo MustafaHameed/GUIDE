@@ -29,12 +29,18 @@ except ImportError:
 try:
     from src.oulad.deep_learning import train_deep_learning_models, create_ensemble_model
     from src.oulad.advanced_deep_learning import train_advanced_deep_learning_models, create_advanced_ensemble
+    from src.oulad.optimized_deep_learning import train_optimized_models, create_optimized_ensemble
+    from src.oulad.final_deep_learning import train_final_optimized_models, create_final_ensemble
     DEEP_LEARNING_AVAILABLE = True
     ADVANCED_DL_AVAILABLE = True
+    OPTIMIZED_DL_AVAILABLE = True
+    FINAL_DL_AVAILABLE = True
 except ImportError as e:
     print(f"Deep learning module not available: {e}")
     DEEP_LEARNING_AVAILABLE = False
     ADVANCED_DL_AVAILABLE = False
+    OPTIMIZED_DL_AVAILABLE = False
+    FINAL_DL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -204,13 +210,22 @@ def print_results(results):
     logger.info("OULAD MODEL TRAINING RESULTS")
     logger.info("="*60)
     
-    # Separate traditional and deep learning models
+    # Separate model types
     traditional_models = {}
     deep_models = {}
+    optimized_models = {}
+    final_models = {}
+    advanced_models = {}
     
     for model_name, metrics in results.items():
         if model_name in ['logistic', 'random_forest', 'mlp']:
             traditional_models[model_name] = metrics
+        elif 'final' in model_name:
+            final_models[model_name] = metrics
+        elif 'optimized' in model_name:
+            optimized_models[model_name] = metrics
+        elif model_name in ['attention_tabular', 'tabnet_like', 'advanced_ensemble']:
+            advanced_models[model_name] = metrics
         else:
             deep_models[model_name] = metrics
     
@@ -222,11 +237,46 @@ def print_results(results):
             logger.info(f"\n{model_name.upper()} RESULTS:")
             logger.info(f"Accuracy: {metrics['accuracy']:.4f}")
             logger.info(f"ROC AUC: {metrics['roc_auc']:.4f}")
-            logger.info(f"Classification Report:\n{metrics['classification_report']}")
     
-    # Print deep learning models
+    # Print final optimized deep learning models
+    if final_models:
+        logger.info("\n\nFINAL OPTIMIZED DEEP LEARNING MODELS:")
+        logger.info("-" * 40)
+        for model_name, metrics in final_models.items():
+            logger.info(f"\n{model_name.upper()} RESULTS:")
+            logger.info(f"Test Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(f"Test ROC AUC: {metrics['roc_auc']:.4f}")
+            if 'f1_score' in metrics:
+                logger.info(f"Test F1 Score: {metrics['f1_score']:.4f}")
+            
+            # Print validation metrics if available
+            if 'val_accuracy' in metrics:
+                logger.info(f"Best Val Accuracy: {metrics['val_accuracy']:.4f}")
+            if 'val_auc' in metrics:
+                logger.info(f"Best Val AUC: {metrics['val_auc']:.4f}")
+    
+    # Print optimized deep learning models
+    if optimized_models:
+        logger.info("\n\nOPTIMIZED DEEP LEARNING MODELS:")
+        logger.info("-" * 40)
+        for model_name, metrics in optimized_models.items():
+            logger.info(f"\n{model_name.upper()} RESULTS:")
+            logger.info(f"Test Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(f"Test ROC AUC: {metrics['roc_auc']:.4f}")
+            if 'f1_score' in metrics:
+                logger.info(f"Test F1 Score: {metrics['f1_score']:.4f}")
+            if 'balanced_accuracy' in metrics:
+                logger.info(f"Test Balanced Acc: {metrics['balanced_accuracy']:.4f}")
+            
+            # Print CV results if available
+            if 'cv_val_acc_mean' in metrics:
+                logger.info(f"CV Val Accuracy: {metrics['cv_val_acc_mean']:.4f}±{metrics['cv_val_acc_std']:.4f}")
+            if 'cv_val_auc_mean' in metrics:
+                logger.info(f"CV Val AUC: {metrics['cv_val_auc_mean']:.4f}±{metrics['cv_val_auc_std']:.4f}")
+    
+    # Print regular deep learning models
     if deep_models:
-        logger.info("\n\nADVANCED DEEP LEARNING MODELS:")
+        logger.info("\n\nDEEP LEARNING MODELS:")
         logger.info("-" * 40)
         for model_name, metrics in deep_models.items():
             logger.info(f"\n{model_name.upper()} RESULTS:")
@@ -238,26 +288,50 @@ def print_results(results):
                 logger.info(f"Best Val Accuracy: {metrics['val_accuracy']:.4f}")
             if 'val_auc' in metrics:
                 logger.info(f"Best Val AUC: {metrics['val_auc']:.4f}")
-            
-            logger.info(f"Classification Report:\n{metrics['classification_report']}")
     
-    # Print summary comparison
-    logger.info("\n\nMODEL PERFORMANCE SUMMARY:")
-    logger.info("-" * 40)
+    # Print advanced models
+    if advanced_models:
+        logger.info("\n\nADVANCED DEEP LEARNING MODELS:")
+        logger.info("-" * 40)
+        for model_name, metrics in advanced_models.items():
+            logger.info(f"\n{model_name.upper()} RESULTS:")
+            logger.info(f"Test Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(f"Test ROC AUC: {metrics['roc_auc']:.4f}")
+            
+            if 'val_accuracy' in metrics:
+                logger.info(f"Best Val Accuracy: {metrics['val_accuracy']:.4f}")
+            if 'val_auc' in metrics:
+                logger.info(f"Best Val AUC: {metrics['val_auc']:.4f}")
+    
+    # Print comprehensive summary
+    logger.info("\n\nCOMPREHENSIVE MODEL PERFORMANCE SUMMARY:")
+    logger.info("-" * 50)
     
     # Sort by accuracy
     sorted_results = sorted(results.items(), key=lambda x: x[1]['accuracy'], reverse=True)
     
-    logger.info(f"{'Model':<20} {'Accuracy':<10} {'ROC AUC':<10}")
-    logger.info("-" * 40)
+    logger.info(f"{'Model':<25} {'Accuracy':<10} {'ROC AUC':<10} {'F1 Score':<10}")
+    logger.info("-" * 55)
     for model_name, metrics in sorted_results:
-        logger.info(f"{model_name:<20} {metrics['accuracy']:<10.4f} {metrics['roc_auc']:<10.4f}")
+        f1_score = metrics.get('f1_score', metrics.get('roc_auc', 0))
+        logger.info(f"{model_name:<25} {metrics['accuracy']:<10.4f} {metrics['roc_auc']:<10.4f} {f1_score:<10.4f}")
     
     # Highlight best performing model
     best_model, best_metrics = sorted_results[0]
     logger.info(f"\n🏆 BEST PERFORMING MODEL: {best_model.upper()}")
     logger.info(f"   Accuracy: {best_metrics['accuracy']:.4f}")
     logger.info(f"   ROC AUC: {best_metrics['roc_auc']:.4f}")
+    
+    # Performance improvement analysis
+    if len(sorted_results) > 1:
+        improvement = best_metrics['accuracy'] - sorted_results[-1][1]['accuracy']
+        logger.info(f"   Improvement over worst: +{improvement:.4f} ({improvement*100:.2f}%)")
+    
+    # Check if deep learning improved over traditional methods
+    traditional_best = max([metrics['accuracy'] for name, metrics in traditional_models.items()]) if traditional_models else 0
+    if best_metrics['accuracy'] > traditional_best and best_model not in traditional_models:
+        improvement_over_traditional = best_metrics['accuracy'] - traditional_best
+        logger.info(f"   Deep learning improvement: +{improvement_over_traditional:.4f} ({improvement_over_traditional*100:.2f}%)")
 
 
 def main():
@@ -298,34 +372,63 @@ def main():
             logger.error(f"Error training deep learning models: {e}")
             logger.info("Continuing with traditional models only...")
     
-    # Train even more advanced models if available
-    if ADVANCED_DL_AVAILABLE:
+    # Train final optimized models for best results
+    if FINAL_DL_AVAILABLE:
         logger.info("\n" + "="*60)
-        logger.info("TRAINING CUTTING-EDGE DEEP LEARNING MODELS")
+        logger.info("TRAINING FINAL OPTIMIZED DEEP LEARNING MODELS")
         logger.info("="*60)
         
         try:
-            adv_models, adv_results = train_advanced_deep_learning_models(
+            final_models, final_results = train_final_optimized_models(
                 X_train.values, y_train.values, X_test.values, y_test.values
             )
             
-            # Create advanced ensemble
-            adv_ensemble_results = create_advanced_ensemble(
-                adv_models, X_test.values, y_test.values, X_test.values
+            # Create final ensemble
+            final_ensemble_results = create_final_ensemble(
+                final_models, X_test.values, y_test.values
             )
             
             # Add to main results
-            results.update(adv_results)
-            results['advanced_ensemble'] = adv_ensemble_results
+            results.update(final_results)
+            results['final_ensemble'] = final_ensemble_results
             
             # Add to models dict
-            models.update(adv_models)
+            models.update(final_models)
             
-            logger.info("Advanced deep learning models trained successfully!")
+            logger.info("Final optimized deep learning models trained successfully!")
             
         except Exception as e:
-            logger.error(f"Error training advanced deep learning models: {e}")
-            logger.info("Continuing without advanced models...")
+            logger.error(f"Error training final deep learning models: {e}")
+            logger.info("Continuing without final models...")
+    
+    # Train optimized models for better results
+    if OPTIMIZED_DL_AVAILABLE and not FINAL_DL_AVAILABLE:
+        logger.info("\n" + "="*60)
+        logger.info("TRAINING OPTIMIZED DEEP LEARNING MODELS")
+        logger.info("="*60)
+        
+        try:
+            opt_models, opt_results = train_optimized_models(
+                X_train.values, y_train.values, X_test.values, y_test.values
+            )
+            
+            # Create optimized ensemble
+            opt_ensemble_results = create_optimized_ensemble(
+                opt_models, X_test.values, y_test.values
+            )
+            
+            # Add to main results
+            results.update(opt_results)
+            results['optimized_ensemble'] = opt_ensemble_results
+            
+            # Add to models dict
+            models.update(opt_models)
+            
+            logger.info("Optimized deep learning models trained successfully!")
+            
+        except Exception as e:
+            logger.error(f"Error training optimized deep learning models: {e}")
+            logger.info("Continuing without optimized models...")
     
     if not DEEP_LEARNING_AVAILABLE:
         logger.info("Deep learning models not available. Using traditional models only.")
@@ -341,7 +444,9 @@ def main():
         'dataset_shape': X.shape,
         'class_distribution': y.value_counts().to_dict(),
         'deep_learning_available': DEEP_LEARNING_AVAILABLE,
-        'advanced_dl_available': ADVANCED_DL_AVAILABLE
+        'advanced_dl_available': ADVANCED_DL_AVAILABLE,
+        'optimized_dl_available': OPTIMIZED_DL_AVAILABLE,
+        'final_dl_available': FINAL_DL_AVAILABLE
     }
     
     metadata_path = model_dir / "oulad_metadata.pkl"
