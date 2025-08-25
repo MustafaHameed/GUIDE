@@ -14,6 +14,7 @@ import os
 import sys
 import subprocess
 import shutil
+import re
 from pathlib import Path
 from datetime import datetime
 import glob
@@ -199,8 +200,251 @@ def get_table_description(filename):
         "nested_cv_metrics.csv": "Nested cross-validation results",
         "transfer_results.csv": "Transfer learning performance metrics",
         "eda_summary_statistics.csv": "Exploratory data analysis summary statistics",
+        "rmse_bootstrap_ci.csv": "RMSE confidence intervals for regression models",
+        "threshold_tuning.csv": "Optimal classification threshold analysis",
+        "statistical_tests.csv": "Statistical significance tests for model comparisons",
+        "conformal_overall_alpha_0.1.csv": "Conformal prediction coverage analysis",
+        "concept_importance.csv": "Concept-level feature importance analysis",
+        "segmentation_summary.csv": "Student population segmentation results",
+        "rmse_anova.csv": "ANOVA analysis of model performance differences",
+        "rmse_tukey_hsd.csv": "Post-hoc pairwise model comparison results",
     }
     return descriptions.get(filename, "Data analysis results")
+
+
+def interpret_model_performance():
+    """Interpret model performance results."""
+    interpretations = []
+    
+    try:
+        # Load model performance data
+        perf_path = RESULTS_DIR / "tables" / "model_performance.csv"
+        if perf_path.exists():
+            df = pd.read_csv(perf_path)
+            
+            # Find best performing model
+            best_model = df.loc[df['accuracy_mean'].idxmax()]
+            worst_model = df.loc[df['accuracy_mean'].idxmin()]
+            
+            interpretations.append(f"🏆 **Best Model**: {best_model['model_type']} achieved {best_model['accuracy_mean']:.3f} accuracy with low variance (±{best_model['accuracy_std']:.3f})")
+            interpretations.append(f"📉 **Lowest Performance**: {worst_model['model_type']} with {worst_model['accuracy_mean']:.3f} accuracy")
+            
+            # Analyze performance spread
+            acc_range = df['accuracy_mean'].max() - df['accuracy_mean'].min()
+            interpretations.append(f"📊 **Performance Range**: {acc_range:.3f} accuracy spread indicates {'significant' if acc_range > 0.1 else 'moderate'} model differences")
+            
+            # Identify robust models (low std)
+            robust_models = df[df['accuracy_std'] < df['accuracy_std'].median()]['model_type'].tolist()
+            interpretations.append(f"🎯 **Most Robust Models**: {', '.join(robust_models[:3])} show consistent performance across folds")
+            
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret model performance: {e}")
+    
+    return interpretations
+
+
+def interpret_statistical_tests():
+    """Interpret statistical test results."""
+    interpretations = []
+    
+    try:
+        stats_path = RESULTS_DIR / "tables" / "statistical_tests.csv"
+        if stats_path.exists():
+            df = pd.read_csv(stats_path)
+            
+            # Analyze significance
+            significant = df[df['p_value'] < 0.05]
+            interpretations.append(f"📈 **Significant Differences**: {len(significant)}/{len(df)} models show statistically significant performance differences (p < 0.05)")
+            
+            # Effect sizes
+            large_effects = df[df['effect_size'].abs() > 0.8]
+            if len(large_effects) > 0:
+                interpretations.append(f"💪 **Large Effect Sizes**: {', '.join(large_effects['model'].tolist())} show substantial performance differences")
+            
+            # Best statistical performer
+            if len(significant) > 0:
+                best_stat = significant.loc[significant['effect_size'].idxmin()]
+                interpretations.append(f"🎖️ **Statistically Superior**: {best_stat['model']} shows the strongest positive effect (effect size: {best_stat['effect_size']:.3f})")
+                
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret statistical tests: {e}")
+    
+    return interpretations
+
+
+def interpret_conformal_prediction():
+    """Interpret conformal prediction results."""
+    interpretations = []
+    
+    try:
+        conf_path = RESULTS_DIR / "tables" / "conformal_overall_alpha_0.1.csv"
+        if conf_path.exists():
+            df = pd.read_csv(conf_path)
+            
+            coverage = df['coverage'].iloc[0]
+            target = df['target_coverage'].iloc[0]
+            gap = df['coverage_gap'].iloc[0]
+            avg_size = df['average_set_size'].iloc[0]
+            singleton_rate = df['singleton_rate'].iloc[0]
+            
+            interpretations.append(f"🎯 **Prediction Coverage**: {coverage:.3f} actual vs {target:.3f} target coverage (gap: {gap:.3f})")
+            
+            if abs(gap) < 0.05:
+                interpretations.append("✅ **Well-Calibrated**: Conformal predictions are well-calibrated with target coverage")
+            elif gap < 0:
+                interpretations.append("⚠️ **Under-Coverage**: Model predictions are too confident (coverage below target)")
+            else:
+                interpretations.append("📊 **Over-Coverage**: Model predictions are conservative (coverage above target)")
+                
+            interpretations.append(f"🔍 **Prediction Precision**: {singleton_rate:.3f} rate of single predictions, average set size: {avg_size:.2f}")
+            
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret conformal prediction: {e}")
+    
+    return interpretations
+
+
+def interpret_threshold_tuning():
+    """Interpret threshold tuning results."""
+    interpretations = []
+    
+    try:
+        thresh_path = RESULTS_DIR / "tables" / "threshold_tuning.csv"
+        if thresh_path.exists():
+            df = pd.read_csv(thresh_path)
+            
+            threshold = df['threshold'].iloc[0]
+            precision = df['precision_mean'].iloc[0]
+            recall = df['recall_mean'].iloc[0]
+            f1 = df['f1_mean'].iloc[0]
+            
+            interpretations.append(f"⚖️ **Optimal Threshold**: {threshold:.2f} balances precision ({precision:.3f}) and recall ({recall:.3f})")
+            interpretations.append(f"🎯 **F1 Score**: {f1:.3f} indicates {'excellent' if f1 > 0.9 else 'good' if f1 > 0.8 else 'moderate'} overall performance")
+            
+            if precision > 0.9:
+                interpretations.append("✅ **High Precision**: Low false positive rate - reliable positive predictions")
+            if recall > 0.9:
+                interpretations.append("✅ **High Recall**: Low false negative rate - captures most positive cases")
+                
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret threshold tuning: {e}")
+    
+    return interpretations
+
+
+def interpret_eda_results():
+    """Interpret exploratory data analysis results."""
+    interpretations = []
+    
+    try:
+        # Grade distribution analysis
+        grade_sex_path = RESULTS_DIR / "tables" / "grade_by_sex.csv"
+        if grade_sex_path.exists():
+            df = pd.read_csv(grade_sex_path)
+            if len(df) > 1:
+                female_grade = df[df['sex'] == 'F']['mean'].iloc[0] if 'F' in df['sex'].values else None
+                male_grade = df[df['sex'] == 'M']['mean'].iloc[0] if 'M' in df['sex'].values else None
+                
+                if female_grade is not None and male_grade is not None:
+                    diff = abs(female_grade - male_grade)
+                    higher_performer = 'Female' if female_grade > male_grade else 'Male'
+                    interpretations.append(f"👥 **Gender Performance**: {higher_performer} students perform {diff:.2f} points higher on average")
+                    
+                    if diff > 1.0:
+                        interpretations.append("⚠️ **Significant Gender Gap**: Performance difference suggests potential bias or systematic factors")
+                    else:
+                        interpretations.append("✅ **Balanced Performance**: Minimal gender-based performance differences observed")
+        
+        # Study time analysis
+        studytime_path = RESULTS_DIR / "tables" / "grade_by_studytime.csv"
+        if studytime_path.exists():
+            df = pd.read_csv(studytime_path)
+            if len(df) > 1:
+                correlation_strength = "strong" if df['mean'].corr(df['studytime']) > 0.7 else "moderate" if df['mean'].corr(df['studytime']) > 0.4 else "weak"
+                interpretations.append(f"📚 **Study Time Impact**: {correlation_strength} positive correlation between study time and grades")
+                
+                highest_studytime = df.loc[df['mean'].idxmax()]
+                interpretations.append(f"🎓 **Optimal Study Time**: Students with {highest_studytime['studytime']} hours/week achieve highest grades ({highest_studytime['mean']:.2f})")
+        
+        # Summary statistics insights
+        summary_path = RESULTS_DIR / "tables" / "eda_summary_statistics.csv"
+        if summary_path.exists():
+            df = pd.read_csv(summary_path)
+            
+            # Check for outliers in absences
+            if 'absences' in df.columns:
+                abs_row = df[df.index == 'max']['absences']
+                if not abs_row.empty and float(abs_row.iloc[0]) > 20:
+                    interpretations.append("⚠️ **Attendance Issues**: Some students have excessive absences (>20), indicating potential risk factors")
+            
+            # Age distribution
+            if 'age' in df.columns:
+                age_std = df[df.index == 'std']['age']
+                if not age_std.empty and float(age_std.iloc[0]) > 1.5:
+                    interpretations.append("👥 **Age Diversity**: Significant age variation suggests mixed-grade or diverse educational backgrounds")
+                    
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret EDA results: {e}")
+    
+    return interpretations
+
+
+def interpret_rmse_results():
+    """Interpret RMSE and regression results."""
+    interpretations = []
+    
+    try:
+        rmse_path = RESULTS_DIR / "tables" / "rmse_bootstrap_ci.csv"
+        if rmse_path.exists():
+            df = pd.read_csv(rmse_path)
+            
+            # Find best regression model
+            best_model = df.loc[df['mean'].idxmin()]
+            worst_model = df.loc[df['mean'].idxmax()]
+            
+            interpretations.append(f"🏆 **Best Regression Model**: {best_model['model']} (RMSE: {best_model['mean']:.3f})")
+            interpretations.append(f"📉 **Poorest Performance**: {worst_model['model']} (RMSE: {worst_model['mean']:.3f})")
+            
+            # Confidence interval analysis
+            reliable_models = df[df['ci_upper'] - df['ci_lower'] < 0.5]['model'].tolist()
+            if reliable_models:
+                interpretations.append(f"🎯 **Most Reliable**: {', '.join(reliable_models[:3])} show narrow confidence intervals")
+            
+            # Performance categorization
+            excellent_models = df[df['mean'] < 1.7]['model'].tolist()
+            if excellent_models:
+                interpretations.append(f"✅ **Excellent Performance**: {', '.join(excellent_models)} achieve RMSE < 1.7 (excellent for grade prediction)")
+                
+    except Exception as e:
+        interpretations.append(f"⚠️ Could not interpret RMSE results: {e}")
+    
+    return interpretations
+
+
+def generate_comprehensive_interpretations():
+    """Generate comprehensive interpretations of all results."""
+    print("\n" + "="*60)
+    print("🧠 GENERATING COMPREHENSIVE RESULT INTERPRETATIONS")
+    print("="*60)
+    
+    all_interpretations = {
+        "Model Performance": interpret_model_performance(),
+        "Statistical Analysis": interpret_statistical_tests(),
+        "Conformal Prediction": interpret_conformal_prediction(),
+        "Threshold Optimization": interpret_threshold_tuning(),
+        "Exploratory Data Analysis": interpret_eda_results(),
+        "Regression Analysis": interpret_rmse_results(),
+    }
+    
+    # Print interpretations
+    for category, interpretations in all_interpretations.items():
+        if interpretations:
+            print(f"\n📊 {category.upper()}:")
+            for interpretation in interpretations:
+                print(f"   {interpretation}")
+    
+    return all_interpretations
+
 
 def create_comprehensive_report():
     """Create a comprehensive HTML report of all results."""
@@ -225,6 +469,9 @@ def create_comprehensive_report():
             .figure-item {{ border: 1px solid #ddd; padding: 10px; border-radius: 8px; }}
             .figure-item img {{ max-width: 100%; height: auto; }}
             .table-summary {{ background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }}
+            .interpretation {{ background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0; border-radius: 4px; }}
+            .interpretation ul {{ margin: 0; padding-left: 20px; }}
+            .interpretation li {{ margin: 8px 0; }}
             .metric {{ display: inline-block; margin: 5px 10px; padding: 5px; background-color: #e3f2fd; border-radius: 4px; }}
             pre {{ background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }}
         </style>
@@ -275,6 +522,23 @@ def create_comprehensive_report():
             <p><strong>Columns:</strong> {', '.join(info['column_names'][:10])}{'...' if len(info['column_names']) > 10 else ''}</p>
         </div>
         """
+    
+    # Add interpretations section
+    html_content += "<h2>🧠 Result Interpretations</h2>"
+    interpretations = generate_comprehensive_interpretations()
+    
+    for category, interpretation_list in interpretations.items():
+        if interpretation_list:
+            html_content += f"""
+            <div class="interpretation">
+                <h3>{category}</h3>
+                <ul>
+            """
+            for interpretation in interpretation_list:
+                # Clean up the interpretation text for HTML - handle bold markdown
+                clean_text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', interpretation)
+                html_content += f"<li>{clean_text}</li>"
+            html_content += "</ul></div>"
     
     # Add file structure
     html_content += f"""
