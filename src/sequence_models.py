@@ -82,7 +82,9 @@ def _train_rnn(
         )
         return float("nan")
     try:
-        from captum.attr import IntegratedGradients  # Reference: https://doi.org/10.1109/TPAMI.2017.2992093
+        from captum.attr import (
+            IntegratedGradients,
+        )  # Reference: https://doi.org/10.1109/TPAMI.2017.2992093
     except ImportError:
         logger.error(
             "captum is required for `_train_rnn`. Install captum to use this feature."
@@ -128,6 +130,7 @@ def _train_rnn(
         acc = (preds == y_test_t).float().mean().item()
 
     if save_importance:
+
         def forward_wrapper(x: torch.Tensor) -> torch.Tensor:
             return model(x)[0]
 
@@ -138,7 +141,10 @@ def _train_rnn(
         table_dir = Path("tables")
         ensure_dir(table_dir)
         df_imp = pd.DataFrame(
-            {"step": np.arange(1, len(step_importance) + 1), "importance": step_importance}
+            {
+                "step": np.arange(1, len(step_importance) + 1),
+                "importance": step_importance,
+            }
         )
         df_imp.to_csv(table_dir / "sequence_step_importance.csv", index=False)
         fig_dir = Path("figures")
@@ -171,7 +177,9 @@ def _train_hmm(
 
     models: dict[int, GaussianHMM] = {}
     for cls in np.unique(y_train):
-        model = GaussianHMM(n_components=n_components, covariance_type="diag", n_iter=100)
+        model = GaussianHMM(
+            n_components=n_components, covariance_type="diag", n_iter=100
+        )
         cls_seqs = X_train[y_train == cls].reshape(-1, X_train.shape[2])
         lengths = [X_train.shape[1]] * np.sum(y_train == cls)
         try:

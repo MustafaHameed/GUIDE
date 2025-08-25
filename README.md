@@ -1,6 +1,31 @@
-# Student Performance Dataset
+# GUIDE: Student Performance Dataset Analysis
+
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/MustafaHameed/GUIDE/workflows/CI/badge.svg)](https://github.com/MustafaHameed/GUIDE/actions)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![DOI](https://img.shields.io/badge/DOI-pending-lightgrey.svg)](https://zenodo.org/)
+
+**Publication-grade machine learning pipeline for student performance prediction with comprehensive fairness analysis and explainability.**
+
+## Quick Links
+
+📚 **[Quick Start Guide](docs/quickstart.md)** - Get up and running in 5 minutes  
+🔧 **[CLI Reference](docs/cli_guide.md)** - Complete command-line interface documentation  
+📊 **[Dashboard Guide](docs/dashboard_guide.md)** - Interactive visualization and analysis  
+📋 **[Data Card](docs/data_card_student_performance.md)** - Comprehensive dataset documentation  
+
+## Overview
 
 This repository contains the `student-mat.csv` dataset with 395 records of Portuguese secondary school students and 33 features. The dataset includes demographic information, study habits and the final grade columns `G1`, `G2` and `G3`.
+
+### Key Features
+- 🔄 **Reproducible Pipeline**: Deterministic results with versioned artifacts
+- ⚖️ **Fairness Analysis**: Comprehensive bias detection and mitigation
+- 🔍 **Explainable AI**: SHAP, LIME, and counterfactual explanations  
+- 📊 **Interactive Dashboards**: Student and teacher-focused views
+- 🧪 **Advanced Modeling**: Early risk assessment, transfer learning, nested CV
+- 📖 **Publication Ready**: Complete documentation and artifact generation
 
 ## Installation
 

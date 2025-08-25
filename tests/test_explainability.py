@@ -7,10 +7,12 @@ from src.explain.importance import ExplainabilityAnalyzer
 
 def test_explainability_analyzer_permutation_and_local():
     """Permutation importance and local explanations run without SHAP."""
-    X = pd.DataFrame({
-        "a": np.random.randn(30),
-        "b": np.random.randn(30),
-    })
+    X = pd.DataFrame(
+        {
+            "a": np.random.randn(30),
+            "b": np.random.randn(30),
+        }
+    )
     y = (X["a"] + X["b"] > 0).astype(int)
     model = RandomForestClassifier(n_estimators=10, random_state=0)
     model.fit(X, y)
@@ -29,4 +31,3 @@ def test_explainability_analyzer_permutation_and_local():
 
     stability = analyzer.stability_by_group()
     assert stability == {}
-

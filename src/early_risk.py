@@ -40,6 +40,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def train_early(
     csv_path: str = "student-mat.csv",
     upto_grade: int = 1,
@@ -88,12 +89,12 @@ def train_early(
     pipeline.fit(X, y)
     y_pred = pipeline.predict(X)
     y_prob = (
-        pipeline.predict_proba(X)[:, 1]
-        if hasattr(pipeline, "predict_proba")
-        else None
+        pipeline.predict_proba(X)[:, 1] if hasattr(pipeline, "predict_proba") else None
     )
-    fig_dir = Path("figures"); ensure_dir(fig_dir)
-    report_dir = Path("reports"); ensure_dir(report_dir)
+    fig_dir = Path("figures")
+    ensure_dir(fig_dir)
+    report_dir = Path("reports")
+    ensure_dir(report_dir)
 
     # Simple train ROC (no hold-out in this quick utility)
     if y_prob is not None:
@@ -118,31 +119,26 @@ def train_early(
                 y_pred=y_pred,
                 sensitive_features=X[col],
             )
-            fairness_df = mf.by_group.reset_index().rename(
-                columns={"index": col}
-            )
+            fairness_df = mf.by_group.reset_index().rename(columns={"index": col})
             fairness_df.to_csv(report_dir / f"fairness_{col}.csv", index=False)
             logger.info(
                 "Fairness metrics for '%s':\n%s",
                 col,
-                fairness_df.to_string(
-                    index=False, float_format=lambda x: f"{x:.3f}"
-                ),
+                fairness_df.to_string(index=False, float_format=lambda x: f"{x:.3f}"),
             )
 
     # Feature importance (permutation)
     result = permutation_importance(pipeline, X, y, n_repeats=10, random_state=42)
-    imp = (
-        pd.DataFrame(
-            {"feature": X.columns, "importance": result.importances_mean}
-        ).sort_values("importance", ascending=False)
-    )
+    imp = pd.DataFrame(
+        {"feature": X.columns, "importance": result.importances_mean}
+    ).sort_values("importance", ascending=False)
     imp.to_csv(report_dir / f"early_feature_importance_G{upto_grade}.csv", index=False)
     sns.barplot(data=imp.head(20), x="importance", y="feature")
     plt.tight_layout()
     plt.savefig(fig_dir / f"early_feature_importance_G{upto_grade}.png")
     plt.close()
     return imp
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

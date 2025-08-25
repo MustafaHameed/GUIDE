@@ -30,6 +30,7 @@ from sklearn.neural_network import MLPRegressor
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 try:
     from .utils import ensure_dir
 except ImportError:  # pragma: no cover - fallback for direct execution
@@ -37,6 +38,7 @@ except ImportError:  # pragma: no cover - fallback for direct execution
 try:  # statistical tests
     from statsmodels.stats.anova import AnovaRM
     from statsmodels.stats.multicomp import MultiComparison
+
     HAS_STATSMODELS = True
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     AnovaRM = MultiComparison = None  # type: ignore
@@ -44,6 +46,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 
 try:  # xgboost is optional
     from xgboost import XGBRegressor  # type: ignore
+
     HAS_XGB = True
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     XGBRegressor = None  # type: ignore
@@ -51,6 +54,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 
 try:  # SHAP is optional and used only for interpretation plots
     import shap  # type: ignore
+
     HAS_SHAP = True
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     shap = None  # type: ignore
@@ -60,6 +64,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 from logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
+
 
 def load_regression_data(csv_path: str = "student-mat.csv"):
     df = pd.read_csv(csv_path)
@@ -111,7 +116,8 @@ def run_inner_cv(X_train, y_train, model, param_grid):
         return search.best_estimator_
     pipe.fit(X_train, y_train)
     return pipe
-        
+
+
 def nested_cv(X, y, models, repeats=1):
     """Run nested cross-validation.
 
@@ -119,7 +125,9 @@ def nested_cv(X, y, models, repeats=1):
     ----------
     - Cawley and Talbot, 2010: https://jmlr.csail.mit.edu/papers/v11/cawley10a.html
     """
-    outer_cv = RepeatedKFold(n_splits=10, n_repeats=repeats, random_state=0)  # Nested CV reference above
+    outer_cv = RepeatedKFold(
+        n_splits=10, n_repeats=repeats, random_state=0
+    )  # Nested CV reference above
     results: list[dict] = []
     preds: list[pd.DataFrame] = []
     for model_name, estimator, param_grid in models:
@@ -209,8 +217,12 @@ def anova_and_tukey(results_df: pd.DataFrame):
         raise ModuleNotFoundError("statsmodels is required for ANOVA and Tukey tests")
 
     # One-way repeated measures ANOVA with folds as the subject
-    anova_res = AnovaRM(results_df, depvar="rmse", subject="fold", within=["model"]).fit()
-    anova_table = anova_res.anova_table.reset_index().rename(columns={"index": "source"})
+    anova_res = AnovaRM(
+        results_df, depvar="rmse", subject="fold", within=["model"]
+    ).fit()
+    anova_table = anova_res.anova_table.reset_index().rename(
+        columns={"index": "source"}
+    )
 
     # Tukey HSD post-hoc comparisons across models
     mc = MultiComparison(results_df["rmse"], results_df["model"])
@@ -223,9 +235,13 @@ def anova_and_tukey(results_df: pd.DataFrame):
     ci_rows = []
     for model, grp in results_df.groupby("model"):
         vals = grp["rmse"].values
-        boot_means = [rng.choice(vals, size=len(vals), replace=True).mean() for _ in range(1000)]
+        boot_means = [
+            rng.choice(vals, size=len(vals), replace=True).mean() for _ in range(1000)
+        ]
         lower, upper = np.percentile(boot_means, [2.5, 97.5])
-        ci_rows.append({"model": model, "mean": vals.mean(), "ci_lower": lower, "ci_upper": upper})
+        ci_rows.append(
+            {"model": model, "mean": vals.mean(), "ci_lower": lower, "ci_upper": upper}
+        )
     ci_df = pd.DataFrame(ci_rows)
 
     return anova_table, tukey_df, ci_df
@@ -248,7 +264,9 @@ def shap_analysis(best_model, X):
     fig_dir = Path("figures")
     ensure_dir(fig_dir)
 
-    shap.summary_plot(shap_values, features=X_sel, feature_names=selected_features, show=False)
+    shap.summary_plot(
+        shap_values, features=X_sel, feature_names=selected_features, show=False
+    )
     plt.tight_layout()
     plt.savefig(fig_dir / "shap_summary.png")
     plt.close()
@@ -266,7 +284,6 @@ def shap_analysis(best_model, X):
         plt.tight_layout()
         plt.savefig(fig_dir / f"shap_dependence_{selected_features[idx]}.png")
         plt.close()
-
 
 
 def residual_plots(preds_df, base_model):
@@ -421,7 +438,7 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                     n_jobs=-1,
                 ),
                 {"select__k": ["all", 20]},
-            ),            
+            ),
         ]
         if HAS_XGB:
             models.append(
@@ -435,7 +452,7 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
                         "model__learning_rate": [0.1, 0.01],
                     },
                 )
-            )        
+            )
     results_df, preds_df = nested_cv(X, y, models=models, repeats=repeats)
 
     table_dir = Path("tables")
@@ -453,7 +470,6 @@ def main(csv_path: str = "student-mat.csv", repeats: int = 1, models=None):
         ci_df.to_csv(table_dir / "rmse_bootstrap_ci.csv", index=False)
     except ModuleNotFoundError:
         anova_df = tukey_df = ci_df = None
-
 
     # Comparison visualization
     fig_dir = Path("figures")

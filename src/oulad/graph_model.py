@@ -69,7 +69,11 @@ def train_graph_model(
     y = labels
 
     train_idx = torch.as_tensor(list(train_idx), dtype=torch.long)
-    val_idx = torch.as_tensor(list(val_idx), dtype=torch.long) if val_idx is not None else None
+    val_idx = (
+        torch.as_tensor(list(val_idx), dtype=torch.long)
+        if val_idx is not None
+        else None
+    )
 
     for _ in range(epochs):
         model.train()
@@ -119,7 +123,11 @@ def tabular_baseline(
     preds = clf.predict(X[list(test_idx)])
 
     acc = accuracy_score(y[list(test_idx)], preds)
-    dp = demographic_parity_difference(y[list(test_idx)], preds, sensitive_features=[sensitive[i] for i in test_idx])
-    eo = equalized_odds_difference(y[list(test_idx)], preds, sensitive_features=[sensitive[i] for i in test_idx])
+    dp = demographic_parity_difference(
+        y[list(test_idx)], preds, sensitive_features=[sensitive[i] for i in test_idx]
+    )
+    eo = equalized_odds_difference(
+        y[list(test_idx)], preds, sensitive_features=[sensitive[i] for i in test_idx]
+    )
 
     return EvaluationResult(acc, dp, eo)

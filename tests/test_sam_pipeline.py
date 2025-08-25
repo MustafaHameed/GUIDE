@@ -67,7 +67,9 @@ def test_load_and_convert(monkeypatch, tmp_path):
 
     event_log = miner.convert_to_event_log(df)
     assert event_log == ["event_log"]
-    assert {"case:concept:name", "concept:name", "time:timestamp", "org:resource"}.issubset(
-        set(calls["columns"])
-    )
-
+    assert {
+        "case:concept:name",
+        "concept:name",
+        "time:timestamp",
+        "org:resource",
+    }.issubset(set(calls["columns"]))

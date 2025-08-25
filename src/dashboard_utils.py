@@ -15,6 +15,7 @@ __all__ = [
     "clear_caches",
 ]
 
+
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def _safe_read_csv(path: Path) -> pd.DataFrame | None:
     if path.exists() and path.is_file():
@@ -24,6 +25,7 @@ def _safe_read_csv(path: Path) -> pd.DataFrame | None:
             st.warning(f"Could not read CSV: `{path.name}` → {e}")
             return None
     return None
+
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def _list_images(
@@ -40,12 +42,17 @@ def _list_images(
         files.update(folder.glob(ci_pattern))
     return sorted(files)
 
+
 @st.cache_data(show_spinner=False)
 def _read_file_bytes(path: str) -> bytes:
     return Path(path).read_bytes()
 
+
 def _show_images_grid(
-    image_paths: list[Path], cols: int = 2, caption_from_name: bool = True, max_per_page: int = 6
+    image_paths: list[Path],
+    cols: int = 2,
+    caption_from_name: bool = True,
+    max_per_page: int = 6,
 ):
     if not image_paths:
         st.info("No figures found yet. Generate them via your EDA/training scripts.")
@@ -53,7 +60,13 @@ def _show_images_grid(
 
     total_pages = (len(image_paths) + max_per_page - 1) // max_per_page
     if total_pages > 1:
-        page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, key=f"page_{hash(str(image_paths))}")
+        page = st.number_input(
+            "Page",
+            min_value=1,
+            max_value=total_pages,
+            value=1,
+            key=f"page_{hash(str(image_paths))}",
+        )
         start_idx = (page - 1) * max_per_page
         end_idx = min(start_idx + max_per_page, len(image_paths))
         current_paths = image_paths[start_idx:end_idx]
@@ -84,6 +97,7 @@ def _show_images_grid(
                 except Exception as e:
                     st.warning(f"Failed to display `{p.name}` → {e}")
 
+
 def _show_table(csv_path: Path, title: str):
     df = _safe_read_csv(csv_path)
     if df is None:
@@ -98,6 +112,7 @@ def _show_table(csv_path: Path, title: str):
         mime="text/csv",
         key=f"dl_{csv_path.name}",
     )
+
 
 def clear_caches() -> None:
     _safe_read_csv.clear()

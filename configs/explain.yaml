@@ -1,0 +1,154 @@
+# Explainability Analysis Configuration
+# Settings for model explanation and interpretation
+
+# Model and data
+model:
+  path: "models/model.pkl"
+  type: "sklearn"  # sklearn, torch, custom
+  
+data:
+  path: "student-mat.csv"
+  delimiter: ";"
+  features_path: null  # Optional feature subset file
+  
+# Global explanations
+global_explanations:
+  feature_importance:
+    methods: ["shap", "permutation", "builtin"]
+    n_samples: 1000  # For SHAP background
+    
+  partial_dependence:
+    enabled: true
+    features: "auto"  # auto, top_n, or list of features
+    top_n: 5
+    kind: ["average", "individual"]  # PDP and ICE plots
+    
+  interaction_effects:
+    enabled: true
+    max_interactions: 10
+    interaction_method: "shap"
+
+# Local explanations  
+local_explanations:
+  lime:
+    enabled: true
+    n_samples: 5000
+    n_features: 10
+    instances: "auto"  # auto, random, or list of indices
+    n_instances: 3
+    
+  shap:
+    enabled: true
+    explainer_type: "auto"  # auto, tree, linear, kernel, deep
+    instances: "auto"
+    n_instances: 10
+    
+  counterfactuals:
+    enabled: false  # Will be implemented in Phase 6
+    method: "wachter"
+    n_examples: 5
+
+# Explanation quality checks
+quality_checks:
+  faithfulness:
+    enabled: true
+    method: "feature_randomization"
+    n_trials: 100
+    
+  stability:
+    enabled: true
+    perturbation_size: 0.1
+    n_perturbations: 50
+    
+  sanity_checks:
+    enabled: true
+    noise_feature_test: true
+    feature_randomization_test: true
+
+# Sensitive attribute analysis
+fairness_explanations:
+  enabled: true
+  sensitive_attrs: ["sex", "school", "address"]
+  
+  # Group-specific explanations
+  by_group_analysis: true
+  compare_groups: true
+  
+  # Bias in explanations
+  explanation_bias_check: true
+
+# Visualization settings
+visualization:
+  save_plots: true
+  plot_types:
+    - "shap_summary"
+    - "shap_waterfall" 
+    - "shap_dependence"
+    - "pdp_plots"
+    - "ice_plots"
+    - "lime_explanations"
+    
+  figure_size: [12, 8]
+  save_format: ["png", "pdf"]
+  dpi: 300
+  style: "publication"  # publication, presentation, web
+
+# Output settings
+output:
+  figures_dir: "figures"
+  reports_dir: "reports"
+  tables_dir: "tables"
+  
+  # File organization
+  create_subdirs: true
+  subdirs:
+    global: "global_explanations"
+    local: "local_explanations" 
+    quality: "quality_checks"
+    
+  # Report generation
+  generate_report: true
+  report_format: "markdown"
+  include_code: false
+  
+  # Export options
+  export_explanations: true
+  export_format: "json"
+
+# Performance settings
+performance:
+  parallel: true
+  n_jobs: -1
+  batch_size: 100
+  memory_limit: "8GB"
+  
+  # Caching
+  cache_explanations: true
+  cache_dir: ".explanation_cache"
+
+# Advanced settings
+advanced:
+  # Custom explanation methods
+  custom_explainers: []
+  
+  # Integration with external tools
+  external_tools:
+    captum_integration: false
+    alibi_integration: false
+    
+  # Experimental features
+  experimental:
+    concept_explanations: false
+    prototype_explanations: false
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+
+# Logging
+logging:
+  level: "INFO"
+  save_logs: true
+  log_file: "explainability.log"
+  verbose_shap: false

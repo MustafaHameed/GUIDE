@@ -61,7 +61,9 @@ def _make_stacking(task, **kwargs):
 
 
 MODEL_CONSTRUCTORS = {
-    ("classification", "logistic"): lambda **kw: LogisticRegression(max_iter=1000, **kw),
+    ("classification", "logistic"): lambda **kw: LogisticRegression(
+        max_iter=1000, **kw
+    ),
     ("classification", "random_forest"): RandomForestClassifier,
     ("classification", "gradient_boosting"): GradientBoostingClassifier,
     ("classification", "svm"): lambda **kw: SVC(probability=True, **kw),

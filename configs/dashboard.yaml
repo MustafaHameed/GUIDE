@@ -1,0 +1,207 @@
+# Dashboard Configuration
+# Settings for Streamlit web interfaces
+
+# Application settings
+app:
+  title: "GUIDE: Student Performance Analysis"
+  page_icon: "🎓"
+  layout: "wide"
+  initial_sidebar_state: "expanded"
+  
+# Data sources
+data:
+  student_data: "student-mat.csv"
+  model_path: "models/model.pkl"
+  figures_dir: "figures"
+  tables_dir: "tables"
+  reports_dir: "reports"
+  
+  # Cache settings
+  cache_ttl: 3600  # seconds
+  cache_persist: true
+
+# Dashboard modes
+modes:
+  development: false
+  snapshot: false  # For publication screenshots
+  demo: false      # Demo mode with synthetic data
+  
+  # Snapshot mode settings
+  snapshot_settings:
+    output_dir: "publication_figures"
+    deterministic_examples: true
+    example_student_ids: [1, 15, 42]
+    screenshot_delay: 2  # seconds
+
+# Student dashboard settings
+student_dashboard:
+  max_students: 1000
+  risk_thresholds:
+    low: 0.3
+    medium: 0.7
+    high: 1.0
+    
+  # What-if analysis
+  what_if:
+    enabled: true
+    editable_features:
+      - "studytime"
+      - "failures"
+      - "absences"
+      - "freetime"
+      - "goout"
+      
+  # Recommendations
+  recommendations:
+    enabled: true
+    templates_dir: "templates/recommendations"
+    
+# Teacher dashboard settings  
+teacher_dashboard:
+  class_size_limit: 500
+  risk_list_size: 20
+  
+  # At-risk identification
+  at_risk:
+    auto_refresh: true
+    refresh_interval: 300  # seconds
+    alert_threshold: 0.7
+    
+  # Fairness monitoring
+  fairness_monitoring:
+    enabled: true
+    alert_on_bias: true
+    bias_threshold: 0.1
+
+# General dashboard settings
+general_dashboard:
+  # Model comparison
+  model_comparison:
+    enabled: true
+    max_models: 5
+    
+  # Advanced features
+  advanced_features:
+    statistical_tests: true
+    confidence_intervals: true
+    cross_validation_results: true
+    
+# Visualization settings
+visualization:
+  theme: "plotly_white"
+  color_palette: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7"]
+  
+  # Plot settings
+  plots:
+    default_height: 400
+    default_width: 600
+    show_toolbar: true
+    responsive: true
+    
+  # Performance
+  max_points: 10000  # For scatter plots
+  downsample_large_data: true
+
+# Authentication and security
+security:
+  authentication_required: false
+  allowed_users: []
+  session_timeout: 3600  # seconds
+  
+  # Data privacy
+  anonymize_student_ids: false
+  mask_sensitive_data: false
+
+# Notifications and alerts
+notifications:
+  enabled: true
+  types:
+    - "high_risk_students"
+    - "bias_detected"
+    - "model_performance_drop"
+    
+  # Alert settings
+  alerts:
+    email_notifications: false
+    slack_integration: false
+    webhook_url: null
+
+# Performance optimization
+performance:
+  lazy_loading: true
+  chunk_size: 1000
+  memory_limit: "4GB"
+  
+  # Caching
+  cache_data: true
+  cache_models: true
+  cache_plots: false
+
+# Export and sharing
+export:
+  enabled: true
+  formats: ["csv", "json", "pdf"]
+  max_export_size: "100MB"
+  
+  # Sharing
+  share_urls: false
+  temporary_links: false
+
+# Integration settings
+integrations:
+  # External APIs
+  external_apis:
+    enabled: false
+    endpoints: []
+    
+  # Database connections  
+  databases:
+    enabled: false
+    connections: []
+    
+  # Model serving
+  model_serving:
+    enabled: false
+    endpoint: null
+
+# Development settings
+development:
+  debug_mode: false
+  hot_reload: true
+  show_debug_info: false
+  
+  # Profiling
+  enable_profiling: false
+  profiling_dir: "profiling"
+
+# Deployment settings
+deployment:
+  port: 8501
+  host: "localhost"
+  
+  # Production settings
+  production:
+    enable_cors: false
+    max_upload_size: "200MB"
+    rate_limiting: false
+    
+# Logging
+logging:
+  level: "INFO"
+  save_logs: true
+  log_file: "dashboard.log"
+  access_logs: true
+
+# Customization
+customization:
+  # Custom CSS
+  custom_css: null
+  css_file: null
+  
+  # Custom components
+  custom_components: []
+  
+  # Branding
+  logo: null
+  favicon: null
+  footer_text: "GUIDE Project - Student Performance Analysis"

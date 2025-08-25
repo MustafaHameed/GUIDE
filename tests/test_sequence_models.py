@@ -25,4 +25,3 @@ def test_evaluate_sequence_hmm(monkeypatch, tmp_path):
     df = evaluate_sequence_model(str(csv_path), model_type="hmm")
     assert list(df["steps"]) == [1, 2]
     assert Path("tables/sequence_hmm_performance.csv").exists()
-

@@ -74,9 +74,12 @@ def _fake_load_data(*args, **kwargs):
 
 def _patch_common(monkeypatch, token=""):
     import streamlit as st
+
     monkeypatch.setattr(st.sidebar, "text_input", lambda *a, **k: token)
     monkeypatch.setattr(st, "selectbox", lambda prompt, options, **k: options[0])
-    monkeypatch.setattr(st, "stop", lambda *a, **k: (_ for _ in ()).throw(StreamlitStop()))
+    monkeypatch.setattr(
+        st, "stop", lambda *a, **k: (_ for _ in ()).throw(StreamlitStop())
+    )
     monkeypatch.setattr("src.data.load_data", _fake_load_data)
     monkeypatch.setattr("src._list_images", lambda *a, **k: [])
     monkeypatch.setattr("src._show_images_grid", lambda *a, **k: None)

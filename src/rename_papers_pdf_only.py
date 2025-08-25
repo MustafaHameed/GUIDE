@@ -41,7 +41,10 @@ INVALID_CHARS = r'<>:"/\\|?*'
 INVALID_TABLE = str.maketrans({c: "-" for c in INVALID_CHARS})
 SPACES_RE = re.compile(r"\s+")
 YEAR_RE_GLOBAL = re.compile(r"\b(19\d{2}|20\d{2})\b")
-PUB_CUES = re.compile(r"(published|©|\(c\)|copyright|ieee|acm|springer|elsevier|mdpi|proceedings|journal)", re.I)
+PUB_CUES = re.compile(
+    r"(published|©|\(c\)|copyright|ieee|acm|springer|elsevier|mdpi|proceedings|journal)",
+    re.I,
+)
 
 # Tokens we do NOT want as a title (journal mastheads, metadata, boilerplate)
 TITLE_BAD_TOKENS = re.compile(
@@ -60,11 +63,30 @@ TITLE_BAD_TOKENS = re.compile(
     re.IGNORECASE,
 )
 
-MONTHS = ("january","february","march","april","may","june",
-          "july","august","september","october","november","december")
+MONTHS = (
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+)
 
-AFFILIATION_TOKENS = re.compile(r"(university|institute|department|school|faculty|college|laboratory|centre|center|email|@)", re.I)
-AUTHOR_LINE = re.compile(r"^(?:[A-Z][a-z]+(?:[-' ][A-Z][a-z]+)*)(?:\s*,\s*[A-Z][a-z]+|(?:\s+[A-Z]\.){1,3})", re.U)
+AFFILIATION_TOKENS = re.compile(
+    r"(university|institute|department|school|faculty|college|laboratory|centre|center|email|@)",
+    re.I,
+)
+AUTHOR_LINE = re.compile(
+    r"^(?:[A-Z][a-z]+(?:[-' ][A-Z][a-z]+)*)(?:\s*,\s*[A-Z][a-z]+|(?:\s+[A-Z]\.){1,3})",
+    re.U,
+)
+
 
 def clean_title(title: str) -> str:
     if not title:
@@ -75,11 +97,12 @@ def clean_title(title: str) -> str:
     title = SPACES_RE.sub(" ", title).strip(" .-_")
     return title[:180]
 
+
 def _looks_like_title(s: str) -> bool:
     # Basic quality checks for a plausible paper title
-    if not s: 
+    if not s:
         return False
-    if TITLE_BAD_TOKENS.search(s): 
+    if TITLE_BAD_TOKENS.search(s):
         return False
     if any(m in s.lower() for m in MONTHS):  # often in headers
         # month in header frequently signals masthead; allow only if long and mixed case
@@ -101,6 +124,7 @@ def _looks_like_title(s: str) -> bool:
         return False
     return True
 
+
 def _join_if_wrapped(curr: str, nxt: str) -> str:
     """Join two adjacent lines that likely form a wrapped title."""
     if not curr or not nxt:
@@ -113,6 +137,7 @@ def _join_if_wrapped(curr: str, nxt: str) -> str:
         joined = f"{curr.strip()} {nxt.strip()}"
         return joined
     return curr
+
 
 def extract_title_from_text(text: str) -> str:
     """
@@ -127,11 +152,13 @@ def extract_title_from_text(text: str) -> str:
 
     # MDPI et al: often the very first line is "Article", "Review", "Communication" → skip it
     start = 0
-    if start < len(lines) and re.match(r"^(article|review|communication)\b", lines[start], re.I):
+    if start < len(lines) and re.match(
+        r"^(article|review|communication)\b", lines[start], re.I
+    ):
         start += 1
 
     candidates: List[str] = []
-    window = lines[start: start + 80]
+    window = lines[start : start + 80]
     for i, raw in enumerate(window):
         s = SPACES_RE.sub(" ", raw).strip(" .-_")
         if not _looks_like_title(s):
@@ -139,7 +166,7 @@ def extract_title_from_text(text: str) -> str:
         # consider possible wrap with the next line
         s2 = s
         if i + 1 < len(window):
-            s2 = _join_if_wrapped(s, window[i+1])
+            s2 = _join_if_wrapped(s, window[i + 1])
         candidates.append(s2)
 
     if not candidates:
@@ -151,6 +178,7 @@ def extract_title_from_text(text: str) -> str:
     best = re.sub(r"\s{2,}", " ", best).strip(" .-_")
     return best
 
+
 def guess_from_filename(stem: str) -> Tuple[Optional[str], Optional[str]]:
     m = YEAR_RE_GLOBAL.search(stem)
     year = m.group(1) if m else None
@@ -159,16 +187,20 @@ def guess_from_filename(stem: str) -> Tuple[Optional[str], Optional[str]]:
     title = clean_title(title.title())
     return year, title
 
+
 def detect_publication_year(text: str, inspect_chars: int = 20000) -> Optional[str]:
     window = text[:inspect_chars]
     candidates = [int(m.group(1)) for m in YEAR_RE_GLOBAL.finditer(window)]
     candidates = [y for y in candidates if 1900 <= y <= 2100]
     if not candidates:
         return None
-    m = re.search(rf"{PUB_CUES.pattern}[^\d]{{0,25}}(19\d{{2}}|20\d{{2}})", window, re.I)
+    m = re.search(
+        rf"{PUB_CUES.pattern}[^\d]{{0,25}}(19\d{{2}}|20\d{{2}})", window, re.I
+    )
     if m:
         return m.group(2)
     return str(min(candidates))
+
 
 def extract_pdf_text_pymupdf(path: Path, pages: int = 3) -> str:
     txt = []
@@ -177,6 +209,7 @@ def extract_pdf_text_pymupdf(path: Path, pages: int = 3) -> str:
         for i in range(n):
             txt.append(doc[i].get_text("text") or "")
     return "\n".join(txt)
+
 
 def extract_pdf_text_pypdf(path: Path, pages: int = 3) -> str:
     reader = PdfReader(str(path))
@@ -190,6 +223,7 @@ def extract_pdf_text_pypdf(path: Path, pages: int = 3) -> str:
         txt.append(t)
     return "\n".join(txt)
 
+
 def extract_pdf(path: Path) -> Tuple[Optional[str], Optional[str], List[str]]:
     notes: List[str] = []
     year, title = None, None
@@ -201,10 +235,12 @@ def extract_pdf(path: Path) -> Tuple[Optional[str], Optional[str], List[str]]:
             text = extract_pdf_text_pymupdf(path, pages=3)
             t = extract_title_from_text(text)
             if t:
-                title = t; notes.append("fitz.title")
+                title = t
+                notes.append("fitz.title")
             y = detect_publication_year(text)
             if y:
-                year = y; notes.append("fitz.year")
+                year = y
+                notes.append("fitz.year")
         except Exception as e:
             notes.append(f"fitz.error:{e}")
 
@@ -217,11 +253,14 @@ def extract_pdf(path: Path) -> Tuple[Optional[str], Optional[str], List[str]]:
             meta = getattr(reader, "metadata", {}) or {}
             # metadata title if it looks like a real title
             if not title:
-                raw_title = (getattr(meta, "title", None) or meta.get("/Title") or "") .strip()
+                raw_title = (
+                    getattr(meta, "title", None) or meta.get("/Title") or ""
+                ).strip()
                 if raw_title:
                     # reject obvious mastheads
                     if _looks_like_title(raw_title):
-                        title = raw_title; notes.append("meta.title")
+                        title = raw_title
+                        notes.append("meta.title")
             # metadata year if present
             if not year:
                 for key in ("/CreationDate", "/ModDate"):
@@ -229,32 +268,49 @@ def extract_pdf(path: Path) -> Tuple[Optional[str], Optional[str], List[str]]:
                     if val:
                         m = YEAR_RE_GLOBAL.search(str(val))
                         if m:
-                            year = m.group(1); notes.append(f"meta.{key}"); break
+                            year = m.group(1)
+                            notes.append(f"meta.{key}")
+                            break
             # text fallback
             if not title:
                 t = extract_title_from_text(text)
                 if t:
-                    title = t; notes.append("text.title")
+                    title = t
+                    notes.append("text.title")
             if not year:
                 y = detect_publication_year(text)
                 if y:
-                    year = y; notes.append("text.year")
+                    year = y
+                    notes.append("text.year")
         except Exception as e:
             notes.append(f"pypdf.error:{e}")
 
     return year, clean_title(title) if title else None, notes or ["no_extractor"]
+
 
 def construct_new_name(year: Optional[str], title: Optional[str]) -> Optional[str]:
     if not year or not title:
         return None
     return f"{year} {title}.pdf"
 
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER, help="Folder containing PDF files")
-    ap.add_argument("--apply", action="store_true", help="Actually rename files (default: dry-run)")
-    ap.add_argument("--csv", default="rename_audit_pdf.csv", help="Audit CSV filename to write")
-    ap.add_argument("--max-pages", type=int, default=3, help="Pages to scan from the start (default: 3)")
+    ap.add_argument(
+        "folder", nargs="?", default=DEFAULT_FOLDER, help="Folder containing PDF files"
+    )
+    ap.add_argument(
+        "--apply", action="store_true", help="Actually rename files (default: dry-run)"
+    )
+    ap.add_argument(
+        "--csv", default="rename_audit_pdf.csv", help="Audit CSV filename to write"
+    )
+    ap.add_argument(
+        "--max-pages",
+        type=int,
+        default=3,
+        help="Pages to scan from the start (default: 3)",
+    )
     args = ap.parse_args()
 
     base = Path(args.folder)
@@ -264,7 +320,9 @@ def main():
 
     rows = []
     count_total, count_renamed = 0, 0
-    pdfs = [p for p in sorted(base.iterdir()) if p.is_file() and p.suffix.lower() == ".pdf"]
+    pdfs = [
+        p for p in sorted(base.iterdir()) if p.is_file() and p.suffix.lower() == ".pdf"
+    ]
 
     for path in pdfs:
         count_total += 1
@@ -277,9 +335,11 @@ def main():
         if not y or not t:
             fy, ft = guess_from_filename(path.stem)
             if not y and fy:
-                y = fy; notes.append("filename.year")
+                y = fy
+                notes.append("filename.year")
             if not t and ft:
-                t = ft; notes.append("filename.title")
+                t = ft
+                notes.append("filename.title")
 
         new_name = construct_new_name(y, t)
         status = "unchanged"
@@ -295,8 +355,19 @@ def main():
             if args.apply:
                 try:
                     path.rename(candidate)
-                    status = "renamed"; count_renamed += 1
-                    rows.append([path.name, candidate.name, y or "", t or "", ".pdf", status, reason])
+                    status = "renamed"
+                    count_renamed += 1
+                    rows.append(
+                        [
+                            path.name,
+                            candidate.name,
+                            y or "",
+                            t or "",
+                            ".pdf",
+                            status,
+                            reason,
+                        ]
+                    )
                     continue
                 except Exception as e:
                     status = f"error:{e}"
@@ -306,7 +377,9 @@ def main():
             if not new_name:
                 status = "skipped.missing_year_or_title"
 
-        rows.append([path.name, new_name or "", y or "", t or "", ".pdf", status, reason])
+        rows.append(
+            [path.name, new_name or "", y or "", t or "", ".pdf", status, reason]
+        )
 
     # Write audit
     csv_path = Path(args.csv)
@@ -322,6 +395,7 @@ def main():
         " (dry-run)" if not args.apply else "",
     )
     logger.info("Audit CSV: %s", csv_path.resolve())
+
 
 if __name__ == "__main__":
     setup_logging()
