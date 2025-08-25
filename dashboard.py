@@ -102,7 +102,10 @@ elif current_tab == "Model Performance":
     # Common tables (show any that exist)
     candidate_tables = [
         ("Model Performance Comparison", TABLES_DIR / "model_performance.csv"),
-        ("Nested CV Regression Metrics", TABLES_DIR / "nested_cv_regression_metrics.csv"),
+        (
+            "Nested CV Regression Metrics",
+            TABLES_DIR / "nested_cv_regression_metrics.csv",
+        ),
         ("OULAD Regression Metrics", TABLES_DIR / "oulad_regression_metrics.csv"),
         ("Classification Report", REPORTS_DIR / "classification_report.csv"),
         ("Best Hyperparameters", REPORTS_DIR / "best_params.csv"),
@@ -114,7 +117,8 @@ elif current_tab == "Model Performance":
     }
     if available_tables:
         table_selection = st.multiselect(
-            "Select performance tables to display", list(available_tables.keys()),
+            "Select performance tables to display",
+            list(available_tables.keys()),
             default=list(available_tables.keys()),
         )
         for title in table_selection:
@@ -122,7 +126,9 @@ elif current_tab == "Model Performance":
             if df is not None:
                 st.subheader(title)
                 metric_selection = st.multiselect(
-                    f"Metrics for {title}", list(df.columns), default=list(df.columns),
+                    f"Metrics for {title}",
+                    list(df.columns),
+                    default=list(df.columns),
                     key=f"metric_select_{title}",
                 )
                 st.dataframe(df[metric_selection], use_container_width=True)
@@ -156,7 +162,8 @@ elif current_tab == "Model Performance":
 
     if figure_options:
         figure_selection = st.multiselect(
-            "Select performance figures", list(figure_options.keys()),
+            "Select performance figures",
+            list(figure_options.keys()),
             default=list(figure_options.keys()),
         )
         for title in figure_selection:
@@ -168,18 +175,29 @@ elif current_tab == "Model Performance":
                         chart = (
                             alt.Chart(df)
                             .mark_line()
-                            .encode(x=alt.X("fpr", title="False Positive Rate"), y=alt.Y("tpr", title="True Positive Rate"))
+                            .encode(
+                                x=alt.X("fpr", title="False Positive Rate"),
+                                y=alt.Y("tpr", title="True Positive Rate"),
+                            )
                             .interactive()
                         )
                     elif "precision" in title.lower():
                         chart = (
                             alt.Chart(df)
                             .mark_line()
-                            .encode(x=alt.X("recall", title="Recall"), y=alt.Y("precision", title="Precision"))
+                            .encode(
+                                x=alt.X("recall", title="Recall"),
+                                y=alt.Y("precision", title="Precision"),
+                            )
                             .interactive()
                         )
                     else:
-                        chart = alt.Chart(df).mark_line().encode(x=list(df.columns)[0], y=list(df.columns)[1]).interactive()
+                        chart = (
+                            alt.Chart(df)
+                            .mark_line()
+                            .encode(x=list(df.columns)[0], y=list(df.columns)[1])
+                            .interactive()
+                        )
                     st.altair_chart(chart, use_container_width=True)
                     continue
             if img_path is not None and img_path.exists():
@@ -211,7 +229,9 @@ elif current_tab == "Fairness Metrics":
     )
     fairness_pre = sorted(REPORTS_DIR.glob("fairness_*_pre.csv"))
     if not fairness_pre:
-        st.info("No fairness reports found. Run training with a `--group-cols` argument.")
+        st.info(
+            "No fairness reports found. Run training with a `--group-cols` argument."
+        )
     for pre_path in fairness_pre:
         base = pre_path.stem.replace("_pre", "")
         post_path = REPORTS_DIR / f"{base}_post.csv"
@@ -220,7 +240,9 @@ elif current_tab == "Fairness Metrics":
         display_name = base.replace("fairness_", "").replace("_", " ")
         if pre_df is not None and post_df is not None:
             metrics = ["demographic_parity", "equalized_odds"]
-            pre_post_cols = [f"{m}_pre" for m in metrics] + [f"{m}_post" for m in metrics]
+            pre_post_cols = [f"{m}_pre" for m in metrics] + [
+                f"{m}_post" for m in metrics
+            ]
             if all(col in post_df.columns for col in pre_post_cols):
                 merged = post_df.copy()
                 group_cols = [
@@ -318,7 +340,9 @@ elif current_tab == "Uncertainty Analysis":
     for path in unc_tables:
         _show_table(path, path.stem.replace("_", " ").title())
     if not unc_tables:
-        st.info("No uncertainty tables found. Run uncertainty experiments to create them.")
+        st.info(
+            "No uncertainty tables found. Run uncertainty experiments to create them."
+        )
     unc_imgs = [
         p
         for p in _list_images(FIGURES_DIR)
@@ -329,15 +353,19 @@ elif current_tab == "Uncertainty Analysis":
 elif current_tab == "Transfer Experiments":
     st.header("Transfer Experiments")
     st.markdown(
-        "Results from cross-dataset transfer learning experiments." 
+        "Results from cross-dataset transfer learning experiments."
         "Use scripts in `src/transfer` to produce these outputs."
     )
     transfer_tables = sorted(TABLES_DIR.glob("transfer_*.csv"))
     for path in transfer_tables:
         _show_table(path, path.stem.replace("_", " ").title())
     if not transfer_tables:
-        st.info("No transfer experiment tables found. Run transfer scripts to create them.")
-    transfer_imgs = [p for p in _list_images(FIGURES_DIR) if "transfer" in p.stem.lower()]
+        st.info(
+            "No transfer experiment tables found. Run transfer scripts to create them."
+        )
+    transfer_imgs = [
+        p for p in _list_images(FIGURES_DIR) if "transfer" in p.stem.lower()
+    ]
     _show_images_grid(transfer_imgs, cols=2)
 
 elif current_tab == "Counterfactuals":
@@ -372,7 +400,9 @@ elif current_tab == "Explanations":
     shap_dep_paths = sorted(FIGURES_DIR.glob("shap_dependence_*.png"))
     if shap_dep_paths:
         st.subheader("SHAP Dependence Plots")
-        feature_map = {p.stem.split("shap_dependence_", 1)[1]: p for p in shap_dep_paths}
+        feature_map = {
+            p.stem.split("shap_dependence_", 1)[1]: p for p in shap_dep_paths
+        }
         feature = st.selectbox("Select feature", list(feature_map.keys()))
         st.image(str(feature_map[feature]))
     else:
@@ -385,7 +415,9 @@ elif current_tab == "Explanations":
     if lime_paths:
         st.subheader("LIME Explanations")
         lime_map = {p.stem: p for p in sorted(lime_paths)}
-        lime_choice = st.selectbox("Select LIME explanation", list(lime_map.keys()), key="lime_select")
+        lime_choice = st.selectbox(
+            "Select LIME explanation", list(lime_map.keys()), key="lime_select"
+        )
         st_html(
             lime_map[lime_choice].read_text(encoding="utf-8"),
             height=600,
@@ -447,6 +479,7 @@ with st.expander("Quick Sanity Check (loads a few rows)"):
     except Exception as e:
         st.warning(f"Sanity check failed: {e}")
 
+
 @contextmanager
 def st_progress_operation(message="Processing..."):
     """Context manager to show progress during potentially slow operations."""
@@ -459,13 +492,16 @@ def st_progress_operation(message="Processing..."):
         progress.progress(100)
         status.empty()
 
+
 # Add a memory cleanup function:
 def cleanup_memory():
     """Force garbage collection and clear caches."""
     import gc
+
     clear_caches()
     gc.collect()
     st.sidebar.success("Memory cleaned up")
+
 
 # Add this button to sidebar:
 if st.sidebar.button("Clean Memory"):

@@ -10,8 +10,8 @@ from __future__ import annotations
 import os
 
 # Set environment variable BEFORE importing scikit-learn
-if os.name == 'nt':  # Windows
-    os.environ['OMP_NUM_THREADS'] = '2'
+if os.name == "nt":  # Windows
+    os.environ["OMP_NUM_THREADS"] = "2"
 
 from pathlib import Path
 import pandas as pd
@@ -46,7 +46,9 @@ def save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     plt.close(fig)
 
 
-def segment_students(csv_path: str = "student-mat.csv", n_clusters: int = 3) -> pd.DataFrame:
+def segment_students(
+    csv_path: str = "student-mat.csv", n_clusters: int = 3
+) -> pd.DataFrame:
     """Cluster students and output summary statistics.
 
     Parameters
@@ -70,9 +72,13 @@ def segment_students(csv_path: str = "student-mat.csv", n_clusters: int = 3) -> 
     X_scaled = scaler.fit_transform(features)
 
     algorithms = {
-        "kmeans": KMeans(n_clusters=n_clusters, random_state=0, n_init=10),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+        "kmeans": KMeans(
+            n_clusters=n_clusters, random_state=0, n_init=10
+        ),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
         # n_init set to explicit integer for compatibility with older scikit-learn
-        "agglomerative": AgglomerativeClustering(n_clusters=n_clusters),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
+        "agglomerative": AgglomerativeClustering(
+            n_clusters=n_clusters
+        ),  # Reference: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
     }
 
     summaries: list[pd.DataFrame] = []
@@ -86,9 +92,9 @@ def segment_students(csv_path: str = "student-mat.csv", n_clusters: int = 3) -> 
 
         # Summary statistics for the final grade per cluster
         summary = (
-            df.groupby(cluster_col)["G3"].agg(["count", "mean"]).rename(
-                columns={"count": "count", "mean": "avg_G3"}
-            )
+            df.groupby(cluster_col)["G3"]
+            .agg(["count", "mean"])
+            .rename(columns={"count": "count", "mean": "avg_G3"})
         )
         summary["algorithm"] = name
         summary["cluster"] = summary.index

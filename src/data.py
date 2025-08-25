@@ -38,8 +38,7 @@ def load_data(
 
     if task not in {"classification", "regression"}:
         raise ValueError(
-            "task must be either 'classification' or 'regression', "
-            f"got {task!r}"
+            "task must be either 'classification' or 'regression', " f"got {task!r}"
         )
 
     df = pd.read_csv(path)
@@ -103,4 +102,3 @@ def load_early_data(
     X = df.drop(columns=cols_to_drop)
     y = df["pass"]
     return X, y
-

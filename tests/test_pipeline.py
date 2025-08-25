@@ -33,4 +33,3 @@ def test_stacking_and_bagging(csv_path):
     )
     bag_pipe.fit(X_sample, y_sample)
     assert bag_pipe.predict(X_sample).shape == (10,)
-

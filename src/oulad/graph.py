@@ -90,7 +90,9 @@ def build_student_vle_graph(
     )
 
     data = HeteroData()
-    data["student"].x = torch.tensor(student_clicks.values, dtype=torch.float).unsqueeze(1)
+    data["student"].x = torch.tensor(
+        student_clicks.values, dtype=torch.float
+    ).unsqueeze(1)
     data["vle"].x = torch.tensor(vle_clicks.values, dtype=torch.float).unsqueeze(1)
 
     # Build edges with weights and earliest interaction time
@@ -106,7 +108,11 @@ def build_student_vle_graph(
 
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     data["student", "interacts", "vle"].edge_index = edge_index
-    data["student", "interacts", "vle"].weight = torch.tensor(edge_weight, dtype=torch.float)
-    data["student", "interacts", "vle"].time = torch.tensor(edge_time, dtype=torch.float)
+    data["student", "interacts", "vle"].weight = torch.tensor(
+        edge_weight, dtype=torch.float
+    )
+    data["student", "interacts", "vle"].time = torch.tensor(
+        edge_time, dtype=torch.float
+    )
 
     return GraphBuildResult(data, student_id_map, site_id_map)

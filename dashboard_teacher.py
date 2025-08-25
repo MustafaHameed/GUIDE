@@ -37,18 +37,22 @@ except Exception as e:
     st.error(f"Could not load data: {e}")
     st.stop()
 
-overview_tab, risk_tab, fairness_tab = st.tabs([
-    "Class Overview",
-    "At-Risk Students",
-    "Fairness by Subgroup",
-])
+overview_tab, risk_tab, fairness_tab = st.tabs(
+    [
+        "Class Overview",
+        "At-Risk Students",
+        "Fairness by Subgroup",
+    ]
+)
 
 with overview_tab:
     st.subheader("Summary")
     st.metric("Number of students", len(data))
     st.metric("Pass rate", f"{data['pass'].mean() * 100:.1f}%")
     st.dataframe(data.head(), use_container_width=True)
-    overview_imgs = [p for p in _list_images(FIGURES_DIR) if "overview" in p.stem.lower()]
+    overview_imgs = [
+        p for p in _list_images(FIGURES_DIR) if "overview" in p.stem.lower()
+    ]
     _show_images_grid(overview_imgs, cols=2)
     overview_tables = sorted(TABLES_DIR.glob("overview_*.csv"))
     for path in overview_tables:

@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover - fallback for direct execution
     from logging_config import setup_logging
     from utils import ensure_dir
 
+
 def _configure_warnings() -> None:
     """Suppress common warnings for cleaner output."""
     warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
@@ -53,6 +54,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def positive_predictive_value(y_true, y_pred):
     return precision_score(y_true, y_pred, zero_division=0)
 
@@ -71,7 +73,7 @@ def _compute_fairness_tables(
     results: dict[str, pd.DataFrame] = {}
     overall_tpr = true_positive_rate(y_true, y_pred)
     overall_fpr = false_positive_rate(y_true, y_pred)
-    
+
     # Per-column fairness
     for col in group_cols:
         if col not in X.columns:
@@ -102,7 +104,9 @@ def _compute_fairness_tables(
         df = pd.DataFrame(records)
         if baseline and col in baseline:
             df = df.merge(baseline[col], on=col, suffixes=("_post", "_pre"))
-            df["dp_delta"] = df["demographic_parity_post"] - df["demographic_parity_pre"]
+            df["dp_delta"] = (
+                df["demographic_parity_post"] - df["demographic_parity_pre"]
+            )
             df["eo_delta"] = df["equalized_odds_post"] - df["equalized_odds_pre"]
             df = df[
                 [
@@ -124,10 +128,14 @@ def _compute_fairness_tables(
                     fairness_metrics.append(metric)
                 elif f"{metric}_post" in df.columns:
                     fairness_metrics.append(f"{metric}_post")
-            
+
             if fairness_metrics:
-                plot_df = df.melt(id_vars=[col], value_vars=fairness_metrics,
-                                  var_name="metric", value_name="value")
+                plot_df = df.melt(
+                    id_vars=[col],
+                    value_vars=fairness_metrics,
+                    var_name="metric",
+                    value_name="value",
+                )
                 sns.barplot(data=plot_df, x=col, y="value", hue="metric")
                 plt.tight_layout()
                 plt.savefig(fig_dir / f"fairness_{col}_{suffix}.png")
@@ -171,8 +179,12 @@ def _compute_fairness_tables(
                 )
             df = pd.DataFrame(records)
             if baseline and pair_name in baseline:
-                df = df.merge(baseline[pair_name], on=[col_a, col_b], suffixes=("_post", "_pre"))
-                df["dp_delta"] = df["demographic_parity_post"] - df["demographic_parity_pre"]
+                df = df.merge(
+                    baseline[pair_name], on=[col_a, col_b], suffixes=("_post", "_pre")
+                )
+                df["dp_delta"] = (
+                    df["demographic_parity_post"] - df["demographic_parity_pre"]
+                )
                 df["eo_delta"] = df["equalized_odds_post"] - df["equalized_odds_pre"]
                 df = df[
                     [
@@ -203,6 +215,7 @@ def _compute_fairness_tables(
             results[pair_name] = df
 
     return results
+
 
 from fairlearn.metrics import (
     MetricFrame,
@@ -265,7 +278,7 @@ PARAM_GRIDS: dict[str, dict[str, dict]] = {
             "model__max_depth": [None, 5, 10],
         }
     },
-        "mlp": {
+    "mlp": {
         "default": {
             "model__hidden_layer_sizes": [(50,), (100,)],
             "model__alpha": [0.0001, 0.001],
@@ -353,6 +366,8 @@ REGRESSION_PARAM_GRIDS: dict[str, dict[str, dict]] = {
         }
     },
 }
+
+
 def main(
     csv_path: str = "student-mat.csv",
     pass_threshold: int = 10,
@@ -417,7 +432,7 @@ def main(
             learning_rate=learning_rate,
         )
         return
-    
+
     if task == "regression":
         X, y = load_data(csv_path, task="regression")
         model_params: dict | None = None
@@ -432,9 +447,7 @@ def main(
             X, model_type=model_type, model_params=model_params, task="regression"
         )
     else:
-        X, y = load_data(
-            csv_path, pass_threshold=pass_threshold, task="classification"
-        )
+        X, y = load_data(csv_path, pass_threshold=pass_threshold, task="classification")
         model_params: dict | None = None
         if model_type == "stacking":
             model_params = {
@@ -448,11 +461,11 @@ def main(
         )
 
     # Prepare output directories
-    fig_dir = Path('figures')
+    fig_dir = Path("figures")
     ensure_dir(fig_dir)
-    report_dir = Path('reports')
+    report_dir = Path("reports")
     ensure_dir(report_dir)
-    table_dir = Path('tables')
+    table_dir = Path("tables")
     ensure_dir(table_dir)
 
     # Hold-out evaluation with validation split for calibration
@@ -506,9 +519,7 @@ def main(
         model = search.best_estimator_
         best_params = model.named_steps["model"].get_params()
         best_score = search.best_score_
-        logger.info(
-            "Best params from search: %s (score=%.3f)", best_params, best_score
-        )
+        logger.info("Best params from search: %s (score=%.3f)", best_params, best_score)
     else:
         model = pipeline
         model.fit(X_train, y_train)
@@ -533,9 +544,7 @@ def main(
     # Predictions before mitigation
     pre_y_pred = model.predict(X_test)
     pre_y_prob = (
-        model.predict_proba(X_test)[:, 1]
-        if hasattr(model, "predict_proba")
-        else None
+        model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
     )
     pre_fairness: dict[str, pd.DataFrame] = {}
     if group_cols:
@@ -580,7 +589,11 @@ def main(
                 if hasattr(model, "predict_proba")
                 else None
             )
-        elif mitigation == "adversarial" and train_bld is not None and test_bld is not None:
+        elif (
+            mitigation == "adversarial"
+            and train_bld is not None
+            and test_bld is not None
+        ):
             import tensorflow as tf
 
             sess = tf.compat.v1.Session()
@@ -621,32 +634,32 @@ def main(
     # Export classification report as a table
     report = classification_report(y_test, y_pred, output_dict=True)
     pd.DataFrame(report).transpose().to_csv(
-        report_dir / 'classification_report.csv', index=True
+        report_dir / "classification_report.csv", index=True
     )
 
     # Confusion matrix visualization
     cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
     plt.figure(figsize=(4, 4))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
     plt.tight_layout()
-    plt.savefig(fig_dir / 'confusion_matrix.png')
+    plt.savefig(fig_dir / "confusion_matrix.png")
     plt.close()
 
     # ROC curve visualization (requires probability estimates)
     if y_prob is not None:
         RocCurveDisplay.from_predictions(y_test, y_prob)
         plt.tight_layout()
-        plt.savefig(fig_dir / 'roc_curve.png')
+        plt.savefig(fig_dir / "roc_curve.png")
         plt.close()
 
         # Precision-Recall analysis
         precision, recall, thresholds = precision_recall_curve(y_test, y_prob)
         precision_curve = precision[:-1]
         recall_curve = recall[:-1]
-        f1_scores = 2 * precision_curve * recall_curve / (
-            precision_curve + recall_curve + 1e-8
+        f1_scores = (
+            2 * precision_curve * recall_curve / (precision_curve + recall_curve + 1e-8)
         )
         best_idx = np.argmax(f1_scores)
         best_threshold = thresholds[best_idx]
@@ -665,12 +678,24 @@ def main(
             y_true_b = y_test.values[idx]
             y_prob_b = y_prob[idx]
             p_b, r_b, t_b = precision_recall_curve(y_true_b, y_prob_b)
-            p_interp = np.interp(thresholds, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1])
-            r_interp = np.interp(thresholds, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1])
+            p_interp = np.interp(
+                thresholds, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1]
+            )
+            r_interp = np.interp(
+                thresholds, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1]
+            )
             boot_prec_curve.append(p_interp)
             boot_rec_curve.append(r_interp)
-            boot_prec_best.append(np.interp(best_threshold, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1]))
-            boot_rec_best.append(np.interp(best_threshold, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1]))
+            boot_prec_best.append(
+                np.interp(
+                    best_threshold, t_b, p_b[:-1], left=p_b[:-1][0], right=p_b[:-1][-1]
+                )
+            )
+            boot_rec_best.append(
+                np.interp(
+                    best_threshold, t_b, r_b[:-1], left=r_b[:-1][0], right=r_b[:-1][-1]
+                )
+            )
             pb = boot_prec_best[-1]
             rb = boot_rec_best[-1]
             boot_f1_best.append(2 * pb * rb / (pb + rb + 1e-8))
@@ -685,7 +710,9 @@ def main(
         # Plot PR curve with confidence band and optimal threshold
         plt.figure()
         plt.plot(recall_curve, precision_curve, label="PR curve")
-        plt.fill_between(rec_mean, prec_low, prec_high, color="lightblue", alpha=0.4, label="95% CI")
+        plt.fill_between(
+            rec_mean, prec_low, prec_high, color="lightblue", alpha=0.4, label="95% CI"
+        )
         plt.scatter(
             recall_curve[best_idx],
             precision_curve[best_idx],
@@ -742,13 +769,10 @@ def main(
         )
         if conformal["by_group"] is not None:
             conformal["by_group"].to_csv(
-                table_dir
-                / f"conformal_by_{group_cols[0]}_alpha_{alpha}.csv",
+                table_dir / f"conformal_by_{group_cols[0]}_alpha_{alpha}.csv",
                 index=False,
             )
-            sns.barplot(
-                data=conformal["by_group"], x="group", y="coverage"
-            )
+            sns.barplot(data=conformal["by_group"], x="group", y="coverage")
             plt.axhline(
                 conformal["overall"]["target_coverage"],
                 color="red",
@@ -758,8 +782,7 @@ def main(
             plt.ylabel("coverage")
             plt.tight_layout()
             plt.savefig(
-                fig_dir
-                / f"conformal_coverage_by_{group_cols[0]}_alpha_{alpha}.png"
+                fig_dir / f"conformal_coverage_by_{group_cols[0]}_alpha_{alpha}.png"
             )
             plt.close()
 
@@ -772,11 +795,8 @@ def main(
         )
         sns.barplot(data=size_counts, x="set_size", y="count")
         plt.tight_layout()
-        plt.savefig(
-            fig_dir / f"conformal_set_size_dist_alpha_{alpha}.png"
-        )
+        plt.savefig(fig_dir / f"conformal_set_size_dist_alpha_{alpha}.png")
         plt.close()
-
 
     # Export best parameters and search metrics
     best_params_df = pd.DataFrame([best_params or {}])
@@ -805,24 +825,19 @@ def main(
                     )
                     continue
 
-                grp_report = classification_report(
-                    y_true_g, y_pred_g, output_dict=True
-                )
+                grp_report = classification_report(y_true_g, y_pred_g, output_dict=True)
                 pd.DataFrame(grp_report).transpose().to_csv(
-                    report_dir
-                    / f"classification_report_{col}_{group_value}.csv",
+                    report_dir / f"classification_report_{col}_{group_value}.csv",
                     index=True,
                 )
 
                 cm_g = confusion_matrix(y_true_g, y_pred_g, labels=[0, 1])
                 plt.figure(figsize=(4, 4))
-                sns.heatmap(cm_g, annot=True, fmt='d', cmap='Blues')
-                plt.xlabel('Predicted')
-                plt.ylabel('Actual')
+                sns.heatmap(cm_g, annot=True, fmt="d", cmap="Blues")
+                plt.xlabel("Predicted")
+                plt.ylabel("Actual")
                 plt.tight_layout()
-                plt.savefig(
-                    fig_dir / f"confusion_matrix_{col}_{group_value}.png"
-                )
+                plt.savefig(fig_dir / f"confusion_matrix_{col}_{group_value}.png")
                 plt.close()
 
                 if y_prob_g is not None:
@@ -830,7 +845,6 @@ def main(
                     plt.tight_layout()
                     plt.savefig(fig_dir / f"roc_curve_{col}_{group_value}.png")
                     plt.close()
-
 
     # LIME explanations for selected samples
     try:
@@ -881,13 +895,11 @@ def main(
             fig.savefig(fig_dir / f"lime_{idx}.png")
             plt.close(fig)
             try:
-                query_df = pd.DataFrame(
-                    [test_trans[idx]], columns=feature_names
-                )
+                query_df = pd.DataFrame([test_trans[idx]], columns=feature_names)
                 if dice is not None:
                     cf = dice.generate_counterfactuals(
                         query_df, total_CFs=1, desired_class="opposite"
-                )
+                    )
                     cf.cf_examples_list[0].final_cfs_df.to_csv(
                         report_dir / f"counterfactual_{idx}.csv", index=False
                     )
@@ -911,23 +923,20 @@ def main(
         plt.tight_layout()
         plt.savefig(fi_fig)
         plt.close()
-        importance_df = (
-            pd.DataFrame(
-                {"feature": X_train.columns, "importance": importance}
-            ).sort_values("importance", ascending=False)
-        )
+        importance_df = pd.DataFrame(
+            {"feature": X_train.columns, "importance": importance}
+        ).sort_values("importance", ascending=False)
         importance_df.to_csv(fi_csv, index=False)
     except Exception:
         result = permutation_importance(
             fitted_pipeline, X_test, y_test, n_repeats=10, random_state=42
         )
-        importance_df = (
-            pd.DataFrame({
+        importance_df = pd.DataFrame(
+            {
                 "feature": X_test.columns,
                 "importance": result.importances_mean,
-            })
-            .sort_values("importance", ascending=False)
-        )
+            }
+        ).sort_values("importance", ascending=False)
         sns.barplot(data=importance_df, x="importance", y="feature")
         plt.tight_layout()
         plt.savefig(fi_fig)
@@ -987,76 +996,86 @@ def main(
         plt.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup_logging()
-    parser = argparse.ArgumentParser(description='Train model with fairness evaluation')
-    parser.add_argument('--csv-path', default='student-mat.csv')
-    parser.add_argument('--pass-threshold', type=int, default=10,
-                        help='Minimum G3 grade considered a passing score')    
+    parser = argparse.ArgumentParser(description="Train model with fairness evaluation")
+    parser.add_argument("--csv-path", default="student-mat.csv")
     parser.add_argument(
-        '--group-cols',
-        nargs='*',
-        default=None,
-        help='Demographic columns to evaluate',
+        "--pass-threshold",
+        type=int,
+        default=10,
+        help="Minimum G3 grade considered a passing score",
     )
     parser.add_argument(
-        '--model-type',
+        "--group-cols",
+        nargs="*",
+        default=None,
+        help="Demographic columns to evaluate",
+    )
+    parser.add_argument(
+        "--model-type",
         choices=list(set(PARAM_GRIDS.keys()) | set(REGRESSION_PARAM_GRIDS.keys())),
-        default='logistic',
-        help='Type of model to train',
+        default="logistic",
+        help="Type of model to train",
     )
     parser.add_argument(
-        '--param-grid',
-        choices=['none', 'default'],
-        default='none',
-        help='Preset hyperparameter grid to use',
+        "--param-grid",
+        choices=["none", "default"],
+        default="none",
+        help="Preset hyperparameter grid to use",
     )
     parser.add_argument(
-        '--estimators',
-        nargs='*',
+        "--estimators",
+        nargs="*",
         default=None,
-        help='Base estimators for stacking models',
+        help="Base estimators for stacking models",
     )
     parser.add_argument(
-        '--final-estimator',
-        default='logistic',
-        help='Final estimator for stacking models',
+        "--final-estimator",
+        default="logistic",
+        help="Final estimator for stacking models",
     )
     parser.add_argument(
-        '--base-estimator',
-        default='decision_tree',
-        help='Base estimator for bagging models',
+        "--base-estimator",
+        default="decision_tree",
+        help="Base estimator for bagging models",
     )
     parser.add_argument(
-        '--sequence-model',
-        choices=['rnn', 'hmm'],
+        "--sequence-model",
+        choices=["rnn", "hmm"],
         default=None,
-        help='Train a sequence model on grades G1 and G2',
+        help="Train a sequence model on grades G1 and G2",
     )
     parser.add_argument(
-        '--hidden-size', type=int, default=8, help='RNN hidden layer size'
+        "--hidden-size", type=int, default=8, help="RNN hidden layer size"
     )
     parser.add_argument(
-        '--epochs', type=int, default=50, help='Number of RNN training epochs'
+        "--epochs", type=int, default=50, help="Number of RNN training epochs"
     )
     parser.add_argument(
-        '--learning-rate', type=float, default=0.01, help='RNN learning rate'
-    )   
-    parser.add_argument(
-        '--mitigation',
-        choices=['none', 'demographic_parity', 'equalized_odds', 'reweighing', 'adversarial'],
-        default='none',
-        help='Fairness mitigation strategy to apply',
+        "--learning-rate", type=float, default=0.01, help="RNN learning rate"
     )
     parser.add_argument(
-        '--task',
-        choices=['classification', 'regression'],
-        default='classification',
-        help='Prediction task to run',
+        "--mitigation",
+        choices=[
+            "none",
+            "demographic_parity",
+            "equalized_odds",
+            "reweighing",
+            "adversarial",
+        ],
+        default="none",
+        help="Fairness mitigation strategy to apply",
+    )
+    parser.add_argument(
+        "--task",
+        choices=["classification", "regression"],
+        default="classification",
+        help="Prediction task to run",
     )
     args = parser.parse_args()
-    if args.task == 'regression' and args.model_type == 'logistic':
-        args.model_type = 'linear'
+    if args.task == "regression" and args.model_type == "logistic":
+        args.model_type = "linear"
     main(
         csv_path=args.csv_path,
         group_cols=args.group_cols,

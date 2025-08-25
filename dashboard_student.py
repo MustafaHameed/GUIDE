@@ -95,10 +95,12 @@ st.metric("Predicted risk of failing", f"{risk * 100:.1f}%")
 # -------- Progress Chart --------
 grade_cols = [c for c in ["G1", "G2", "G3"] if c in student_row]
 if grade_cols:
-    progress_df = pd.DataFrame({
-        "exam": grade_cols,
-        "grade": [student_row[c] for c in grade_cols],
-    })
+    progress_df = pd.DataFrame(
+        {
+            "exam": grade_cols,
+            "grade": [student_row[c] for c in grade_cols],
+        }
+    )
     chart = (
         alt.Chart(progress_df)
         .mark_line(point=True)

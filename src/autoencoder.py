@@ -11,7 +11,9 @@ from torch.utils.data import DataLoader, TensorDataset
 class TabularAutoencoder(nn.Module):
     """Simple feed-forward autoencoder for tabular data."""
 
-    def __init__(self, input_dim: int, latent_dim: int = 8, hidden_dim: int = 64) -> None:
+    def __init__(
+        self, input_dim: int, latent_dim: int = 8, hidden_dim: int = 64
+    ) -> None:
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -88,10 +90,16 @@ def export_latent_vectors(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train autoencoder on OULAD features")
-    parser.add_argument("--dataset", type=Path, required=True, help="Path to processed dataset")
-    parser.add_argument("--output", type=Path, required=True, help="Path to save latent features")
+    parser.add_argument(
+        "--dataset", type=Path, required=True, help="Path to processed dataset"
+    )
+    parser.add_argument(
+        "--output", type=Path, required=True, help="Path to save latent features"
+    )
     parser.add_argument("--epochs", type=int, default=20, help="Training epochs")
-    parser.add_argument("--latent-dim", type=int, default=8, help="Latent space dimension")
+    parser.add_argument(
+        "--latent-dim", type=int, default=8, help="Latent space dimension"
+    )
     parser.add_argument("--hidden-dim", type=int, default=64, help="Hidden layer size")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     args = parser.parse_args()

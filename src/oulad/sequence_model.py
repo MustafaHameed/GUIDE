@@ -67,7 +67,9 @@ def load_click_sequences(raw_dir: Path) -> Tuple[List[List[int]], List[int], Lis
     registration = pd.read_csv(raw_dir / "studentRegistration.csv")
 
     registration["label_pass"] = (registration["final_result"] == "Pass").astype(int)
-    vle_reg = student_vle.merge(registration[["id_student", "label_pass"]], on="id_student", how="inner")
+    vle_reg = student_vle.merge(
+        registration[["id_student", "label_pass"]], on="id_student", how="inner"
+    )
 
     sequences: List[List[int]] = []
     labels: List[int] = []
@@ -101,12 +103,15 @@ def pad_sequences(sequences: Iterable[Iterable[int]], max_len: int) -> np.ndarra
     arr = np.zeros((len(sequences), max_len), dtype=float)
     for i, seq in enumerate(sequences):
         seq = list(seq)[-max_len:]  # trim from the left if longer
-        arr[i, -len(seq):] = np.asarray(seq, dtype=float)
+        arr[i, -len(seq) :] = np.asarray(seq, dtype=float)
     return arr
 
 
 def split_by_ids(
-    X: np.ndarray, y: np.ndarray, student_ids: List[int], splits: Dict[str, Iterable[int]]
+    X: np.ndarray,
+    y: np.ndarray,
+    student_ids: List[int],
+    splits: Dict[str, Iterable[int]],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Split arrays into train/validation/test using provided student id splits.
 
@@ -159,10 +164,14 @@ class LSTMAttention(nn.Module):
 class TransformerModel(nn.Module):
     """Very small Transformer encoder for sequence classification."""
 
-    def __init__(self, input_size: int, hidden_size: int, nhead: int = 2, num_layers: int = 1):
+    def __init__(
+        self, input_size: int, hidden_size: int, nhead: int = 2, num_layers: int = 1
+    ):
         super().__init__()
         self.input_proj = nn.Linear(input_size, hidden_size)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=hidden_size, nhead=nhead, batch_first=True)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_size, nhead=nhead, batch_first=True
+        )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.attn = nn.Linear(hidden_size, 1)
         self.fc = nn.Linear(hidden_size, 2)
@@ -266,9 +275,13 @@ def train_sequence_model(
     X = pad_sequences(sequences, max_seq_len)
     y = np.asarray(labels)
 
-    X_train, y_train, X_val, y_val, X_test, y_test = split_by_ids(X, y, student_ids, splits)
+    X_train, y_train, X_val, y_val, X_test, y_test = split_by_ids(
+        X, y, student_ids, splits
+    )
     if len(X_train) == 0 or len(X_test) == 0:
-        raise ValueError("Train and test splits must contain at least one sequence each")
+        raise ValueError(
+            "Train and test splits must contain at least one sequence each"
+        )
 
     if model_type == "lstm":
         model: nn.Module = LSTMAttention(1, hidden_size)
@@ -277,6 +290,15 @@ def train_sequence_model(
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
-    acc = _train(model, X_train, y_train, X_test, y_test, epochs=epochs, lr=lr, attention_path=attention_output)
+    acc = _train(
+        model,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        epochs=epochs,
+        lr=lr,
+        attention_path=attention_output,
+    )
     logger.info("Sequence model (%s) accuracy: %.3f", model_type, acc)
     return acc

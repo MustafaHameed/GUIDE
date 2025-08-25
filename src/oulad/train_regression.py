@@ -17,7 +17,9 @@ from .build_dataset import build_oulad_dataset
 logger = logging.getLogger(__name__)
 
 
-def _load_or_build_dataset(dataset_path: Path, raw_dir: Optional[Path] = None) -> pd.DataFrame:
+def _load_or_build_dataset(
+    dataset_path: Path, raw_dir: Optional[Path] = None
+) -> pd.DataFrame:
     """Load processed dataset or build it from raw files.
 
     Parameters

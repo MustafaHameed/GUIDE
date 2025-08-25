@@ -95,9 +95,14 @@ def _fake_build_pipeline(X):
 
 def _patch_common(monkeypatch, token=""):
     import streamlit as st
+
     monkeypatch.setattr(st.sidebar, "text_input", lambda *a, **k: token)
-    monkeypatch.setattr(st.sidebar, "selectbox", lambda prompt, options, **k: options[0])
-    monkeypatch.setattr(st, "stop", lambda *a, **k: (_ for _ in ()).throw(StreamlitStop()))
+    monkeypatch.setattr(
+        st.sidebar, "selectbox", lambda prompt, options, **k: options[0]
+    )
+    monkeypatch.setattr(
+        st, "stop", lambda *a, **k: (_ for _ in ()).throw(StreamlitStop())
+    )
     monkeypatch.setattr("src.data.load_data", _fake_load_data)
     monkeypatch.setattr("src.preprocessing.build_pipeline", _fake_build_pipeline)
     monkeypatch.setattr("src._safe_read_csv", lambda *a, **k: None)
