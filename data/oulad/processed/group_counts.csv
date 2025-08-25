@@ -1,0 +1,27 @@
+group,count,attribute,missingness
+Male,2546,sex,0
+Female,2454,sex,0
+0-35,1701,age_band,0
+55<=,1684,age_band,0
+35-55,1615,age_band,0
+Lower Than A Level,1054,highest_education,0
+Post Graduate Qualification,1006,highest_education,0
+No Formal quals,985,highest_education,0
+A Level or Equivalent,981,highest_education,0
+HE Qualification,974,highest_education,0
+50-60%,529,imd_band,0
+0-10%,522,imd_band,0
+30-40%,520,imd_band,0
+10-20%,510,imd_band,0
+20-30%,502,imd_band,0
+80-90%,497,imd_band,0
+90-100%,491,imd_band,0
+60-70%,489,imd_band,0
+70-80%,475,imd_band,0
+40-50%,465,imd_band,0
+Male_x_55<=,876,sex_x_age,0
+Male_x_0-35,872,sex_x_age,0
+Female_x_0-35,829,sex_x_age,0
+Female_x_35-55,817,sex_x_age,0
+Female_x_55<=,808,sex_x_age,0
+Male_x_35-55,798,sex_x_age,0

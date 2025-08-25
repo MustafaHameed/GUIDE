@@ -1,0 +1,19 @@
+attribute,category,count,percentage,missing
+highest_education,Lower Than A Level,1054,21.08,0
+highest_education,Post Graduate Qualification,1006,20.119999999999997,0
+highest_education,No Formal quals,985,19.7,0
+highest_education,A Level or Equivalent,981,19.62,0
+highest_education,HE Qualification,974,19.48,0
+imd_band,50-60%,529,10.58,0
+imd_band,0-10%,522,10.440000000000001,0
+imd_band,30-40%,520,10.4,0
+imd_band,10-20%,510,10.2,0
+imd_band,20-30%,502,10.040000000000001,0
+imd_band,80-90%,497,9.94,0
+imd_band,90-100%,491,9.82,0
+imd_band,60-70%,489,9.78,0
+imd_band,70-80%,475,9.5,0
+imd_band,40-50%,465,9.3,0
+age_band,0-35,1701,34.02,0
+age_band,55<=,1684,33.68,0
+age_band,35-55,1615,32.300000000000004,0
