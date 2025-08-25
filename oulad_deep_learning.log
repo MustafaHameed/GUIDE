@@ -1,0 +1,17 @@
+2025-08-25 17:02:30,824 - __main__ - INFO - Using device: cpu
+2025-08-25 17:02:30,825 - __main__ - INFO - Loading OULAD data from data/oulad/processed/oulad_ml.csv
+2025-08-25 17:02:30,837 - __main__ - INFO - Successfully loaded data from data/oulad/processed/oulad_ml.csv
+2025-08-25 17:02:30,837 - __main__ - INFO - Dataset shape: (5000, 23)
+2025-08-25 17:02:30,837 - __main__ - INFO - Columns: ['id_student', 'code_module', 'code_presentation', 'label_pass', 'label_fail_or_withdraw', 'sex', 'age_band', 'highest_education', 'imd_band', 'sex_x_age', 'studied_credits', 'num_of_prev_attempts', 'vle_total_clicks', 'vle_mean_clicks', 'vle_max_clicks', 'vle_first4_clicks', 'vle_last4_clicks', 'vle_cumulative_clicks', 'vle_days_active', 'assessment_count', 'assessment_mean_score', 'assessment_last_score', 'assessment_ontime_rate']
+2025-08-25 17:02:30,838 - __main__ - WARNING - No standard target column found, using last column: assessment_ontime_rate
+2025-08-25 17:02:30,838 - __main__ - INFO - Using target column: assessment_ontime_rate
+2025-08-25 17:02:30,840 - __main__ - INFO - Converted to binary classification (pass/fail)
+2025-08-25 17:02:30,840 - __main__ - INFO - Class distribution: [5000]
+2025-08-25 17:02:30,841 - __main__ - INFO - Using sensitive feature: age_band
+2025-08-25 17:02:30,841 - __main__ - INFO - Encoding categorical columns: ['code_module', 'code_presentation', 'sex', 'age_band', 'highest_education', 'imd_band', 'sex_x_age']
+2025-08-25 17:02:30,847 - __main__ - INFO - Filling missing values with median/mode
+2025-08-25 17:02:30,854 - __main__ - INFO - Final dataset shape: X=(5000, 22), y=(5000,)
+2025-08-25 17:02:30,854 - __main__ - INFO - Features: 22
+2025-08-25 17:02:30,858 - __main__ - INFO - Data splits: Train=(3200, 22), Val=(800, 22), Test=(1000, 22)
+2025-08-25 17:02:30,860 - src.oulad.comprehensive_evaluation - INFO - Starting comprehensive evaluation...
+2025-08-25 17:02:30,860 - __main__ - ERROR - Error during execution: name 'train_test_split' is not defined
