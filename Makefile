@@ -48,8 +48,8 @@ eda: data
 .PHONY: train
 train: data
 	@echo "Training baseline models..."
-	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/train.py --model_type logistic
-	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/train.py --model_type random_forest
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.train --model-type logistic
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.train --model-type random_forest
 	@echo "Model training completed. Models saved in $(MODEL_DIR)/"
 
 # Early risk assessment
