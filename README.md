@@ -25,7 +25,28 @@ This repository contains the `student-mat.csv` dataset with 395 records of Portu
 - 🔍 **Explainable AI**: SHAP, LIME, and counterfactual explanations  
 - 📊 **Interactive Dashboards**: Student and teacher-focused views
 - 🧪 **Advanced Modeling**: Early risk assessment, transfer learning, nested CV
+- 🧠 **Intelligent Interpretations**: Automated analysis and insights from all results
 - 📖 **Publication Ready**: Complete documentation and artifact generation
+
+### 🧠 Automated Result Interpretations
+
+GUIDE now includes comprehensive automated interpretation of all generated results:
+
+- **Model Performance Analysis**: Identifies best performing models, analyzes variance, and highlights performance patterns
+- **Statistical Significance Testing**: Interprets p-values, effect sizes, and statistical comparisons between models
+- **Fairness Assessment**: Analyzes demographic performance differences and bias indicators
+- **Exploratory Data Insights**: Interprets correlations, distributions, and key data patterns
+- **Prediction Quality**: Evaluates conformal prediction coverage and threshold optimization
+- **Regression Analysis**: Compares RMSE confidence intervals and model reliability
+
+When you run `python run_all_and_present_results.py`, the system automatically:
+1. Generates all figures, tables, and reports
+2. Analyzes the numerical results
+3. Produces human-readable interpretations
+4. Creates an enhanced HTML report with insights
+5. Provides actionable recommendations
+
+The interpretations appear in both console output and the comprehensive HTML report, making complex ML results accessible to stakeholders at all technical levels.
 
 ## Installation
 
