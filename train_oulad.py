@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Train ML/DL models on OULAD dataset and prepare for transfer learning to UCI dataset.
+Enhanced with advanced PyTorch-based deep learning models.
 """
 
 import pandas as pd
@@ -15,13 +16,25 @@ from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 import joblib
 import logging
 import sys
+import torch
 
-sys.path.append(str(Path(__file__).resolve() / "src"))
+sys.path.append(str(Path(__file__).resolve().parent / "src"))
 try:
     from logging_config import setup_logging
 except ImportError:
     def setup_logging():
         logging.basicConfig(level=logging.INFO)
+
+# Import our advanced deep learning module
+try:
+    from src.oulad.deep_learning import train_deep_learning_models, create_ensemble_model
+    from src.oulad.advanced_deep_learning import train_advanced_deep_learning_models, create_advanced_ensemble
+    DEEP_LEARNING_AVAILABLE = True
+    ADVANCED_DL_AVAILABLE = True
+except ImportError as e:
+    print(f"Deep learning module not available: {e}")
+    DEEP_LEARNING_AVAILABLE = False
+    ADVANCED_DL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -163,8 +176,24 @@ def save_models(models, output_dir="models/oulad"):
     
     for model_name, model_data in models.items():
         model_path = output_dir / f"oulad_{model_name}.pkl"
-        joblib.dump(model_data, model_path)
-        logger.info(f"Saved {model_name} model to {model_path}")
+        
+        # Handle PyTorch models differently
+        if hasattr(model_data, 'get') and 'model' in model_data and hasattr(model_data['model'], 'state_dict'):
+            # This is a PyTorch model - save state dict separately
+            torch_model_path = output_dir / f"oulad_{model_name}_model.pt"
+            torch.save(model_data['model'].state_dict(), torch_model_path)
+            
+            # Save everything else (scaler, config, etc.) with joblib
+            model_data_copy = model_data.copy()
+            model_data_copy['model'] = None  # Remove model for joblib saving
+            joblib.dump(model_data_copy, model_path)
+            
+            logger.info(f"Saved {model_name} PyTorch model to {torch_model_path}")
+            logger.info(f"Saved {model_name} metadata to {model_path}")
+        else:
+            # Traditional sklearn model
+            joblib.dump(model_data, model_path)
+            logger.info(f"Saved {model_name} model to {model_path}")
     
     return output_dir
 
@@ -175,11 +204,60 @@ def print_results(results):
     logger.info("OULAD MODEL TRAINING RESULTS")
     logger.info("="*60)
     
+    # Separate traditional and deep learning models
+    traditional_models = {}
+    deep_models = {}
+    
     for model_name, metrics in results.items():
-        logger.info(f"\n{model_name.upper()} RESULTS:")
-        logger.info(f"Accuracy: {metrics['accuracy']:.4f}")
-        logger.info(f"ROC AUC: {metrics['roc_auc']:.4f}")
-        logger.info(f"Classification Report:\n{metrics['classification_report']}")
+        if model_name in ['logistic', 'random_forest', 'mlp']:
+            traditional_models[model_name] = metrics
+        else:
+            deep_models[model_name] = metrics
+    
+    # Print traditional models
+    if traditional_models:
+        logger.info("\nTRADITIONAL MACHINE LEARNING MODELS:")
+        logger.info("-" * 40)
+        for model_name, metrics in traditional_models.items():
+            logger.info(f"\n{model_name.upper()} RESULTS:")
+            logger.info(f"Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(f"ROC AUC: {metrics['roc_auc']:.4f}")
+            logger.info(f"Classification Report:\n{metrics['classification_report']}")
+    
+    # Print deep learning models
+    if deep_models:
+        logger.info("\n\nADVANCED DEEP LEARNING MODELS:")
+        logger.info("-" * 40)
+        for model_name, metrics in deep_models.items():
+            logger.info(f"\n{model_name.upper()} RESULTS:")
+            logger.info(f"Test Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(f"Test ROC AUC: {metrics['roc_auc']:.4f}")
+            
+            # Print validation metrics if available
+            if 'val_accuracy' in metrics:
+                logger.info(f"Best Val Accuracy: {metrics['val_accuracy']:.4f}")
+            if 'val_auc' in metrics:
+                logger.info(f"Best Val AUC: {metrics['val_auc']:.4f}")
+            
+            logger.info(f"Classification Report:\n{metrics['classification_report']}")
+    
+    # Print summary comparison
+    logger.info("\n\nMODEL PERFORMANCE SUMMARY:")
+    logger.info("-" * 40)
+    
+    # Sort by accuracy
+    sorted_results = sorted(results.items(), key=lambda x: x[1]['accuracy'], reverse=True)
+    
+    logger.info(f"{'Model':<20} {'Accuracy':<10} {'ROC AUC':<10}")
+    logger.info("-" * 40)
+    for model_name, metrics in sorted_results:
+        logger.info(f"{model_name:<20} {metrics['accuracy']:<10.4f} {metrics['roc_auc']:<10.4f}")
+    
+    # Highlight best performing model
+    best_model, best_metrics = sorted_results[0]
+    logger.info(f"\n🏆 BEST PERFORMING MODEL: {best_model.upper()}")
+    logger.info(f"   Accuracy: {best_metrics['accuracy']:.4f}")
+    logger.info(f"   ROC AUC: {best_metrics['roc_auc']:.4f}")
 
 
 def main():
@@ -189,8 +267,68 @@ def main():
     # Prepare data
     X, y, feature_cols, encoders = prepare_oulad_data()
     
-    # Train models
+    # Train traditional models
     models, results, train_test_data = train_models(X, y)
+    X_train, X_test, y_train, y_test = train_test_data
+    
+    # Train advanced deep learning models if available
+    if DEEP_LEARNING_AVAILABLE:
+        logger.info("\n" + "="*60)
+        logger.info("TRAINING ADVANCED DEEP LEARNING MODELS")
+        logger.info("="*60)
+        
+        try:
+            dl_models, dl_results = train_deep_learning_models(
+                X_train.values, y_train.values, X_test.values, y_test.values
+            )
+            
+            # Create ensemble
+            ensemble_results = create_ensemble_model(dl_models, X_test.values, y_test.values)
+            
+            # Add to main results
+            results.update(dl_results)
+            results['deep_ensemble'] = ensemble_results
+            
+            # Add to models dict
+            models.update(dl_models)
+            
+            logger.info("Deep learning models trained successfully!")
+            
+        except Exception as e:
+            logger.error(f"Error training deep learning models: {e}")
+            logger.info("Continuing with traditional models only...")
+    
+    # Train even more advanced models if available
+    if ADVANCED_DL_AVAILABLE:
+        logger.info("\n" + "="*60)
+        logger.info("TRAINING CUTTING-EDGE DEEP LEARNING MODELS")
+        logger.info("="*60)
+        
+        try:
+            adv_models, adv_results = train_advanced_deep_learning_models(
+                X_train.values, y_train.values, X_test.values, y_test.values
+            )
+            
+            # Create advanced ensemble
+            adv_ensemble_results = create_advanced_ensemble(
+                adv_models, X_test.values, y_test.values, X_test.values
+            )
+            
+            # Add to main results
+            results.update(adv_results)
+            results['advanced_ensemble'] = adv_ensemble_results
+            
+            # Add to models dict
+            models.update(adv_models)
+            
+            logger.info("Advanced deep learning models trained successfully!")
+            
+        except Exception as e:
+            logger.error(f"Error training advanced deep learning models: {e}")
+            logger.info("Continuing without advanced models...")
+    
+    if not DEEP_LEARNING_AVAILABLE:
+        logger.info("Deep learning models not available. Using traditional models only.")
     
     # Save models
     model_dir = save_models(models)
@@ -201,7 +339,9 @@ def main():
         'encoders': encoders,
         'target_column': 'label_pass',
         'dataset_shape': X.shape,
-        'class_distribution': y.value_counts().to_dict()
+        'class_distribution': y.value_counts().to_dict(),
+        'deep_learning_available': DEEP_LEARNING_AVAILABLE,
+        'advanced_dl_available': ADVANCED_DL_AVAILABLE
     }
     
     metadata_path = model_dir / "oulad_metadata.pkl"
