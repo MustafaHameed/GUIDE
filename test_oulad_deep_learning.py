@@ -6,6 +6,8 @@ import sys
 sys.path.append('src/oulad')
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -24,8 +26,10 @@ def load_oulad_data_simple():
     df = pd.read_csv('data/oulad/processed/oulad_ml.csv')
     print(f"Data shape: {df.shape}")
     
-    # Use final_result as target if available, otherwise last column
-    if 'final_result' in df.columns:
+    # Use label_pass as target if available
+    if 'label_pass' in df.columns:
+        target_col = 'label_pass'
+    elif 'final_result' in df.columns:
         target_col = 'final_result'
     else:
         target_col = df.columns[-1]
@@ -33,23 +37,23 @@ def load_oulad_data_simple():
     print(f"Target column: {target_col}")
     
     y = df[target_col].copy()
-    X = df.drop(columns=[target_col]).copy()
+    X = df.drop(columns=[target_col, 'id_student', 'label_fail_or_withdraw'] if 'label_fail_or_withdraw' in df.columns else [target_col, 'id_student']).copy()
+    
+    # Drop rows with missing target
+    valid_mask = ~y.isna()
+    X = X[valid_mask]
+    y = y[valid_mask]
+    
+    print(f"After removing missing targets: {len(y)} samples")
     
     # Encode categorical target
     if y.dtype == 'object':
         le = LabelEncoder()
         y = le.fit_transform(y)
         print(f"Target classes: {le.classes_}")
-    
-    # Convert to binary if needed
-    if len(np.unique(y)) > 2:
-        y = (y >= np.median(y)).astype(int)
-        print("Converted to binary classification")
-    elif len(np.unique(y)) == 1:
-        # Create artificial binary target for testing
-        print("Warning: Only one class found, creating artificial binary target")
-        np.random.seed(42)
-        y = np.random.binomial(1, 0.3, len(y))  # 30% positive class
+    else:
+        # Convert to binary
+        y = (y > 0.5).astype(int)
     
     print(f"Class distribution: {np.bincount(y)}")
     
@@ -64,9 +68,74 @@ def load_oulad_data_simple():
     return X.values.astype(np.float32), y.astype(np.int64)
 
 
+class SimpleTabNet(nn.Module):
+    """
+    Simplified TabNet implementation for testing.
+    """
+    
+    def __init__(self, input_dim: int, output_dim: int = 2, n_d: int = 32, n_a: int = 32,
+                 n_steps: int = 3):
+        super(SimpleTabNet, self).__init__()
+        
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.n_d = n_d
+        self.n_a = n_a
+        self.n_steps = n_steps
+        
+        # Feature transformer
+        self.initial_bn = nn.BatchNorm1d(input_dim)
+        
+        # Shared layers
+        self.shared_layers = nn.ModuleList([
+            nn.Linear(input_dim, n_d + n_a),
+            nn.ReLU()
+        ])
+        
+        # Decision steps
+        self.steps = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(input_dim, n_d),
+                nn.ReLU()
+            ) for _ in range(n_steps)
+        ])
+        
+        # Attention layers
+        self.attention_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(input_dim, input_dim),  # Output same size as input
+                nn.Sigmoid()
+            ) for _ in range(n_steps)
+        ])
+        
+        # Final mapping
+        self.final_mapping = nn.Linear(n_d, output_dim)
+        
+    def forward(self, x):
+        # Apply initial batch norm
+        x = self.initial_bn(x)
+        
+        # Process through decision steps
+        step_outputs = []
+        
+        for i in range(self.n_steps):
+            # Apply attention
+            attention = self.attention_layers[i](x)
+            masked_x = x * attention
+            
+            # Decision step
+            step_out = self.steps[i](masked_x)
+            step_outputs.append(step_out)
+        
+        # Aggregate step outputs
+        aggregated = torch.stack(step_outputs, dim=0).mean(dim=0)
+        
+        # Final output
+        output = self.final_mapping(aggregated)
+        
 def test_single_model():
     """Test a single model quickly."""
-    print("=== Testing Single TabNet Model ===")
+    print("=== Testing Single SimpleTabNet Model ===")
     
     # Load data
     X, y = load_oulad_data_simple()
@@ -89,7 +158,7 @@ def test_single_model():
     X_test_scaled = scaler.transform(X_test)
     
     # Create model
-    model = TabNet(input_dim=X_train_scaled.shape[1], n_d=32, n_a=32, n_steps=3)
+    model = SimpleTabNet(input_dim=X_train_scaled.shape[1], n_d=32, n_a=32, n_steps=3)
     print(f"Model created: {type(model).__name__}")
     
     # Quick training
@@ -110,11 +179,11 @@ def test_single_model():
         torch.LongTensor(y_test)
     )
     
-    train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
     
     # Train for few epochs
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
     
     model.train()
