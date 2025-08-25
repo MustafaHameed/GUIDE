@@ -1,0 +1,5 @@
+{
+  "base_accuracy": 0.85,
+  "model": "random_forest",
+  "n_estimators": 100
+}
