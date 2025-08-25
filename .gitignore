@@ -101,3 +101,7 @@ data/oulad/raw/*.csv
 data/oulad/raw/*.zip
 data/sam/raw/*
 *.parquet
+
+# Temporary test and results directories
+test_results_*/
+complete_results_*/
