@@ -1,0 +1,21 @@
+{
+  "name": "OULAD Early Prediction Configuration",
+  "description": "Optimized for early risk prediction (first 4 weeks)",
+  "temporal_constraints": {
+    "enabled": true,
+    "cutoff_week": 4,
+    "exclude_future_data": true
+  },
+  "feature_engineering": {
+    "vle_features": {
+      "enabled": true,
+      "temporal_windows": {
+        "early_weeks": 4,
+        "late_weeks": 0
+      }
+    }
+  },
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_early_ml.parquet"
+  }
+}

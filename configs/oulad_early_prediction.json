@@ -1,0 +1,44 @@
+{
+  "name": "OULAD Early Prediction Configuration",
+  "description": "Configuration optimized for early risk prediction using first 4 weeks of data",
+  "version": "1.0",
+  "extends": "oulad_preprocessing.json",
+  
+  "feature_engineering": {
+    "vle_features": {
+      "enabled": true,
+      "temporal_windows": {
+        "early_weeks": 4,
+        "late_weeks": 0
+      },
+      "aggregations": [
+        "total_clicks",
+        "mean_clicks", 
+        "max_clicks",
+        "days_active"
+      ],
+      "exclude_late_features": true,
+      "focus_early_engagement": true
+    },
+    
+    "assessment_features": {
+      "enabled": true,
+      "early_assessments_only": true,
+      "cutoff_week": 4,
+      "include_scores": true,
+      "include_timing": true
+    }
+  },
+  
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_early_ml.parquet",
+    "group_counts": "data/oulad/processed/early_group_counts.csv",
+    "metadata": "data/oulad/processed/early_metadata.json"
+  },
+  
+  "temporal_constraints": {
+    "enabled": true,
+    "cutoff_week": 4,
+    "exclude_future_data": true
+  }
+}

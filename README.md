@@ -74,6 +74,42 @@ Each row in the CSV describes one student with the following columns:
 - `G2`: second period grade (0–20)
 - `G3`: final grade (0–20)
 
+## OULAD Dataset Integration
+
+This repository includes comprehensive support for the **Open University Learning Analytics Dataset (OULAD)** in addition to the UCI Student Performance Dataset. See [`docs/OULAD_WORKFLOW.md`](docs/OULAD_WORKFLOW.md) for detailed instructions.
+
+### Quick Start with OULAD
+
+```bash
+# Complete OULAD pipeline
+make oulad-all
+
+# Or step by step:
+make oulad-setup      # Set up directories
+make oulad-download   # Download dataset  
+make oulad-build      # Build ML dataset
+make oulad-validate   # Validate processed data
+```
+
+### OULAD Configuration Management
+
+```bash
+# List available templates
+python src/oulad/create_config.py --list-templates
+
+# Create configurations for different use cases
+make oulad-configs
+```
+
+### Available OULAD Workflows
+
+- **Standard preprocessing**: Full feature engineering pipeline
+- **Early prediction**: First 4 weeks only for early risk assessment  
+- **Fairness analysis**: Comprehensive bias and fairness evaluation
+- **Minimal processing**: Basic features only for lightweight models
+
+See [`README_OULAD.md`](README_OULAD.md) for dataset details and [`docs/OULAD_WORKFLOW.md`](docs/OULAD_WORKFLOW.md) for complete workflow documentation.
+
 ## Key Data Insights
 
 Based on exploratory data analysis of 395 students, here are the main findings:

@@ -1,0 +1,18 @@
+{
+  "name": "OULAD Default Configuration",
+  "description": "Standard preprocessing for general ML tasks",
+  "feature_engineering": {
+    "vle_features": {
+      "enabled": true
+    },
+    "assessment_features": {
+      "enabled": true
+    }
+  },
+  "sensitive_attributes": {
+    "enabled": true
+  },
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_ml.parquet"
+  }
+}

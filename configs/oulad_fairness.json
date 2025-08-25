@@ -1,0 +1,54 @@
+{
+  "name": "OULAD Fairness Analysis Configuration", 
+  "description": "Configuration optimized for comprehensive fairness analysis",
+  "version": "1.0",
+  "extends": "oulad_preprocessing.json",
+  
+  "sensitive_attributes": {
+    "enabled": true,
+    "attributes": [
+      "sex",
+      "age_band", 
+      "highest_education",
+      "imd_band",
+      "region",
+      "disability"
+    ],
+    "intersection_features": [
+      "sex_x_age",
+      "sex_x_education", 
+      "age_x_education",
+      "sex_x_imd"
+    ],
+    "include_group_counts": true,
+    "detailed_statistics": true
+  },
+  
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_fairness_ml.parquet",
+    "group_counts": "data/oulad/processed/fairness_group_counts.csv", 
+    "intersectional_counts": "data/oulad/processed/intersectional_counts.csv",
+    "bias_report": "data/oulad/processed/bias_report.json",
+    "metadata": "data/oulad/processed/fairness_metadata.json"
+  },
+  
+  "fairness_analysis": {
+    "enabled": true,
+    "compute_parity_metrics": true,
+    "analyze_intersectionality": true,
+    "threshold_analysis": true,
+    "correlation_analysis": true
+  },
+  
+  "data_quality": {
+    "validation_enabled": true,
+    "sensitive_attr_completeness": {
+      "min_threshold": 0.8,
+      "report_missing_patterns": true
+    },
+    "representation_analysis": {
+      "min_group_size": 30,
+      "warn_small_groups": true
+    }
+  }
+}
