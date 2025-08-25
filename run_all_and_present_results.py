@@ -212,13 +212,15 @@ def get_table_description(filename):
     return descriptions.get(filename, "Data analysis results")
 
 
-def interpret_model_performance():
+def interpret_model_performance(results_dir=None):
     """Interpret model performance results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
         # Load model performance data
-        perf_path = RESULTS_DIR / "tables" / "model_performance.csv"
+        perf_path = results_dir / "tables" / "model_performance.csv"
         if perf_path.exists():
             df = pd.read_csv(perf_path)
             
@@ -243,12 +245,14 @@ def interpret_model_performance():
     return interpretations
 
 
-def interpret_statistical_tests():
+def interpret_statistical_tests(results_dir=None):
     """Interpret statistical test results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
-        stats_path = RESULTS_DIR / "tables" / "statistical_tests.csv"
+        stats_path = results_dir / "tables" / "statistical_tests.csv"
         if stats_path.exists():
             df = pd.read_csv(stats_path)
             
@@ -272,12 +276,14 @@ def interpret_statistical_tests():
     return interpretations
 
 
-def interpret_conformal_prediction():
+def interpret_conformal_prediction(results_dir=None):
     """Interpret conformal prediction results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
-        conf_path = RESULTS_DIR / "tables" / "conformal_overall_alpha_0.1.csv"
+        conf_path = results_dir / "tables" / "conformal_overall_alpha_0.1.csv"
         if conf_path.exists():
             df = pd.read_csv(conf_path)
             
@@ -304,12 +310,14 @@ def interpret_conformal_prediction():
     return interpretations
 
 
-def interpret_threshold_tuning():
+def interpret_threshold_tuning(results_dir=None):
     """Interpret threshold tuning results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
-        thresh_path = RESULTS_DIR / "tables" / "threshold_tuning.csv"
+        thresh_path = results_dir / "tables" / "threshold_tuning.csv"
         if thresh_path.exists():
             df = pd.read_csv(thresh_path)
             
@@ -332,13 +340,15 @@ def interpret_threshold_tuning():
     return interpretations
 
 
-def interpret_eda_results():
+def interpret_eda_results(results_dir=None):
     """Interpret exploratory data analysis results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
         # Grade distribution analysis
-        grade_sex_path = RESULTS_DIR / "tables" / "grade_by_sex.csv"
+        grade_sex_path = results_dir / "tables" / "grade_by_sex.csv"
         if grade_sex_path.exists():
             df = pd.read_csv(grade_sex_path)
             if len(df) > 1:
@@ -356,7 +366,7 @@ def interpret_eda_results():
                         interpretations.append("✅ **Balanced Performance**: Minimal gender-based performance differences observed")
         
         # Study time analysis
-        studytime_path = RESULTS_DIR / "tables" / "grade_by_studytime.csv"
+        studytime_path = results_dir / "tables" / "grade_by_studytime.csv"
         if studytime_path.exists():
             df = pd.read_csv(studytime_path)
             if len(df) > 1:
@@ -367,7 +377,7 @@ def interpret_eda_results():
                 interpretations.append(f"🎓 **Optimal Study Time**: Students with {highest_studytime['studytime']} hours/week achieve highest grades ({highest_studytime['mean']:.2f})")
         
         # Summary statistics insights
-        summary_path = RESULTS_DIR / "tables" / "eda_summary_statistics.csv"
+        summary_path = results_dir / "tables" / "eda_summary_statistics.csv"
         if summary_path.exists():
             df = pd.read_csv(summary_path)
             
@@ -389,12 +399,14 @@ def interpret_eda_results():
     return interpretations
 
 
-def interpret_rmse_results():
+def interpret_rmse_results(results_dir=None):
     """Interpret RMSE and regression results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
     interpretations = []
     
     try:
-        rmse_path = RESULTS_DIR / "tables" / "rmse_bootstrap_ci.csv"
+        rmse_path = results_dir / "tables" / "rmse_bootstrap_ci.csv"
         if rmse_path.exists():
             df = pd.read_csv(rmse_path)
             
@@ -421,19 +433,22 @@ def interpret_rmse_results():
     return interpretations
 
 
-def generate_comprehensive_interpretations():
+def generate_comprehensive_interpretations(results_dir=None):
     """Generate comprehensive interpretations of all results."""
+    if results_dir is None:
+        results_dir = RESULTS_DIR
+        
     print("\n" + "="*60)
     print("🧠 GENERATING COMPREHENSIVE RESULT INTERPRETATIONS")
     print("="*60)
     
     all_interpretations = {
-        "Model Performance": interpret_model_performance(),
-        "Statistical Analysis": interpret_statistical_tests(),
-        "Conformal Prediction": interpret_conformal_prediction(),
-        "Threshold Optimization": interpret_threshold_tuning(),
-        "Exploratory Data Analysis": interpret_eda_results(),
-        "Regression Analysis": interpret_rmse_results(),
+        "Model Performance": interpret_model_performance(results_dir),
+        "Statistical Analysis": interpret_statistical_tests(results_dir),
+        "Conformal Prediction": interpret_conformal_prediction(results_dir),
+        "Threshold Optimization": interpret_threshold_tuning(results_dir),
+        "Exploratory Data Analysis": interpret_eda_results(results_dir),
+        "Regression Analysis": interpret_rmse_results(results_dir),
     }
     
     # Print interpretations
@@ -525,7 +540,7 @@ def create_comprehensive_report():
     
     # Add interpretations section
     html_content += "<h2>🧠 Result Interpretations</h2>"
-    interpretations = generate_comprehensive_interpretations()
+    interpretations = generate_comprehensive_interpretations(RESULTS_DIR)
     
     for category, interpretation_list in interpretations.items():
         if interpretation_list:
