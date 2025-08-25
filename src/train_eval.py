@@ -16,7 +16,10 @@ import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
-from logging_config import setup_logging
+try:
+    from .logging_config import setup_logging
+except ImportError:
+    from logging_config import setup_logging
 
 import pandas as pd
 import numpy as np
@@ -38,7 +41,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Explainability
-from explain.importance import ExplainabilityAnalyzer
+try:
+    from .explain.importance import ExplainabilityAnalyzer
+except ImportError:
+    try:
+        from explain.importance import ExplainabilityAnalyzer
+    except ImportError:
+        ExplainabilityAnalyzer = None
 
 # Fairness imports
 from fairlearn.metrics import (

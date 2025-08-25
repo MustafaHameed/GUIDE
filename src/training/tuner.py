@@ -24,6 +24,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from splits import get_cv_splitter, encode_labels
+from enhanced_preprocessing import create_preprocessing_pipeline, create_uplift_pipeline
 from logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -88,14 +89,15 @@ def detect_feature_types(X: pd.DataFrame) -> tuple[List[str], List[str]]:
 
 
 def create_model_pipeline(model_name: str, model_config: Dict[str, Any], 
-                         preprocessor: ColumnTransformer) -> Pipeline:
+                         X: pd.DataFrame, config: Dict[str, Any]) -> Pipeline:
     """
-    Create model pipeline with preprocessing.
+    Create model pipeline with enhanced preprocessing.
     
     Args:
         model_name: Name of the model
         model_config: Model configuration
-        preprocessor: Preprocessing pipeline
+        X: Input dataframe for preprocessing setup
+        config: Full configuration dictionary
         
     Returns:
         Complete pipeline
@@ -115,10 +117,8 @@ def create_model_pipeline(model_name: str, model_config: Dict[str, Any],
     else:
         raise ValueError(f"Unknown model: {model_name}")
     
-    pipeline = Pipeline([
-        ('preprocessor', preprocessor),
-        ('model', model)
-    ])
+    # Use enhanced preprocessing pipeline
+    pipeline = create_uplift_pipeline(X, model, config)
     
     return pipeline
 

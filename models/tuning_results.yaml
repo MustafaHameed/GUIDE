@@ -1,0 +1,10 @@
+best_params: {}
+best_scores: {}
+cv_strategy: stratified_kfold
+dataset: uci
+models_tuned:
+- logistic_regression
+- random_forest
+- lightgbm
+- xgboost
+status: completed_stub
