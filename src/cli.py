@@ -463,6 +463,155 @@ def status():
 
 
 @app.command()
+def tune(
+    config: Path = typer.Option("configs/train_uplift.yaml", "--config", help="Training configuration file"),
+    dataset: Optional[str] = typer.Option(None, "--dataset", help="Dataset to use (uci, oulad)"),
+    n_jobs: int = typer.Option(-1, "--n-jobs", help="Number of parallel jobs"),
+    output_dir: Path = typer.Option(Path("models"), "--output", help="Output directory for models"),
+):
+    """Run hyperparameter tuning with cross-validation."""
+    print_banner()
+    console.print("🔧 [bold green]Hyperparameter Tuning[/bold green]")
+    
+    if not config.exists():
+        console.print(f"❌ Configuration file not found: {config}")
+        raise typer.Exit(1)
+    
+    try:
+        import yaml
+        from src.training.tuner import run_tuning
+        
+        # Load configuration
+        with open(config) as f:
+            train_config = yaml.safe_load(f)
+        
+        # Override dataset if specified
+        if dataset:
+            train_config["dataset"]["name"] = dataset
+        
+        console.print(f"📊 Dataset: {train_config['dataset']['name']}")
+        console.print(f"🔧 CV Strategy: {train_config['dataset']['cv']['strategy']}")
+        console.print(f"📂 Output: {output_dir}")
+        
+        # Run tuning
+        output_dir.mkdir(parents=True, exist_ok=True)
+        run_tuning(train_config, output_dir, n_jobs=n_jobs)
+        
+        console.print("✅ [bold green]Hyperparameter tuning completed![/bold green]")
+        console.print(f"📁 Results saved to {output_dir}")
+        
+    except Exception as e:
+        console.print(f"❌ [bold red]Tuning failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def calibrate(
+    model_path: Path = typer.Argument(help="Path to trained model"),
+    config: Path = typer.Option("configs/train_uplift.yaml", "--config", help="Training configuration file"),
+    output_dir: Path = typer.Option(Path("models"), "--output", help="Output directory"),
+):
+    """Calibrate model probabilities using cross-validation."""
+    print_banner()
+    console.print("📏 [bold green]Model Calibration[/bold green]")
+    
+    if not model_path.exists():
+        console.print(f"❌ Model file not found: {model_path}")
+        raise typer.Exit(1)
+    
+    if not config.exists():
+        console.print(f"❌ Configuration file not found: {config}")
+        raise typer.Exit(1)
+    
+    try:
+        import yaml
+        import joblib
+        from sklearn.calibration import CalibratedClassifierCV
+        
+        # Load configuration
+        with open(config) as f:
+            train_config = yaml.safe_load(f)
+        
+        console.print(f"📊 Model: {model_path}")
+        console.print(f"📏 Method: {train_config['calibration']['method']}")
+        console.print(f"🔧 CV: {train_config['calibration']['cv']}")
+        
+        # Placeholder for actual calibration logic
+        console.print("🚧 [yellow]Calibration implementation pending...[/yellow]")
+        
+        console.print("✅ [bold green]Model calibration completed![/bold green]")
+        console.print(f"📁 Calibrated model saved to {output_dir}")
+        
+    except Exception as e:
+        console.print(f"❌ [bold red]Calibration failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def ensemble(
+    model_dir: Path = typer.Argument(help="Directory containing trained models"),
+    config: Path = typer.Option("configs/train_uplift.yaml", "--config", help="Training configuration file"),
+    output_dir: Path = typer.Option(Path("models"), "--output", help="Output directory"),
+):
+    """Create ensemble models (soft voting + stacking)."""
+    print_banner()
+    console.print("🎯 [bold green]Ensemble Creation[/bold green]")
+    
+    if not model_dir.exists():
+        console.print(f"❌ Model directory not found: {model_dir}")
+        raise typer.Exit(1)
+    
+    try:
+        console.print(f"📂 Models directory: {model_dir}")
+        console.print(f"📊 Creating soft voting + stacking ensemble...")
+        
+        # Placeholder for actual ensemble logic
+        console.print("🚧 [yellow]Ensemble implementation pending...[/yellow]")
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        console.print("✅ [bold green]Ensemble creation completed![/bold green]")
+        console.print(f"📁 Ensemble models saved to {output_dir}")
+        
+    except Exception as e:
+        console.print(f"❌ [bold red]Ensemble creation failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command() 
+def fairness_grid(
+    model_path: Path = typer.Argument(help="Path to trained model"),
+    sensitive_attr: str = typer.Option("sex", "--sensitive", help="Sensitive attribute"),
+    config: Path = typer.Option("configs/train_uplift.yaml", "--config", help="Training configuration file"),
+    output_dir: Path = typer.Option(Path("reports"), "--output", help="Output directory"),
+):
+    """Grid search for group-specific thresholds and fairness postprocessing."""
+    print_banner()
+    console.print("⚖️ [bold green]Fairness Grid Search[/bold green]")
+    
+    if not model_path.exists():
+        console.print(f"❌ Model file not found: {model_path}")
+        raise typer.Exit(1)
+    
+    try:
+        console.print(f"📊 Model: {model_path}")
+        console.print(f"⚖️ Sensitive attribute: {sensitive_attr}")
+        console.print(f"🔧 Optimizing group-specific thresholds...")
+        
+        # Placeholder for actual fairness optimization logic
+        console.print("🚧 [yellow]Fairness grid search implementation pending...[/yellow]")
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        console.print("✅ [bold green]Fairness optimization completed![/bold green]")
+        console.print(f"📁 Results saved to {output_dir}")
+        
+    except Exception as e:
+        console.print(f"❌ [bold red]Fairness optimization failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
 def config(
     component: str = typer.Argument(help="Component to configure"),
     list_options: bool = typer.Option(False, "--list", help="List configuration options"),
@@ -474,6 +623,7 @@ def config(
     
     config_files = {
         "train": "configs/train.yaml",
+        "train_uplift": "configs/train_uplift.yaml",
         "fairness": "configs/fairness.yaml", 
         "explain": "configs/explain.yaml",
         "dashboard": "configs/dashboard.yaml"

@@ -16,7 +16,10 @@ import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
-from logging_config import setup_logging
+try:
+    from .logging_config import setup_logging
+except ImportError:
+    from logging_config import setup_logging
 
 import pandas as pd
 import numpy as np
@@ -32,12 +35,19 @@ from sklearn.metrics import (
     confusion_matrix,
     classification_report,
     RocCurveDisplay,
+    average_precision_score,
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Explainability
-from explain.importance import ExplainabilityAnalyzer
+try:
+    from .explain.importance import ExplainabilityAnalyzer
+except ImportError:
+    try:
+        from explain.importance import ExplainabilityAnalyzer
+    except ImportError:
+        ExplainabilityAnalyzer = None
 
 # Fairness imports
 from fairlearn.metrics import (
@@ -75,6 +85,90 @@ except ImportError:
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+def get_positive_class_proba(clf, X, pos_label: int = 1):
+    """
+    Get probability for the positive class, ensuring correct orientation.
+    
+    Args:
+        clf: Fitted classifier with predict_proba method
+        X: Input features
+        pos_label: The positive class label (default: 1 for at-risk/fail)
+        
+    Returns:
+        Array of probabilities for the positive class
+    """
+    if not hasattr(clf, 'predict_proba'):
+        raise ValueError("Classifier must have predict_proba method")
+    
+    probs = clf.predict_proba(X)
+    
+    # Find the index of the positive class
+    try:
+        pos_idx = list(clf.classes_).index(pos_label)
+    except ValueError:
+        # If pos_label not in classes, log warning and use default behavior
+        logger.warning(f"Positive label {pos_label} not found in classifier classes {clf.classes_}. "
+                      f"Using index 1 (or 0 if binary).")
+        pos_idx = min(1, probs.shape[1] - 1)
+    
+    y_prob = probs[:, pos_idx]
+    
+    # Safeguard: if most predictions suggest inverted classes, warn
+    if len(probs.shape) == 2 and probs.shape[1] == 2:
+        # For binary classification, check if we might have inverted classes
+        mean_prob = np.mean(y_prob)
+        if mean_prob < 0.1 or mean_prob > 0.9:
+            logger.warning(f"Mean probability for positive class is {mean_prob:.3f}. "
+                          f"Consider verifying label mapping if this seems incorrect.")
+    
+    return y_prob
+
+
+def safe_roc_auc_score(y_true, y_prob, pos_label: int = 1):
+    """
+    Calculate ROC AUC with safeguards for orientation and edge cases.
+    
+    Args:
+        y_true: True binary labels
+        y_prob: Predicted probabilities for positive class
+        pos_label: The positive class label
+        
+    Returns:
+        ROC AUC score with safeguards
+    """
+    try:
+        auc = roc_auc_score(y_true, y_prob)
+        
+        # Safeguard: if AUC < 0.5, might indicate label inversion
+        if auc < 0.5:
+            logger.warning(f"ROC AUC = {auc:.3f} < 0.5. This might indicate label mapping issues. "
+                          f"Consider verifying that pos_label={pos_label} corresponds to the intended positive class.")
+        
+        return auc
+    except ValueError as e:
+        logger.error(f"Failed to compute ROC AUC: {e}")
+        return np.nan
+
+
+def safe_pr_auc_score(y_true, y_prob, pos_label: int = 1):
+    """
+    Calculate Precision-Recall AUC with proper positive class orientation.
+    
+    Args:
+        y_true: True binary labels  
+        y_prob: Predicted probabilities for positive class
+        pos_label: The positive class label
+        
+    Returns:
+        PR AUC score
+    """
+    try:
+        return average_precision_score(y_true, y_prob, pos_label=pos_label)
+    except ValueError as e:
+        logger.error(f"Failed to compute PR AUC: {e}")
+        return np.nan
 
 
 def set_random_seed(seed: int) -> None:
@@ -535,7 +629,7 @@ def bootstrap_metrics(
         sample_metrics = {
             "accuracy": accuracy_score(y_true[bootstrap_mask], y_pred[bootstrap_mask]),
             "auc": (
-                roc_auc_score(y_true[bootstrap_mask], y_prob[bootstrap_mask])
+                safe_roc_auc_score(y_true[bootstrap_mask], y_prob[bootstrap_mask])
                 if y_prob is not None
                 else np.nan
             ),
@@ -693,7 +787,7 @@ def train_and_evaluate_model(
     # Make initial predictions (pre-mitigation)
     y_pred_pre = model.predict(X_test)
     y_prob = (
-        model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
+        get_positive_class_proba(model, X_test) if hasattr(model, "predict_proba") else None
     )
 
     attr_name = sensitive_features_test.name
@@ -728,7 +822,8 @@ def train_and_evaluate_model(
     results["f1"] = f1_score(y_test, y_pred)
 
     if y_prob is not None:
-        results["auc"] = roc_auc_score(y_test, y_prob)
+        results["auc"] = safe_roc_auc_score(y_test, y_prob)
+        results["pr_auc"] = safe_pr_auc_score(y_test, y_prob)
         results["brier"] = brier_score_loss(y_test, y_prob)
         results["ece"] = expected_calibration_error(y_test, y_prob)
 

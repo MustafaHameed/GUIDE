@@ -1,0 +1,99 @@
+artifacts:
+  figures_dir: figures
+  models_dir: models
+  reports_dir: reports
+  tables_dir: tables
+calibration:
+  cv: 5
+  method: isotonic
+dataset:
+  cv:
+    group_key: module_presentation
+    n_splits: 5
+    random_state: 42
+    shuffle: true
+    strategy: stratified_kfold
+  name: uci
+  pos_label: 1
+hyperparameter_search:
+  cv: 5
+  method: randomized
+  n_iter: 50
+  n_jobs: -1
+  scoring: roc_auc
+models:
+  lightgbm:
+    class_weight: balanced
+    grid:
+      learning_rate:
+      - 0.01
+      - 0.1
+      - 0.2
+      max_depth:
+      - -1
+      - 8
+      - 12
+      n_estimators:
+      - 100
+      - 300
+      - 500
+      num_leaves:
+      - 31
+      - 63
+      - 127
+  logistic_regression:
+    class_weight: balanced
+    grid:
+      C:
+      - 0.1
+      - 0.5
+      - 1
+      - 2
+      - 5
+      penalty:
+      - l2
+      solver:
+      - lbfgs
+      - liblinear
+  random_forest:
+    class_weight: balanced
+    grid:
+      max_depth:
+      - null
+      - 8
+      - 12
+      - 16
+      min_samples_leaf:
+      - 1
+      - 2
+      - 5
+      min_samples_split:
+      - 2
+      - 5
+      - 10
+      n_estimators:
+      - 500
+      - 800
+  xgboost:
+    grid:
+      learning_rate:
+      - 0.01
+      - 0.1
+      - 0.2
+      max_depth:
+      - 3
+      - 6
+      - 9
+      n_estimators:
+      - 100
+      - 300
+      - 500
+      subsample:
+      - 0.8
+      - 1.0
+    scale_pos_weight: auto
+preprocessing:
+  categorical_features: auto
+  numeric_features: auto
+  ordinal_features: []
+random_state: 42

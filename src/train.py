@@ -32,6 +32,54 @@ except ImportError:  # pragma: no cover - fallback for direct execution
     from utils import ensure_dir
 
 
+def get_positive_class_proba(clf, X, pos_label: int = 1, sensitive_features=None):
+    """
+    Get probability for the positive class, ensuring correct orientation.
+    
+    Args:
+        clf: Fitted classifier with predict_proba method
+        X: Input features
+        pos_label: The positive class label (default: 1 for at-risk/fail)
+        sensitive_features: For fairness mitigators that need sensitive features
+        
+    Returns:
+        Array of probabilities for the positive class
+    """
+    if not hasattr(clf, 'predict_proba'):
+        raise ValueError("Classifier must have predict_proba method")
+    
+    # Handle fairness mitigators that need sensitive_features
+    if sensitive_features is not None:
+        try:
+            probs = clf.predict_proba(X, sensitive_features=sensitive_features)
+        except TypeError:
+            # Fallback if classifier doesn't need sensitive_features
+            probs = clf.predict_proba(X)
+    else:
+        probs = clf.predict_proba(X)
+    
+    # Find the index of the positive class
+    try:
+        pos_idx = list(clf.classes_).index(pos_label)
+    except ValueError:
+        # If pos_label not in classes, log warning and use default behavior
+        logging.warning(f"Positive label {pos_label} not found in classifier classes {clf.classes_}. "
+                       f"Using index 1 (or 0 if binary).")
+        pos_idx = min(1, probs.shape[1] - 1)
+    
+    y_prob = probs[:, pos_idx]
+    
+    # Safeguard: if most predictions suggest inverted classes, warn
+    if len(probs.shape) == 2 and probs.shape[1] == 2:
+        # For binary classification, check if we might have inverted classes
+        mean_prob = np.mean(y_prob)
+        if mean_prob < 0.1 or mean_prob > 0.9:
+            logging.warning(f"Mean probability for positive class is {mean_prob:.3f}. "
+                           f"Consider verifying label mapping if this seems incorrect.")
+    
+    return y_prob
+
+
 def _configure_warnings() -> None:
     """Suppress common warnings for cleaner output."""
     warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
@@ -544,7 +592,7 @@ def main(
     # Predictions before mitigation
     pre_y_pred = model.predict(X_test)
     pre_y_prob = (
-        model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
+        get_positive_class_proba(model, X_test) if hasattr(model, "predict_proba") else None
     )
     pre_fairness: dict[str, pd.DataFrame] = {}
     if group_cols:
@@ -567,7 +615,7 @@ def main(
             y_pred = mitigator.predict(X_test, sensitive_features=sens_test)
 
             y_prob = (
-                mitigator.predict_proba(X_test, sensitive_features=sens_test)[:, 1]
+                get_positive_class_proba(mitigator, X_test, sensitive_features=sens_test)
                 if hasattr(mitigator, "predict_proba")
                 else None
             )
@@ -585,7 +633,7 @@ def main(
             )
             y_pred = model.predict(X_test)
             y_prob = (
-                model.predict_proba(X_test)[:, 1]
+                get_positive_class_proba(model, X_test)
                 if hasattr(model, "predict_proba")
                 else None
             )
@@ -749,11 +797,11 @@ def main(
         # Conformal prediction to generate prediction sets
         alpha = 0.1
         if mitigation in ["demographic_parity", "equalized_odds"] and group_cols:
-            y_prob_val = model.predict_proba(
-                X_val, sensitive_features=X_val[group_cols[0]]
-            )[:, 1]
+            y_prob_val = get_positive_class_proba(
+                model, X_val, sensitive_features=X_val[group_cols[0]]
+            )
         else:
-            y_prob_val = model.predict_proba(X_val)[:, 1]
+            y_prob_val = get_positive_class_proba(model, X_val)
         groups_test = X_test[group_cols[0]].values if group_cols else None
         conformal = run_conformal_prediction(
             y_val.values,

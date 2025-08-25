@@ -1,0 +1,11 @@
+{
+  "dataset": {
+    "name": "uci",
+    "pos_label": 1
+  },
+  "models": {
+    "logistic_regression": {
+      "C": 1.0
+    }
+  }
+}
