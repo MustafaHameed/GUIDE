@@ -1,0 +1,21 @@
+{
+  "name": "OULAD Fairness Analysis Configuration",
+  "description": "Comprehensive fairness and bias analysis",
+  "sensitive_attributes": {
+    "enabled": true,
+    "detailed_statistics": true,
+    "intersection_features": [
+      "sex_x_age",
+      "sex_x_education"
+    ]
+  },
+  "fairness_analysis": {
+    "enabled": true,
+    "compute_parity_metrics": true,
+    "analyze_intersectionality": true
+  },
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_fairness_ml.parquet",
+    "bias_report": "data/oulad/processed/bias_report.json"
+  }
+}

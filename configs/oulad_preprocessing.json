@@ -1,0 +1,105 @@
+{
+  "name": "OULAD Preprocessing Configuration",
+  "description": "Comprehensive preprocessing configuration for OULAD dataset",
+  "version": "1.0",
+  
+  "input": {
+    "raw_dir": "data/oulad/raw",
+    "required_tables": [
+      "studentInfo.csv",
+      "studentVle.csv", 
+      "vle.csv",
+      "studentRegistration.csv",
+      "studentAssessment.csv",
+      "assessments.csv"
+    ]
+  },
+  
+  "output": {
+    "main_dataset": "data/oulad/processed/oulad_ml.parquet",
+    "group_counts": "data/oulad/processed/group_counts.csv",
+    "metadata": "data/oulad/processed/metadata.json",
+    "include_graph": false,
+    "graph_output": "data/oulad/processed/oulad_graph.pt"
+  },
+  
+  "feature_engineering": {
+    "vle_features": {
+      "enabled": true,
+      "temporal_windows": {
+        "early_weeks": 4,
+        "late_weeks": 4
+      },
+      "aggregations": [
+        "total_clicks",
+        "mean_clicks", 
+        "max_clicks",
+        "days_active",
+        "cumulative_clicks"
+      ],
+      "include_temporal_patterns": true
+    },
+    
+    "assessment_features": {
+      "enabled": true,
+      "include_scores": true,
+      "include_timing": true,
+      "score_aggregations": ["mean", "last"],
+      "timing_features": ["ontime_rate"]
+    }
+  },
+  
+  "labels": {
+    "primary_label": "label_pass",
+    "alternative_labels": ["label_fail_or_withdraw"],
+    "label_mapping": {
+      "Pass": 1,
+      "Fail": 0,
+      "Withdrawn": 0,
+      "Distinction": 1
+    }
+  },
+  
+  "sensitive_attributes": {
+    "enabled": true,
+    "attributes": [
+      "sex",
+      "age_band", 
+      "highest_education",
+      "imd_band"
+    ],
+    "intersection_features": [
+      "sex_x_age"
+    ],
+    "include_group_counts": true
+  },
+  
+  "data_quality": {
+    "validation_enabled": true,
+    "required_columns": [
+      "id_student",
+      "code_module", 
+      "code_presentation",
+      "label_pass"
+    ],
+    "missing_data": {
+      "strategy": "preserve",
+      "drop_threshold": 1.0,
+      "key_columns_no_missing": [
+        "id_student",
+        "label_pass"
+      ]
+    },
+    "outlier_detection": {
+      "enabled": false,
+      "method": "iqr",
+      "threshold": 3.0
+    }
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "include_progress": true,
+    "log_file": "data/oulad/logs/preprocessing.log"
+  }
+}

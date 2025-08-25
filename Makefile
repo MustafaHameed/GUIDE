@@ -19,6 +19,10 @@ ARTIFACT_VERSION_DIR = $(ARTIFACTS_DIR)/$(TIMESTAMP)
 .PHONY: all
 all: setup data eda train fairness explain dashboard paper-assets
 
+# OULAD-specific targets
+.PHONY: oulad-setup oulad-download oulad-build oulad-validate oulad-all
+oulad-all: oulad-setup oulad-download oulad-build oulad-validate
+
 # Setup and environment
 .PHONY: setup
 setup:
@@ -131,6 +135,94 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 
+# OULAD Dataset Pipeline
+.PHONY: oulad-setup
+oulad-setup:
+	@echo "Setting up OULAD pipeline..."
+	mkdir -p data/oulad/{raw,processed,configs,reports,logs}
+	mkdir -p $(FIGURES_DIR)/oulad $(TABLES_DIR)/oulad $(REPORTS_DIR)/oulad
+
+.PHONY: oulad-download  
+oulad-download: oulad-setup
+	@echo "Downloading OULAD dataset..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) scripts/oulad_download.py
+
+.PHONY: oulad-build
+oulad-build: oulad-download
+	@echo "Building OULAD ML dataset..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/build_dataset.py \
+		--raw-dir data/oulad/raw \
+		--output data/oulad/processed/oulad_ml.parquet
+
+.PHONY: oulad-build-early
+oulad-build-early: oulad-download
+	@echo "Building OULAD early prediction dataset..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py \
+		--template early_prediction \
+		--output data/oulad/configs/early_config.json
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/build_dataset.py \
+		--raw-dir data/oulad/raw \
+		--output data/oulad/processed/oulad_early_ml.parquet
+
+.PHONY: oulad-build-fairness
+oulad-build-fairness: oulad-download
+	@echo "Building OULAD fairness analysis dataset..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py \
+		--template fairness \
+		--output data/oulad/configs/fairness_config.json
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/build_dataset.py \
+		--raw-dir data/oulad/raw \
+		--output data/oulad/processed/oulad_fairness_ml.parquet
+
+.PHONY: oulad-validate
+oulad-validate: oulad-build
+	@echo "Validating OULAD dataset..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/validate_dataset.py \
+		--input data/oulad/processed/oulad_ml.parquet \
+		--report data/oulad/reports/validation_report.json
+
+.PHONY: oulad-configs
+oulad-configs: oulad-setup
+	@echo "Creating OULAD configuration templates..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py --list-templates
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py \
+		--template default --output data/oulad/configs/default.json
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py \
+		--template early_prediction --output data/oulad/configs/early_prediction.json
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/oulad/create_config.py \
+		--template fairness --output data/oulad/configs/fairness.json
+
+.PHONY: oulad-eda
+oulad-eda: oulad-build
+	@echo "Running OULAD exploratory data analysis..."
+	mkdir -p $(FIGURES_DIR)/oulad $(TABLES_DIR)/oulad
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -c "import src.oulad.eda; print('OULAD EDA not yet implemented - placeholder')"
+
+.PHONY: oulad-train
+oulad-train: oulad-build
+	@echo "Training models on OULAD data..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/train.py \
+		--data data/oulad/processed/oulad_ml.parquet \
+		--model_type logistic
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/train.py \
+		--data data/oulad/processed/oulad_ml.parquet \
+		--model_type random_forest
+
+.PHONY: oulad-fairness
+oulad-fairness: oulad-build-fairness
+	@echo "Running OULAD fairness analysis..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) src/train_eval.py \
+		--dataset data/oulad/processed/oulad_fairness_ml.parquet \
+		--sensitive-attr sex \
+		--reports-dir $(REPORTS_DIR)/oulad \
+		--postprocess equalized_odds
+
+.PHONY: oulad-clean
+oulad-clean:
+	@echo "Cleaning OULAD generated files..."
+	rm -rf data/oulad/processed/* data/oulad/reports/* data/oulad/logs/*
+	@echo "Raw data and configs preserved"
+
 # Clean all outputs (use with caution)
 .PHONY: clean-all
 clean-all: clean
@@ -165,6 +257,22 @@ help:
 	@echo "  explain      - Run explainability analysis"
 	@echo "  dashboard    - Prepare dashboard (then run streamlit manually)"
 	@echo "  paper-assets - Generate all publication-ready artifacts"
+	@echo ""
+	@echo "OULAD Dataset Pipeline:"
+	@echo "  oulad-all           - Run complete OULAD pipeline"
+	@echo "  oulad-setup         - Set up OULAD directories"
+	@echo "  oulad-download      - Download OULAD dataset"
+	@echo "  oulad-build         - Build main OULAD ML dataset"
+	@echo "  oulad-build-early   - Build early prediction dataset"
+	@echo "  oulad-build-fairness - Build fairness analysis dataset"
+	@echo "  oulad-validate      - Validate processed OULAD data"
+	@echo "  oulad-configs       - Create configuration templates"
+	@echo "  oulad-eda           - Run OULAD-specific EDA"
+	@echo "  oulad-train         - Train models on OULAD data"
+	@echo "  oulad-fairness      - Run OULAD fairness analysis"
+	@echo "  oulad-clean         - Clean OULAD generated files"
+	@echo ""
+	@echo "General targets:"
 	@echo "  test         - Run test suite"
 	@echo "  lint         - Check code quality"
 	@echo "  format       - Format code with black and isort"
