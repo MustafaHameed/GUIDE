@@ -11,9 +11,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import logging
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from scipy.stats import chi2_contingency, contingency
+from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
+from sklearn.preprocessing import LabelEncoder
 
 try:
     from .utils import ensure_dir
@@ -22,9 +26,15 @@ except ImportError:  # pragma: no cover - fallback for direct execution
 
 logger = logging.getLogger(__name__)
 
+# Publication-quality styling
 sns.set_theme(context="paper", style="whitegrid", font_scale=1.2)
 plt.rcParams["figure.dpi"] = 300
 plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["figure.figsize"] = (10, 6)
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["axes.linewidth"] = 0.8
+plt.rcParams["axes.spines.top"] = False
+plt.rcParams["axes.spines.right"] = False
 
 
 def _save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
@@ -40,15 +50,83 @@ def _save_figure(ax: plt.Axes, name: str, directory: Path) -> None:
     ensure_dir(directory)
     fig = ax.get_figure()
     fig.tight_layout()
-    fig.savefig(directory / name)
+    fig.savefig(directory / name, dpi=300, bbox_inches='tight')
     logger.info("Saved figure: %s", directory / name)
     plt.close(fig)
+
+
+def _cramers_v(x: pd.Series, y: pd.Series) -> float:
+    """Calculate Cramér's V statistic for association between categorical variables."""
+    confusion_matrix = pd.crosstab(x, y)
+    chi2, _, _, _ = chi2_contingency(confusion_matrix)
+    n = confusion_matrix.sum().sum()
+    phi2 = chi2 / n
+    r, k = confusion_matrix.shape
+    phi2corr = max(0, phi2 - ((k-1)*(r-1))/(n-1))
+    rcorr = r - ((r-1)**2)/(n-1)
+    kcorr = k - ((k-1)**2)/(n-1)
+    return np.sqrt(phi2corr / min((kcorr-1), (rcorr-1)))
+
+
+def _analyze_categorical_associations(df: pd.DataFrame, cat_cols: list, target_col: str = "G3") -> pd.DataFrame:
+    """Analyze associations between categorical variables and target."""
+    results = []
+    
+    # Encode categorical variables for mutual information
+    df_encoded = df.copy()
+    encoders = {}
+    for col in cat_cols:
+        le = LabelEncoder()
+        df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
+        encoders[col] = le
+    
+    # Calculate mutual information with target
+    if target_col in df.select_dtypes(include=['number']).columns:
+        # Regression case
+        mi_scores = mutual_info_regression(df_encoded[cat_cols], df_encoded[target_col], random_state=42)
+    else:
+        # Classification case
+        mi_scores = mutual_info_classif(df_encoded[cat_cols], df_encoded[target_col], random_state=42)
+    
+    for i, col in enumerate(cat_cols):
+        # Chi-square test
+        contingency_table = pd.crosstab(df[col], pd.cut(df[target_col], bins=3, labels=['Low', 'Med', 'High']))
+        chi2, p_value, _, _ = chi2_contingency(contingency_table)
+        
+        # Cramér's V
+        cramers_v = _cramers_v(df[col], pd.cut(df[target_col], bins=3, labels=['Low', 'Med', 'High']))
+        
+        results.append({
+            'variable': col,
+            'mutual_info': mi_scores[i],
+            'chi2_stat': chi2,
+            'chi2_pvalue': p_value,
+            'cramers_v': cramers_v,
+            'unique_values': df[col].nunique()
+        })
+    
+    return pd.DataFrame(results).sort_values('mutual_info', ascending=False)
+
+
+def _create_categorical_correlation_matrix(df: pd.DataFrame, cat_cols: list) -> pd.DataFrame:
+    """Create correlation matrix for categorical variables using Cramér's V."""
+    n_vars = len(cat_cols)
+    corr_matrix = np.ones((n_vars, n_vars))
+    
+    for i in range(n_vars):
+        for j in range(i+1, n_vars):
+            cramers_v = _cramers_v(df[cat_cols[i]], df[cat_cols[j]])
+            corr_matrix[i, j] = cramers_v
+            corr_matrix[j, i] = cramers_v
+    
+    return pd.DataFrame(corr_matrix, index=cat_cols, columns=cat_cols)
 
 
 def run_eda(
     df: pd.DataFrame,
     fig_dir: str | Path = "figures",
     table_dir: str | Path = "tables",
+    report_dir: str | Path = "reports",
 ) -> None:
     """Generate exploratory data analysis artifacts.
 
@@ -56,9 +134,9 @@ def run_eda(
     ----------
     df:
         The full dataset including the ``G3`` final grade column.
-    fig_dir, table_dir:
-        Output directories for the generated figures and tables.  Directories
-        are created if they do not already exist.
+    fig_dir, table_dir, report_dir:
+        Output directories for the generated figures, tables, and reports.
+        Directories are created if they do not already exist.
     """
 
     logger.debug(df.columns)
@@ -66,108 +144,279 @@ def run_eda(
 
     fig_dir = Path(fig_dir)
     table_dir = Path(table_dir)
+    report_dir = Path(report_dir)
+
+    # Separate categorical and numerical columns
+    cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+    num_cols = df.select_dtypes(include=['number']).columns.tolist()
+    
+    logger.info(f"Found {len(cat_cols)} categorical and {len(num_cols)} numerical variables")
 
     # Summary statistics and additional tables
     summary = df.describe(include="all")
     logger.debug("Summary statistics:\n%s", summary)
-    _save_table(summary, "summary.csv", table_dir)
+    _save_table(summary, "eda_summary_statistics.csv", table_dir)
 
     group_tables = {
-        "grade_by_sex.csv": df.groupby("sex")["G3"].agg(["count", "mean"]),
-        "grade_by_studytime.csv": df.groupby("studytime")["G3"].agg(["count", "mean"]),
+        "eda_grade_by_sex.csv": df.groupby("sex")["G3"].agg(["count", "mean", "std"]),
+        "eda_grade_by_studytime.csv": df.groupby("studytime")["G3"].agg(["count", "mean", "std"]),
+        "eda_grade_by_school.csv": df.groupby("school")["G3"].agg(["count", "mean", "std"]),
     }
 
+    # Numerical correlations
     numeric_df = df.select_dtypes(include="number")
-    corr = numeric_df.corr()
-    group_tables["correlation_matrix.csv"] = corr
+    numeric_corr = numeric_df.corr()
+    group_tables["eda_numeric_correlation_matrix.csv"] = numeric_corr
+    
+    # Categorical variable analysis
+    if cat_cols:
+        cat_associations = _analyze_categorical_associations(df, cat_cols, "G3")
+        group_tables["eda_categorical_feature_importance.csv"] = cat_associations
+        
+        # Categorical correlation matrix using Cramér's V
+        cat_corr = _create_categorical_correlation_matrix(df, cat_cols)
+        group_tables["eda_categorical_correlation_matrix.csv"] = cat_corr
 
     for name, table in group_tables.items():
         _save_table(table, name, table_dir)
 
-    # Plots
+    # =============================================================================
+    # VISUALIZATIONS
+    # =============================================================================
+    
+    # Target variable distribution
     try:
-        ax = sns.histplot(df["G3"], bins=20, kde=True)
-        ax.set(xlabel="Final Grade (G3)", ylabel="Count")
-        _save_figure(ax, "g3_distribution.png", fig_dir)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax = sns.histplot(df["G3"], bins=20, kde=True, ax=ax)
+        ax.axvline(df["G3"].mean(), color="red", linestyle="--", label=f"Mean: {df['G3'].mean():.1f}")
+        ax.axvline(10, color="orange", linestyle="--", label="Pass threshold (10)")
+        ax.set(xlabel="Final Grade (G3)", ylabel="Count", title="Distribution of Final Grades")
+        ax.legend()
+        _save_figure(ax, "eda_target_distribution.png", fig_dir)
     except Exception as e:
-        logger.error("Failed to create g3_distribution.png: %s", e)
+        logger.error("Failed to create eda_target_distribution.png: %s", e)
 
-    ax = sns.boxplot(data=df, x="sex", y="G3")
-    ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
-    _save_figure(ax, "g3_by_sex.png", fig_dir)
+    # Grade distributions comparison
+    for grade in ["G1", "G2", "G3"]:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax = sns.histplot(df[grade], bins=20, kde=True, ax=ax)
+        ax.axvline(10, color="k", linestyle="--", alpha=0.7, label="Pass threshold")
+        ax.axvline(df[grade].mean(), color="red", linestyle="--", alpha=0.7, 
+                  label=f"Mean: {df[grade].mean():.1f}")
+        ax.set(xlabel=f"{grade} Score", ylabel="Count", 
+               title=f"Distribution of {grade} Scores")
+        ax.legend()
+        _save_figure(ax, f"eda_grade_distribution_{grade.lower()}.png", fig_dir)
 
-    ax = sns.regplot(data=df, x="studytime", y="G3", scatter_kws={"s": 20})
-    ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
-    _save_figure(ax, "studytime_vs_g3.png", fig_dir)
+    # All grades distribution comparison
+    grades_long = df[["G1", "G2", "G3"]].melt(var_name="grade", value_name="score")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax = sns.histplot(data=grades_long, x="score", hue="grade", bins=20, 
+                     element="step", stat="density", common_norm=False, alpha=0.7, ax=ax)
+    ax.axvline(10, color="k", linestyle="--", alpha=0.5, label="Pass threshold")
+    ax.set(xlabel="Grade Score", ylabel="Density", 
+           title="Distribution Comparison of All Grade Periods")
+    ax.legend()
+    _save_figure(ax, "eda_all_grades_distribution.png", fig_dir)
 
-    # Distribution of all grade columns
-    grades_long = df[["G1", "G2", "G3"]].melt(
-        var_name="grade", value_name="score"
-    )
-    ax = sns.histplot(
-        data=grades_long,
-        x="score",
-        hue="grade",
-        bins=20,
-        element="step",
-        stat="density",
-        common_norm=False,
-    )
-    ax.set(xlabel="Grade", ylabel="Density")
-    _save_figure(ax, "grades_distribution.png", fig_dir)
+    # Correlation heatmaps
+    fig, ax = plt.subplots(figsize=(12, 10))
+    mask = np.triu(np.ones_like(numeric_corr, dtype=bool))
+    ax = sns.heatmap(numeric_corr, mask=mask, cmap="RdBu_r", center=0, square=True, 
+                     annot=True, fmt='.2f', cbar_kws={"shrink": 0.8}, ax=ax)
+    ax.set_title("Numerical Variables Correlation Matrix")
+    _save_figure(ax, "eda_numeric_correlation_heatmap.png", fig_dir)
 
-    ax = sns.regplot(data=df, x="absences", y="G3", scatter_kws={"s": 20})
-    ax.set(xlabel="Number of Absences", ylabel="Final Grade (G3)")
-    _save_figure(ax, "absences_vs_g3.png", fig_dir)
+    if cat_cols:
+        fig, ax = plt.subplots(figsize=(14, 12))
+        mask = np.triu(np.ones_like(cat_corr, dtype=bool))
+        ax = sns.heatmap(cat_corr, mask=mask, cmap="Blues", vmin=0, vmax=1, square=True,
+                         annot=True, fmt='.2f', cbar_kws={"shrink": 0.8}, ax=ax)
+        ax.set_title("Categorical Variables Association Matrix (Cramér's V)")
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        _save_figure(ax, "eda_categorical_correlation_heatmap.png", fig_dir)
 
-    plt.figure(figsize=(10, 8))
-    ax = sns.heatmap(corr, cmap="vlag", center=0, square=True, cbar_kws={"shrink": 0.5})
-    _save_figure(ax, "correlation_heatmap.png", fig_dir)
+    # Feature importance plot for categorical variables
+    if cat_cols:
+        fig, ax = plt.subplots(figsize=(10, 8))
+        top_features = cat_associations.head(10)
+        ax = sns.barplot(data=top_features, y="variable", x="mutual_info", 
+                         hue="variable", palette="viridis", legend=False, ax=ax)
+        ax.set(xlabel="Mutual Information Score", ylabel="Categorical Variables",
+               title="Feature Importance: Categorical Variables vs Final Grade")
+        _save_figure(ax, "eda_categorical_feature_importance.png", fig_dir)
 
-    g = sns.pairplot(
-        df[["G1", "G2", "G3"]],
-        kind="reg",
-        diag_kind="kde",
-        plot_kws={"scatter_kws": {"s": 20}},
-    )
+    # Categorical variable visualizations
+    outcome_df = df.assign(outcome=lambda d: d["G3"].ge(10).map({True: "Pass", False: "Fail"}))
+    
+    # Key categorical variables vs outcome
+    key_cat_vars = ["sex", "school", "higher", "internet", "romantic", "activities"]
+    available_vars = [var for var in key_cat_vars if var in cat_cols]
+    
+    for var in available_vars:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Box plot
+        sns.boxplot(data=df, x=var, y="G3", ax=ax1)
+        ax1.axhline(10, color="red", linestyle="--", alpha=0.7, label="Pass threshold")
+        ax1.set_title(f"Grade Distribution by {var.title()}")
+        ax1.set_ylabel("Final Grade (G3)")
+        ax1.legend()
+        
+        # Count plot with outcome
+        sns.countplot(data=outcome_df, x=var, hue="outcome", ax=ax2)
+        ax2.set_title(f"Pass/Fail Count by {var.title()}")
+        ax2.set_ylabel("Count")
+        
+        plt.tight_layout()
+        _save_figure(ax1, f"eda_grade_by_{var}_analysis.png", fig_dir)
+
+    # Numeric relationships
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax = sns.regplot(data=df, x="G1", y="G3", scatter_kws={"s": 30, "alpha": 0.6}, ax=ax)
+    ax.set(xlabel="First Period Grade (G1)", ylabel="Final Grade (G3)",
+           title="Relationship between First Period and Final Grades")
+    _save_figure(ax, "eda_g1_vs_g3_relationship.png", fig_dir)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax = sns.regplot(data=df, x="studytime", y="G3", lowess=True, 
+                     scatter_kws={"s": 30, "alpha": 0.6}, ax=ax)
+    ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)",
+           title="Relationship between Study Time and Final Grades")
+    _save_figure(ax, "eda_studytime_vs_g3_relationship.png", fig_dir)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax = sns.regplot(data=df, x="absences", y="G3", scatter_kws={"s": 30, "alpha": 0.6}, ax=ax)
+    ax.set(xlabel="Number of Absences", ylabel="Final Grade (G3)",
+           title="Relationship between Absences and Final Grades")
+    _save_figure(ax, "eda_absences_vs_g3_relationship.png", fig_dir)
+
+    # Pairplot for key numerical variables
+    key_num_vars = ["G1", "G2", "G3", "studytime", "absences", "age"]
+    available_num_vars = [var for var in key_num_vars if var in num_cols]
+    
+    g = sns.pairplot(df[available_num_vars], kind="reg", diag_kind="kde", 
+                     plot_kws={"scatter_kws": {"s": 20, "alpha": 0.6}})
+    g.fig.suptitle("Pairwise Relationships: Key Numerical Variables", y=1.02)
     g.fig.tight_layout()
-    g.fig.savefig(fig_dir / "grades_pairplot.png")
+    g.fig.savefig(fig_dir / "eda_numeric_pairplot.png", dpi=300, bbox_inches='tight')
     plt.close(g.fig)
 
-    # Figures for the paper's main exploratory analysis
-    for grade in ["G1", "G2", "G3"]:
-        ax = sns.histplot(df[grade], bins=20, kde=True)
-        ax.axvline(10, color="k", linestyle="--")
-        ax.set(xlabel=f"{grade} Score", ylabel="Count")
-        _save_figure(ax, f"eda_hist_{grade.lower()}.png", fig_dir)
+    # Generate narrative summary
+    _generate_narrative_summary(df, cat_associations if cat_cols else None, 
+                               numeric_corr, report_dir)
 
-    corr_subset = df[["G1", "G2", "G3", "absences", "failures", "studytime"]].corr()
-    plt.figure(figsize=(10, 8))
-    ax = sns.heatmap(corr_subset, cmap="vlag", center=0, square=True, cbar_kws={"shrink": 0.5})
-    _save_figure(ax, "eda_corr_heatmap.png", fig_dir)
 
-    ax = sns.boxplot(data=df, x="sex", y="G3")
-    ax.set(xlabel="Sex", ylabel="Final Grade (G3)")
-    _save_figure(ax, "eda_g3_by_sex_box.png", fig_dir)
+def _generate_narrative_summary(df: pd.DataFrame, cat_associations: pd.DataFrame, 
+                               numeric_corr: pd.DataFrame, report_dir: Path) -> None:
+    """Generate a narrative summary of key EDA findings."""
+    ensure_dir(report_dir)
+    
+    # Calculate basic statistics
+    total_students = len(df)
+    pass_rate = (df["G3"] >= 10).mean() * 100
+    avg_grade = df["G3"].mean()
+    grade_std = df["G3"].std()
+    
+    # Find strongest correlations
+    numeric_corr_abs = numeric_corr.abs()
+    # Remove diagonal and upper triangle for unique pairs
+    mask = np.triu(np.ones_like(numeric_corr_abs, dtype=bool))
+    numeric_corr_abs = numeric_corr_abs.where(~mask)
+    strongest_corr = numeric_corr_abs.unstack().dropna().sort_values(ascending=False).head(5)
+    
+    # Find most important categorical variables
+    if cat_associations is not None:
+        top_cat_features = cat_associations.head(3)
+    
+    # Generate markdown report
+    report = f"""# Exploratory Data Analysis Report: Student Performance Dataset
 
-    ax = sns.boxplot(data=df, x="school", y="G3")
-    ax.set(xlabel="School", ylabel="Final Grade (G3)")
-    _save_figure(ax, "eda_g3_by_school_box.png", fig_dir)
+## Executive Summary
 
-    outcome_df = df.assign(outcome=lambda d: d["G3"].ge(10).map({True: "pass", False: "fail"}))
-    ax = sns.boxplot(data=outcome_df, x="outcome", y="absences")
-    ax.set(xlabel="Outcome", ylabel="Number of Absences")
-    _save_figure(ax, "eda_absences_by_outcome.png", fig_dir)
+This report presents key findings from the exploratory data analysis of the student performance dataset containing **{total_students} students** across various demographic and academic variables.
 
-    ax = sns.regplot(
-        data=df, x="studytime", y="G3", lowess=True, scatter_kws={"s": 20}
-    )
-    ax.set(xlabel="Weekly Study Time", ylabel="Final Grade (G3)")
-    _save_figure(ax, "eda_studytime_vs_g3.png", fig_dir)
+## Key Findings
 
-    ax = sns.regplot(data=df, x="G1", y="G3", scatter_kws={"s": 20})
-    ax.set(xlabel="First Period Grade (G1)", ylabel="Final Grade (G3)")
-    _save_figure(ax, "eda_g1_vs_g3_scatter.png", fig_dir)
+### Overall Performance
+- **Pass Rate**: {pass_rate:.1f}% of students achieved a passing grade (≥10)
+- **Average Final Grade**: {avg_grade:.2f} ± {grade_std:.2f}
+- **Grade Range**: {df['G3'].min():.0f} to {df['G3'].max():.0f}
+
+### Strongest Numerical Correlations
+The following variable pairs show the strongest linear relationships:
+
+"""
+    
+    for i, ((var1, var2), corr_val) in enumerate(strongest_corr.items(), 1):
+        correlation_strength = "strong" if abs(corr_val) > 0.7 else "moderate" if abs(corr_val) > 0.5 else "weak"
+        direction = "positive" if corr_val > 0 else "negative"
+        report += f"{i}. **{var1} ↔ {var2}**: {corr_val:.3f} ({correlation_strength} {direction} correlation)\n"
+    
+    if cat_associations is not None:
+        report += f"""
+
+### Most Influential Categorical Variables
+Based on mutual information analysis, the following categorical variables have the strongest association with final grades:
+
+"""
+        for i, row in top_cat_features.iterrows():
+            significance = "highly significant" if row['chi2_pvalue'] < 0.001 else "significant" if row['chi2_pvalue'] < 0.05 else "not significant"
+            report += f"- **{row['variable'].title()}**: Mutual Information = {row['mutual_info']:.3f}, Association strength (Cramér's V) = {row['cramers_v']:.3f} ({significance})\n"
+    
+    # Add specific insights
+    report += f"""
+
+### Detailed Insights
+
+#### Academic Performance Patterns
+- **Grade Progression**: The correlation between G1→G2→G3 shows {numeric_corr.loc['G1', 'G2']:.3f} (G1-G2) and {numeric_corr.loc['G2', 'G3']:.3f} (G2-G3)
+- **Study Time Impact**: Weekly study time shows a correlation of {numeric_corr.loc['studytime', 'G3']:.3f} with final grades
+- **Attendance Effect**: School absences correlate {numeric_corr.loc['absences', 'G3']:.3f} with final performance
+
+#### Demographic Factors
+"""
+    
+    # Gender analysis
+    gender_stats = df.groupby('sex')['G3'].agg(['mean', 'count'])
+    if 'F' in gender_stats.index and 'M' in gender_stats.index:
+        female_avg = gender_stats.loc['F', 'mean']
+        male_avg = gender_stats.loc['M', 'mean']
+        gender_diff = abs(female_avg - male_avg)
+        better_gender = 'Female' if female_avg > male_avg else 'Male'
+        report += f"- **Gender Performance**: {better_gender} students perform slightly better (average difference: {gender_diff:.2f} points)\n"
+    
+    # School analysis
+    school_stats = df.groupby('school')['G3'].agg(['mean', 'count'])
+    if len(school_stats) > 1:
+        best_school = school_stats['mean'].idxmax()
+        school_diff = school_stats['mean'].max() - school_stats['mean'].min()
+        report += f"- **School Performance**: School '{best_school}' shows higher average performance (difference: {school_diff:.2f} points)\n"
+    
+    report += f"""
+
+#### Risk Factors
+- **High Absence Risk**: Students with >10 absences have an average grade of {df[df['absences'] > 10]['G3'].mean():.2f}
+- **Previous Failures**: Students with past failures average {df[df['failures'] > 0]['G3'].mean():.2f} vs {df[df['failures'] == 0]['G3'].mean():.2f} for those without
+
+## Recommendations for Further Analysis
+
+1. **Intervention Targeting**: Focus on students with high absences and previous failures
+2. **Early Warning System**: Use G1 and G2 grades as strong predictors for final performance
+3. **Support Programs**: Consider targeted support for underperforming demographic groups
+4. **Study Habits**: Investigate the relationship between study time and effective learning strategies
+
+---
+*Report generated automatically from EDA analysis*
+"""
+    
+    # Save the report
+    report_path = report_dir / "eda_narrative_summary.md"
+    with open(report_path, 'w') as f:
+        f.write(report)
+    
+    logger.info(f"Generated narrative summary: {report_path}")
 
 
 __all__ = ["run_eda"]

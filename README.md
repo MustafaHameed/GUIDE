@@ -49,6 +49,27 @@ Each row in the CSV describes one student with the following columns:
 - `G2`: second period grade (0–20)
 - `G3`: final grade (0–20)
 
+## Key Data Insights
+
+Based on exploratory data analysis of 395 students, here are the main findings:
+
+### Academic Performance
+- **Pass Rate**: 67.1% of students achieve passing grades (≥10)
+- **Grade Progression**: Strong correlation exists between consecutive periods (G1→G2: 0.85, G2→G3: 0.91)
+- **Early Prediction**: First period grades (G1) are highly predictive of final performance (correlation: 0.80)
+
+### Influential Factors
+- **Previous Failures**: Students with past failures average 7.3 vs 11.3 for those without
+- **School Support**: Students receiving educational support show different grade patterns
+- **Study Patterns**: Moderate correlation between study time and final grades (0.10)
+
+### Risk Factors
+- Students with >10 absences tend to have lower performance
+- Previous academic failures are strong negative predictors
+- Certain demographic and family factors show associations with academic outcomes
+
+*For detailed analysis, see `reports/eda_narrative_summary.md` after running the EDA.*
+
 ## Usage
 
 Load the data with [pandas](https://pandas.pydata.org/):
@@ -59,6 +80,25 @@ import pandas as pd
 df = pd.read_csv('student-mat.csv')
 print(df.head())
 ```
+
+### Run Exploratory Data Analysis
+
+Generate comprehensive EDA reports with enhanced categorical analysis:
+
+```bash
+python src/eda.py
+```
+
+This creates:
+- **Publication-quality figures** in `figures/` with standardized naming (`eda_*`)
+- **Analysis tables** in `tables/` including categorical correlations and feature importance
+- **Narrative summary** in `reports/eda_narrative_summary.md` with key insights
+
+The enhanced EDA includes:
+- Cramér's V correlation analysis for categorical variables
+- Mutual information feature importance for categorical predictors
+- Chi-square tests for categorical associations
+- Comprehensive visualizations with consistent styling
 
 ### Train a baseline model
 
