@@ -1,0 +1,72 @@
+dataset:
+  name: uci  # Options: uci, oulad
+  pos_label: 1   # 1 = at-risk/fail (positive class for thresholding recall on at-risk cohorts)
+  cv:
+    strategy: stratified_kfold  # Options: stratified_kfold, group_kfold
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+    group_key: module_presentation  # For OULAD GroupKFold: module_presentation, module, presentation
+
+models:
+  logistic_regression:
+    class_weight: balanced
+    grid:
+      C: [0.1, 0.5, 1, 2, 5]
+      penalty: [l2]
+      solver: [lbfgs, liblinear]
+  
+  random_forest:
+    class_weight: balanced
+    grid:
+      n_estimators: [500, 800]
+      max_depth: [null, 8, 12, 16]
+      min_samples_leaf: [1, 2, 5]
+      min_samples_split: [2, 5, 10]
+  
+  # Placeholders for future heavy learners - guarded by import checks
+  lightgbm:
+    class_weight: balanced
+    grid:
+      n_estimators: [100, 300, 500]
+      max_depth: [-1, 8, 12]
+      learning_rate: [0.01, 0.1, 0.2]
+      num_leaves: [31, 63, 127]
+  
+  xgboost:
+    scale_pos_weight: auto  # Will be computed from class imbalance
+    grid:
+      n_estimators: [100, 300, 500]
+      max_depth: [3, 6, 9]
+      learning_rate: [0.01, 0.1, 0.2]
+      subsample: [0.8, 1.0]
+
+calibration:
+  method: isotonic  # Options: isotonic, sigmoid
+  cv: 5
+  
+preprocessing:
+  # Numeric features: apply StandardScaler
+  numeric_features: auto  # auto-detect or provide list
+  
+  # Categorical features: one-hot encoding (keep sparse, unscaled)
+  categorical_features: auto  # auto-detect or provide list
+  
+  # For ordered categories (optional)
+  ordinal_features: []  # List of {column: [ordered_categories]} if any
+
+hyperparameter_search:
+  method: randomized  # Options: grid, randomized
+  n_iter: 50  # For randomized search
+  cv: 5
+  scoring: roc_auc
+  n_jobs: -1
+  
+artifacts:
+  tables_dir: tables
+  figures_dir: figures
+  models_dir: models
+  reports_dir: reports
+
+# Reproducibility
+random_state: 42

@@ -142,6 +142,33 @@ oulad-setup:
 	mkdir -p data/oulad/{raw,processed,configs,reports,logs}
 	mkdir -p $(FIGURES_DIR)/oulad $(TABLES_DIR)/oulad $(REPORTS_DIR)/oulad
 
+# New uplift modeling targets
+.PHONY: tune-uci tune-oulad calibrate ensemble fairness-grid
+tune-uci:
+	@echo "Running nested CV/randomized search on UCI..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.cli tune --dataset uci --config configs/train_uplift.yaml
+	@echo "UCI tuning completed. Best params written to models/"
+
+tune-oulad:
+	@echo "Running GroupKFold-aware search on OULAD..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.cli tune --dataset oulad --config configs/train_uplift.yaml
+	@echo "OULAD tuning completed. Best params written to models/"
+
+calibrate:
+	@echo "Wrapping best models with calibrated CV..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.cli calibrate models/best_model.pkl --config configs/train_uplift.yaml
+	@echo "Model calibration completed"
+
+ensemble:
+	@echo "Creating soft-vote + stacker ensemble..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.cli ensemble models/ --config configs/train_uplift.yaml
+	@echo "Ensemble creation completed (stub for now)"
+
+fairness-grid:
+	@echo "Grid searching group-specific thresholds + EO postproc..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.cli fairness-grid models/best_model.pkl --sensitive sex --config configs/train_uplift.yaml
+	@echo "Fairness grid search completed (stub for now)"
+
 .PHONY: oulad-download  
 oulad-download: oulad-setup
 	@echo "Downloading OULAD dataset..."
@@ -271,6 +298,13 @@ help:
 	@echo "  oulad-train         - Train models on OULAD data"
 	@echo "  oulad-fairness      - Run OULAD fairness analysis"
 	@echo "  oulad-clean         - Clean OULAD generated files"
+	@echo ""
+	@echo "Uplift Modeling Pipeline:"
+	@echo "  tune-uci            - Nested CV/randomized search on UCI dataset"
+	@echo "  tune-oulad          - GroupKFold-aware search on OULAD dataset"
+	@echo "  calibrate           - Wrap best models with calibrated CV"
+	@echo "  ensemble            - Create soft-vote + stacker ensemble"
+	@echo "  fairness-grid       - Grid search group-specific thresholds + EO postproc"
 	@echo ""
 	@echo "General targets:"
 	@echo "  test         - Run test suite"
