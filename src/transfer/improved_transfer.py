@@ -257,3 +257,106 @@ def improved_transfer_experiment(
     results['source_cv_accuracy'] = cv_scores.mean()
     
     return results
+
+
+def enhanced_transfer_experiment(
+    source_data: pd.DataFrame,
+    target_data: pd.DataFrame,
+    use_enhanced_features: bool = True,
+    use_domain_adaptation: bool = True
+) -> Dict[str, float]:
+    """
+    Enhanced transfer learning experiment with improved feature engineering.
+    
+    Args:
+        source_data: Source domain data with 'label' column
+        target_data: Target domain data with 'label' column  
+        use_enhanced_features: Whether to use enhanced feature engineering
+        use_domain_adaptation: Whether to use domain adaptation techniques
+        
+    Returns:
+        Experiment results dictionary
+    """
+    logger.info("Running enhanced transfer learning experiment...")
+    
+    if use_enhanced_features:
+        try:
+            # Import enhanced feature engineering
+            import sys
+            from pathlib import Path
+            project_root = Path(__file__).resolve().parents[2]
+            sys.path.insert(0, str(project_root))
+            
+            from src.enhanced_feature_engineering import create_domain_adaptive_features
+            
+            # Separate features and labels
+            X_source = source_data.drop('label', axis=1)
+            y_source = source_data['label']
+            X_target = target_data.drop('label', axis=1)
+            y_target = target_data['label']
+            
+            if use_domain_adaptation:
+                # Apply domain-adaptive feature engineering
+                logger.info("Applying domain-adaptive feature engineering...")
+                X_source_enhanced, X_target_enhanced = create_domain_adaptive_features(
+                    X_source, X_target, y_source, y_target
+                )
+            else:
+                # Apply enhanced feature engineering separately
+                logger.info("Applying separate enhanced feature engineering...")
+                from src.enhanced_feature_engineering import EnhancedFeatureEngineer
+                
+                source_engineer = EnhancedFeatureEngineer(dataset_type="auto")
+                target_engineer = EnhancedFeatureEngineer(dataset_type="auto")
+                
+                X_source_enhanced = source_engineer.fit_transform(X_source, y_source)
+                X_target_enhanced = target_engineer.fit_transform(X_target, y_target)
+                
+                # Align dimensions
+                min_features = min(X_source_enhanced.shape[1], X_target_enhanced.shape[1])
+                X_source_enhanced = X_source_enhanced[:, :min_features]
+                X_target_enhanced = X_target_enhanced[:, :min_features]
+            
+            # Recreate dataframes with enhanced features
+            source_enhanced = pd.DataFrame(X_source_enhanced)
+            source_enhanced['label'] = y_source.values
+            
+            target_enhanced = pd.DataFrame(X_target_enhanced)
+            target_enhanced['label'] = y_target.values
+            
+            # Run improved transfer learning on enhanced features
+            results = improved_transfer_experiment(
+                source_enhanced, target_enhanced, 
+                use_ensemble=True, use_domain_adaptation=False  # Already applied
+            )
+            
+            # Add enhancement information
+            results['enhanced_features'] = True
+            results['source_features'] = X_source_enhanced.shape[1] 
+            results['target_features'] = X_target_enhanced.shape[1]
+            results['feature_enhancement_ratio'] = {
+                'source': X_source_enhanced.shape[1] / X_source.shape[1],
+                'target': X_target_enhanced.shape[1] / X_target.shape[1]
+            }
+            
+            logger.info(f"Enhanced transfer learning completed:")
+            logger.info(f"  Source: {X_source.shape[1]} -> {X_source_enhanced.shape[1]} features")
+            logger.info(f"  Target: {X_target.shape[1]} -> {X_target_enhanced.shape[1]} features")
+            logger.info(f"  Target accuracy: {results.get('accuracy', 'N/A'):.4f}")
+            
+            return results
+            
+        except ImportError as e:
+            logger.warning(f"Could not import enhanced feature engineering: {e}")
+            logger.info("Falling back to standard transfer learning...")
+            
+        except Exception as e:
+            logger.warning(f"Enhanced feature engineering failed: {e}")
+            logger.info("Falling back to standard transfer learning...")
+    
+    # Fallback to standard approach
+    results = improved_transfer_experiment(source_data, target_data, use_ensemble=True)
+    results['enhanced_features'] = False
+    
+    return results
+    return results
