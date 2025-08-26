@@ -387,31 +387,64 @@ def run_enhanced_transfer_learning(source_domain: str = "oulad", target_domain: 
         
         # Use confident predictions as pseudo-labels
         confidence_threshold = 0.8
-        confident_mask = np.max(adapted_model.predict_proba(X_target_transformed), axis=1) > confidence_threshold
+        y_prob_adapted_full = adapted_model.predict_proba(X_target_transformed)
+        confident_mask = np.max(y_prob_adapted_full, axis=1) > confidence_threshold
         
         if confident_mask.sum() > 0:
             X_pseudo = X_target_transformed[confident_mask]
             y_pseudo = adapted_model.predict(X_pseudo)
             
-            # Combine with source data
-            X_combined = pd.concat([X_source_transformed, X_pseudo])
-            y_combined = np.concatenate([y_source, y_pseudo])
+            # Create balanced pseudo-labels to avoid mode collapse
+            class_counts = np.bincount(y_pseudo)
+            min_class_count = min(class_counts)
             
-            # Retrain model
-            self_trained_model = RandomForestClassifier(n_estimators=100, random_state=42)
-            self_trained_model.fit(X_combined, y_combined)
+            # Balance pseudo-labels
+            balanced_indices = []
+            for class_label in range(len(class_counts)):
+                class_indices = np.where(y_pseudo == class_label)[0]
+                if len(class_indices) > min_class_count:
+                    selected = np.random.choice(class_indices, min_class_count, replace=False)
+                    balanced_indices.extend(selected)
+                else:
+                    balanced_indices.extend(class_indices)
             
-            y_pred_self = self_trained_model.predict(X_target_transformed)
-            y_prob_self = self_trained_model.predict_proba(X_target_transformed)[:, 1]
-            
-            results['self_training'] = {
-                'accuracy': accuracy_score(y_target, y_pred_self),
-                'balanced_accuracy': balanced_accuracy_score(y_target, y_pred_self),
-                'roc_auc': roc_auc_score(y_target, y_prob_self),
-                'pseudo_labels_used': confident_mask.sum()
-            }
-            
-            logger.info(f"Self-training completed with {confident_mask.sum()} pseudo-labels")
+            if len(balanced_indices) > 0:
+                X_pseudo_balanced = X_pseudo.iloc[balanced_indices]
+                y_pseudo_balanced = y_pseudo[balanced_indices]
+                
+                # Combine with source data (with reduced weight for pseudo-labels)
+                pseudo_weight = 0.5  # Reduce weight of pseudo-labels
+                
+                X_combined = pd.concat([X_source_transformed, X_pseudo_balanced])
+                y_combined = np.concatenate([y_source, y_pseudo_balanced])
+                
+                # Create sample weights (full weight for source, reduced for pseudo)
+                sample_weights_combined = np.concatenate([
+                    sample_weights if sample_weights is not None else np.ones(len(X_source_transformed)),
+                    np.full(len(X_pseudo_balanced), pseudo_weight)
+                ])
+                
+                # Retrain model
+                self_trained_model = RandomForestClassifier(n_estimators=100, random_state=42)
+                try:
+                    self_trained_model.fit(X_combined, y_combined, sample_weight=sample_weights_combined)
+                except TypeError:
+                    self_trained_model.fit(X_combined, y_combined)
+                
+                y_pred_self = self_trained_model.predict(X_target_transformed)
+                y_prob_self = self_trained_model.predict_proba(X_target_transformed)[:, 1]
+                
+                results['self_training'] = {
+                    'accuracy': accuracy_score(y_target, y_pred_self),
+                    'balanced_accuracy': balanced_accuracy_score(y_target, y_pred_self),
+                    'roc_auc': roc_auc_score(y_target, y_prob_self),
+                    'pseudo_labels_used': len(balanced_indices),
+                    'confident_predictions': confident_mask.sum()
+                }
+                
+                logger.info(f"Self-training completed with {len(balanced_indices)} balanced pseudo-labels from {confident_mask.sum()} confident predictions")
+            else:
+                logger.warning("No balanced pseudo-labels available for self-training")
         else:
             logger.warning("No confident predictions for self-training")
     

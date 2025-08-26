@@ -1,0 +1,89 @@
+{
+  "feature_shift": {
+    "engagement_proxy": {
+      "feature": "engagement_proxy",
+      "psi": 14.731290125064222,
+      "ks_statistic": 0.973,
+      "ks_pvalue": 9.4e-323,
+      "source_mean": 1.5631940186722205e-17,
+      "target_mean": -1.5711425982848342,
+      "source_std": 1.0,
+      "target_std": 0.0007958039176585531
+    },
+    "ses_proxy": {
+      "feature": "ses_proxy",
+      "psi": 10.058448980333683,
+      "ks_statistic": 0.5892,
+      "ks_pvalue": 1.1719144870983422e-120,
+      "source_mean": 4.4466,
+      "target_mean": 1.7569620253164557,
+      "source_std": 2.8795743504900164,
+      "target_std": 1.0775832716865472
+    },
+    "sex": {
+      "feature": "sex",
+      "psi": 0.005125225057705345,
+      "ks_statistic": 0.03578227848101266,
+      "ks_pvalue": 0.7216998585013413,
+      "source_mean": 0.5092,
+      "target_mean": 0.47341772151898737,
+      "source_std": 0.4999153528348575,
+      "target_std": 0.49929288245553616
+    },
+    "academic_proxy": {
+      "feature": "academic_proxy",
+      "psi": 17.14701967781683,
+      "ks_statistic": 1.0,
+      "ks_pvalue": 5e-324,
+      "source_mean": 8.526512829121202e-17,
+      "target_mean": -2.1894228200413575,
+      "source_std": 1.0,
+      "target_std": 0.005872047274731256
+    },
+    "age_band": {
+      "feature": "age_band",
+      "psi": 6.794847118943761,
+      "ks_statistic": 0.5863822784810127,
+      "ks_pvalue": 2.0982920112364157e-119,
+      "source_mean": 0.9966,
+      "target_mean": 0.07341772151898734,
+      "source_std": 0.8227930724064223,
+      "target_std": 0.2608209341405474
+    }
+  },
+  "domain_metrics": {
+    "proxy_a_distance": 2.0,
+    "domain_classifier_auc": 1.0,
+    "domain_classifier_auc_std": 0.0
+  },
+  "label_shift": {
+    "source_proportions": [
+      0.598,
+      0.402
+    ],
+    "estimated_target_proportions": [
+      1.0,
+      0.0
+    ],
+    "label_shift_detected": "True"
+  },
+  "summary": {
+    "total_features_analyzed": 5,
+    "top_shifting_features_psi": [
+      "academic_proxy",
+      "engagement_proxy",
+      "ses_proxy",
+      "age_band",
+      "sex"
+    ],
+    "features_with_significant_ks": [
+      "engagement_proxy",
+      "ses_proxy",
+      "academic_proxy",
+      "age_band"
+    ],
+    "mean_psi": 9.747346225443241,
+    "median_psi": 10.058448980333683,
+    "max_psi": 17.14701967781683
+  }
+}
