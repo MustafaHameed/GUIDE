@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_div5H685QVJRSZQRAK"></div>
+        <div class="lime top_div" id="top_divQ47YV14NQ9T1B5H"></div>
         
         <script>
-        var top_div = d3.select('#top_div5H685QVJRSZQRAK').classed('lime top_div', true);
+        var top_div = d3.select('#top_divQ47YV14NQ9T1B5H').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.78, 0.22]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.77, 0.23]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.3741180566309292], ["num__G1 <= -0.88", -0.2160154295873716], ["num__failures <= -0.42", 0.09588529597024201], ["cat__schoolsup_yes > 0.00", -0.025689920893822007], ["0.04 < num__famrel <= 1.18", 0.0215777875295646]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.3810656194084325], ["num__G1 <= -0.88", -0.1814797365911657], ["num__failures <= -0.42", 0.09055480365804179], ["cat__higher_no <= 0.00", 0.05484637373357704], ["cat__schoolsup_yes > 0.00", -0.030024425850567336]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.76", -0.3741180566309292], ["num__G1", "-0.88", -0.2160154295873716], ["num__failures", "-0.42", 0.09588529597024201], ["cat__schoolsup_yes", "1.00", -0.025689920893822007], ["num__famrel", "1.18", 0.0215777875295646]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.76", -0.3810656194084325], ["num__G1", "-0.88", -0.1814797365911657], ["num__failures", "-0.42", 0.09055480365804179], ["cat__higher_no", "0.00", 0.05484637373357704], ["cat__schoolsup_yes", "1.00", -0.030024425850567336]], 1, raw_div);
         
         </script>
         </body></html>

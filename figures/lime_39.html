@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divVMTR1TQZBAGV4EJ"></div>
+        <div class="lime top_div" id="top_div47LRIJQ6WRZ0WSF"></div>
         
         <script>
-        var top_div = d3.select('#top_divVMTR1TQZBAGV4EJ').classed('lime top_div', true);
+        var top_div = d3.select('#top_div47LRIJQ6WRZ0WSF').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.51, 0.49]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.5, 0.5]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.36150010523194553], ["num__failures > -0.42", -0.07913460996235007], ["num__absences > 0.30", -0.03350933085502449], ["cat__schoolsup_yes <= 0.00", 0.03299230827464513], ["-0.12 < num__goout <= 0.78", -0.01969138126643764]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.3882803115270396], ["num__failures > -0.42", -0.08998038770816835], ["cat__Fjob_other <= 0.00", -0.021837312761646563], ["num__absences > 0.30", -0.019951447933377265], ["cat__activities_yes <= 0.00", 0.017202305402704555]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.49", -0.36150010523194553], ["num__failures", "0.90", -0.07913460996235007], ["num__absences", "1.67", -0.03350933085502449], ["cat__schoolsup_yes", "0.00", 0.03299230827464513], ["num__goout", "0.78", -0.01969138126643764]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.49", -0.3882803115270396], ["num__failures", "0.90", -0.08998038770816835], ["cat__Fjob_other", "0.00", -0.021837312761646563], ["num__absences", "1.67", -0.019951447933377265], ["cat__activities_yes", "0.00", 0.017202305402704555]], 1, raw_div);
         
         </script>
         </body></html>

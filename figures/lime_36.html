@@ -37089,10 +37089,10 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divN5BUSZ1QMH63CHJ"></div>
+        <div class="lime top_div" id="top_divKQAENQHCEGBD09D"></div>
         
         <script>
-        var top_div = d3.select('#top_divN5BUSZ1QMH63CHJ').classed('lime top_div', true);
+        var top_div = d3.select('#top_divKQAENQHCEGBD09D').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
@@ -37104,10 +37104,10 @@
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.6172170121273095], ["ord__Walc > 2.00", 0.12403880632078385], ["0.04 < num__famrel <= 1.18", 0.1059312931218067], ["0.00 < cat__Fjob_other <= 1.00", 0.07463892504492999], ["num__traveltime > 0.65", 0.06167910201325812]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.6093597983262108], ["ord__Walc > 2.00", 0.11054486123506035], ["0.04 < num__famrel <= 1.18", 0.0980653683697668], ["0.00 < cat__Fjob_other <= 1.00", 0.07105488339081763], ["cat__guardian_father > 0.00", 0.05012404910944464]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-1.03", -0.6172170121273095], ["ord__Walc", "3.00", 0.12403880632078385], ["num__famrel", "1.18", 0.1059312931218067], ["cat__Fjob_other", "1.00", 0.07463892504492999], ["num__traveltime", "1.98", 0.06167910201325812]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-1.03", -0.6093597983262108], ["ord__Walc", "3.00", 0.11054486123506035], ["num__famrel", "1.18", 0.0980653683697668], ["cat__Fjob_other", "1.00", 0.07105488339081763], ["cat__guardian_father", "1.00", 0.05012404910944464]], 1, raw_div);
         
         </script>
         </body></html>
