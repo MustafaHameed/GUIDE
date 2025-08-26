@@ -1,4 +1,10 @@
-"""Transfer learning module for domain adaptation."""
+"""
+Transfer Learning Module for GUIDE Project
+
+This module contains all transfer learning implementations including domain adaptation
+techniques, feature engineering, evaluation tools, and advanced R&D methods for
+state-of-the-art transfer learning between educational datasets.
+"""
 
 # Core transfer learning components
 from .feature_bridge import FeatureBridge, create_feature_bridge
@@ -28,6 +34,62 @@ except ImportError:
     def create_dann_classifier(*args, **kwargs):
         raise ImportError("PyTorch not available. Install torch to use DANN.")
 
+# Advanced R&D Methods (New)
+try:
+    # Advanced neural transfer learning
+    from .advanced_neural_transfer import (
+        NeuralTransferLearningClassifier,
+        MetaTransferLearner,
+        TransformerDomainAdapter,
+        ContrastiveDomainAdapter,
+        ProgressiveDomainAdapter,
+        evaluate_neural_transfer_methods
+    )
+    
+    # Advanced ensemble methods
+    from .advanced_ensemble import (
+        AdvancedEnsembleTransfer,
+        MixtureOfExpertsTransfer,
+        NeuralArchitectureSearchTransfer,
+        BayesianModelAveraging,
+        comprehensive_ensemble_evaluation
+    )
+    
+    # Advanced data augmentation
+    from .advanced_augmentation import (
+        TransferAwareSMOTE,
+        DomainAdaptationMixup,
+        AdversarialAugmentation,
+        ProgressiveAugmentation,
+        AdaptiveAugmentation,
+        comprehensive_augmentation_evaluation
+    )
+    
+    # Theoretical improvements
+    from .theoretical_improvements import (
+        HDivergenceMinimizer,
+        WassersteinDomainAlignment,
+        InformationTheoreticTransfer,
+        CausalTransferLearning,
+        TheoreticalTransferEnsemble,
+        evaluate_theoretical_methods
+    )
+    
+    # Comprehensive R&D framework
+    from .rd_evaluation_framework import (
+        TransferLearningR_DFramework,
+        run_comprehensive_rd_evaluation
+    )
+    
+    # Mark R&D modules as available
+    _RD_MODULES_AVAILABLE = True
+    
+except ImportError as e:
+    # R&D modules not available (missing dependencies)
+    _RD_MODULES_AVAILABLE = False
+    import warnings
+    warnings.warn(f"Advanced R&D modules not available: {e}", UserWarning)
+
 __all__ = [
     # Core unified components
     'FeatureBridge', 'create_feature_bridge',
@@ -54,3 +116,42 @@ __all__ = [
     'improved_feature_alignment', 'create_ensemble_classifier',
     'run_bidirectional_transfer'
 ]
+
+# Add R&D modules to __all__ if available
+if _RD_MODULES_AVAILABLE:
+    __all__.extend([
+        # Advanced neural transfer
+        'NeuralTransferLearningClassifier',
+        'MetaTransferLearner',
+        'TransformerDomainAdapter',
+        'ContrastiveDomainAdapter',
+        'ProgressiveDomainAdapter',
+        'evaluate_neural_transfer_methods',
+        
+        # Advanced ensemble
+        'AdvancedEnsembleTransfer',
+        'MixtureOfExpertsTransfer',
+        'NeuralArchitectureSearchTransfer',
+        'BayesianModelAveraging',
+        'comprehensive_ensemble_evaluation',
+        
+        # Advanced augmentation
+        'TransferAwareSMOTE',
+        'DomainAdaptationMixup',
+        'AdversarialAugmentation',
+        'ProgressiveAugmentation',
+        'AdaptiveAugmentation',
+        'comprehensive_augmentation_evaluation',
+        
+        # Theoretical improvements
+        'HDivergenceMinimizer',
+        'WassersteinDomainAlignment',
+        'InformationTheoreticTransfer',
+        'CausalTransferLearning',
+        'TheoreticalTransferEnsemble',
+        'evaluate_theoretical_methods',
+        
+        # R&D framework
+        'TransferLearningR_DFramework',
+        'run_comprehensive_rd_evaluation'
+    ])
