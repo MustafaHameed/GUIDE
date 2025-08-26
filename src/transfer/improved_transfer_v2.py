@@ -39,70 +39,147 @@ logger = logging.getLogger(__name__)
 
 
 class RobustPreprocessor:
-    """Robust preprocessing pipeline for mixed categorical/numeric data."""
+    """Enhanced robust preprocessing pipeline for mixed categorical/numeric data."""
     
-    def __init__(self, handle_categorical=True, scale_numeric=True):
+    def __init__(self, handle_categorical=True, scale_numeric=True, 
+                 detect_mixed_types=True, handle_high_cardinality=True,
+                 max_cardinality=50):
         self.handle_categorical = handle_categorical
         self.scale_numeric = scale_numeric
+        self.detect_mixed_types = detect_mixed_types
+        self.handle_high_cardinality = handle_high_cardinality
+        self.max_cardinality = max_cardinality
+        
         self.label_encoders = {}
         self.scaler = None
         self.feature_names = []
         self.categorical_features = []
         self.numeric_features = []
+        self.mixed_features = []  # Features that appear numeric but are categorical
+        self.high_cardinality_features = []  # Categorical features with many categories
+        self.feature_types = {}  # Store detected types for each feature
+        self.medians = {}  # Store medians for imputation
+        
+    def _detect_feature_type(self, col_data: pd.Series, col_name: str) -> str:
+        """Enhanced feature type detection for mixed data types."""
+        
+        # Remove missing values for analysis
+        non_null_data = col_data.dropna()
+        
+        if len(non_null_data) == 0:
+            return 'categorical'  # Default for all-null columns
+        
+        # Check explicit data types first
+        if col_data.dtype == 'object' or col_data.dtype.name == 'category':
+            return 'categorical'
+        
+        # For numeric types, check if they're actually categorical
+        if self.detect_mixed_types and col_data.dtype in ['int64', 'float64']:
+            unique_count = non_null_data.nunique()
+            total_count = len(non_null_data)
+            
+            # Heuristics for detecting categorical data in numeric columns
+            if unique_count <= 10:  # Low cardinality suggests categorical
+                return 'categorical'
+            elif unique_count / total_count < 0.05:  # Very few unique values
+                return 'categorical'
+            elif col_data.dtype == 'int64' and unique_count <= 20:
+                # Integer with reasonable unique count could be categorical
+                # Check if values look like IDs or categories
+                if non_null_data.min() >= 0 and non_null_data.max() < 100:
+                    return 'categorical'
+        
+        return 'numeric'
         
     def fit(self, X: pd.DataFrame):
-        """Fit the preprocessor on training data."""
+        """Enhanced fit method with better mixed data type handling."""
         self.feature_names = list(X.columns)
         
-        # Identify categorical and numeric features
+        # Enhanced feature type detection
         for col in X.columns:
-            if X[col].dtype == 'object' or X[col].dtype.name == 'category':
+            feature_type = self._detect_feature_type(X[col], col)
+            self.feature_types[col] = feature_type
+            
+            if feature_type == 'categorical':
                 self.categorical_features.append(col)
+                
+                # Check for high cardinality
+                unique_count = X[col].nunique()
+                if self.handle_high_cardinality and unique_count > self.max_cardinality:
+                    self.high_cardinality_features.append(col)
+                    
             else:
                 self.numeric_features.append(col)
+                # Store median for imputation
+                self.medians[col] = X[col].median()
         
-        logger.info(f"Categorical features: {len(self.categorical_features)}")
-        logger.info(f"Numeric features: {len(self.numeric_features)}")
+        logger.info(f"Enhanced feature detection:")
+        logger.info(f"  Categorical features: {len(self.categorical_features)}")
+        logger.info(f"  Numeric features: {len(self.numeric_features)}")
+        logger.info(f"  High cardinality features: {len(self.high_cardinality_features)}")
         
         # Fit label encoders for categorical features
         if self.handle_categorical:
             for col in self.categorical_features:
                 self.label_encoders[col] = LabelEncoder()
                 # Handle missing values by adding 'missing' category
-                values = X[col].fillna('missing').astype(str)
+                values = X[col].astype(str).fillna('missing')
+                
+                # For high cardinality features, keep only top categories
+                if col in self.high_cardinality_features:
+                    value_counts = values.value_counts()
+                    top_categories = value_counts.head(self.max_cardinality - 1).index.tolist()
+                    values = values.apply(lambda x: x if x in top_categories else 'other')
+                
                 self.label_encoders[col].fit(values)
         
-        # Fit scaler for numeric features
+        # Fit scaler for numeric features with robust imputation
         if self.scale_numeric and self.numeric_features:
             self.scaler = RobustScaler()
-            numeric_data = X[self.numeric_features].fillna(X[self.numeric_features].median())
+            numeric_data = X[self.numeric_features].copy()
+            
+            # Use stored medians for imputation
+            for col in self.numeric_features:
+                numeric_data[col] = numeric_data[col].fillna(self.medians[col])
+            
             self.scaler.fit(numeric_data)
             
         return self
     
     def transform(self, X: pd.DataFrame) -> np.ndarray:
-        """Transform data using fitted preprocessors."""
+        """Enhanced transform method with robust mixed data type handling."""
         X_processed = X.copy()
         
-        # Process categorical features
+        # Process categorical features with enhanced handling
         if self.handle_categorical:
             for col in self.categorical_features:
                 if col in X_processed.columns:
                     # Handle missing values and unseen categories
-                    values = X_processed[col].fillna('missing').astype(str)
-                    # Handle unseen categories by mapping to 'missing'
+                    values = X_processed[col].astype(str).fillna('missing')
+                    
+                    # For high cardinality features, apply same logic as training
+                    if col in self.high_cardinality_features:
+                        known_classes = set(self.label_encoders[col].classes_)
+                        top_categories = [c for c in known_classes if c not in ['missing', 'other']]
+                        values = values.apply(lambda x: x if x in top_categories else 'other')
+                    
+                    # Handle completely unseen categories by mapping to 'missing'
                     known_classes = set(self.label_encoders[col].classes_)
                     values = values.apply(lambda x: x if x in known_classes else 'missing')
                     X_processed[col] = self.label_encoders[col].transform(values)
         
-        # Process numeric features
+        # Process numeric features with robust imputation
         if self.scale_numeric and self.numeric_features:
             numeric_cols = [col for col in self.numeric_features if col in X_processed.columns]
             if numeric_cols:
-                # Fill missing values with median from training
+                # Use stored medians for consistent imputation
                 for col in numeric_cols:
-                    median_val = X_processed[col].median() if not X_processed[col].isna().all() else 0
-                    X_processed[col] = X_processed[col].fillna(median_val)
+                    if col in self.medians:
+                        X_processed[col] = X_processed[col].fillna(self.medians[col])
+                    else:
+                        # Fallback to column median or 0
+                        median_val = X_processed[col].median() if not X_processed[col].isna().all() else 0
+                        X_processed[col] = X_processed[col].fillna(median_val)
                 
                 X_processed[numeric_cols] = self.scaler.transform(X_processed[numeric_cols])
         
@@ -116,36 +193,113 @@ class RobustPreprocessor:
 
 
 class AdvancedFeatureEngineer:
-    """Advanced feature engineering for cross-domain alignment."""
+    """Enhanced advanced feature engineering for cross-domain alignment."""
     
-    def __init__(self, n_pca_components=10, use_interactions=True):
+    def __init__(self, n_pca_components=10, use_interactions=True, use_polynomial=True,
+                 use_statistical_features=True, use_feature_selection=True,
+                 interaction_threshold=0.1, max_interactions=20):
         self.n_pca_components = n_pca_components
         self.use_interactions = use_interactions
+        self.use_polynomial = use_polynomial
+        self.use_statistical_features = use_statistical_features
+        self.use_feature_selection = use_feature_selection
+        self.interaction_threshold = interaction_threshold
+        self.max_interactions = max_interactions
+        
         self.pca = None
         self.interaction_features = []
+        self.feature_correlations = None
+        self.feature_statistics = {}
+        self.selected_features = None
+        self.original_features = []
+        
+    def _compute_feature_correlations(self, X: np.ndarray) -> np.ndarray:
+        """Compute feature correlation matrix for intelligent interaction selection."""
+        return np.corrcoef(X.T)
+        
+    def _select_interaction_features(self, X: np.ndarray) -> List[Tuple[int, int]]:
+        """Intelligently select feature interactions based on correlations."""
+        if not self.use_interactions or X.shape[1] < 2:
+            return []
+        
+        interactions = []
+        n_features = X.shape[1]
+        
+        # Compute correlations if feature selection is enabled
+        if self.use_feature_selection and n_features > 2:
+            corr_matrix = self._compute_feature_correlations(X)
+            self.feature_correlations = corr_matrix
+            
+            # Select interactions based on moderate correlations
+            # (not too high to avoid redundancy, not too low to ensure relevance)
+            for i in range(n_features):
+                for j in range(i+1, n_features):
+                    corr_val = abs(corr_matrix[i, j])
+                    if self.interaction_threshold < corr_val < 0.8:  # Sweet spot for interactions
+                        interactions.append((i, j))
+                        if len(interactions) >= self.max_interactions:
+                            break
+                if len(interactions) >= self.max_interactions:
+                    break
+        else:
+            # Fallback to original method for small feature sets
+            n_features_to_use = min(5, n_features)
+            for i in range(n_features_to_use):
+                for j in range(i+1, n_features_to_use):
+                    interactions.append((i, j))
+        
+        logger.info(f"Selected {len(interactions)} interaction features")
+        return interactions
+        
+    def _compute_statistical_features(self, X: np.ndarray) -> np.ndarray:
+        """Compute statistical features for better domain alignment."""
+        if not self.use_statistical_features:
+            return np.array([]).reshape(X.shape[0], 0)
+        
+        statistical_features = []
+        
+        # Row-wise statistics
+        if X.shape[1] > 1:
+            # Mean and std per sample
+            statistical_features.extend([
+                np.mean(X, axis=1).reshape(-1, 1),
+                np.std(X, axis=1).reshape(-1, 1),
+                np.median(X, axis=1).reshape(-1, 1),
+                np.max(X, axis=1).reshape(-1, 1),
+                np.min(X, axis=1).reshape(-1, 1)
+            ])
+        
+        if statistical_features:
+            return np.hstack(statistical_features)
+        else:
+            return np.array([]).reshape(X.shape[0], 0)
         
     def fit(self, X: np.ndarray, feature_names: List[str]):
-        """Fit feature engineering on training data."""
+        """Enhanced fit method with intelligent feature engineering."""
         self.original_features = feature_names
         
         # Fit PCA for dimensionality reduction
         if X.shape[1] > self.n_pca_components:
             self.pca = PCA(n_components=self.n_pca_components)
             self.pca.fit(X)
-            logger.info(f"PCA explained variance ratio: {self.pca.explained_variance_ratio_.sum():.3f}")
+            explained_variance = self.pca.explained_variance_ratio_.sum()
+            logger.info(f"PCA explained variance ratio: {explained_variance:.3f}")
         
-        # Identify interaction features
-        if self.use_interactions and X.shape[1] > 1:
-            # Use top features for interactions to avoid explosion
-            n_features = min(5, X.shape[1])
-            for i in range(n_features):
-                for j in range(i+1, n_features):
-                    self.interaction_features.append((i, j))
+        # Intelligently select interaction features
+        self.interaction_features = self._select_interaction_features(X)
+        
+        # Compute and store feature statistics for statistical features
+        if self.use_statistical_features:
+            self.feature_statistics = {
+                'mean': np.mean(X, axis=0),
+                'std': np.std(X, axis=0),
+                'median': np.median(X, axis=0)
+            }
         
         return self
     
     def transform(self, X: np.ndarray) -> np.ndarray:
-        """Transform features with advanced engineering."""
+        """Enhanced transform with comprehensive feature engineering."""
         features = [X]
         
         # Add PCA components
@@ -153,21 +307,41 @@ class AdvancedFeatureEngineer:
             X_pca = self.pca.transform(X)
             features.append(X_pca)
         
-        # Add interaction features
+        # Add intelligent interaction features
         if self.interaction_features:
             interactions = []
             for i, j in self.interaction_features:
                 if i < X.shape[1] and j < X.shape[1]:
-                    interaction = (X[:, i] * X[:, j]).reshape(-1, 1)
-                    interactions.append(interaction)
+                    # Multiple types of interactions
+                    interaction_product = (X[:, i] * X[:, j]).reshape(-1, 1)
+                    interaction_sum = (X[:, i] + X[:, j]).reshape(-1, 1)
+                    interactions.extend([interaction_product, interaction_sum])
             if interactions:
                 features.append(np.hstack(interactions))
         
-        # Add polynomial features (degree 2) for first few features
-        if X.shape[1] > 0:
+        # Add polynomial features (degree 2) for selected features
+        if self.use_polynomial and X.shape[1] > 0:
             n_poly = min(3, X.shape[1])
             poly_features = X[:, :n_poly] ** 2
             features.append(poly_features)
+        
+        # Add statistical features
+        stat_features = self._compute_statistical_features(X)
+        if stat_features.shape[1] > 0:
+            features.append(stat_features)
+        
+        # Domain-specific transformations
+        if X.shape[1] > 2:
+            # Add ratio features for numerical stability
+            ratios = []
+            for i in range(min(3, X.shape[1])):
+                for j in range(i+1, min(3, X.shape[1])):
+                    # Safe ratio computation
+                    denominator = X[:, j] + 1e-8  # Add small constant to avoid division by zero
+                    ratio = (X[:, i] / denominator).reshape(-1, 1)
+                    ratios.append(ratio)
+            if ratios:
+                features.append(np.hstack(ratios))
         
         return np.hstack(features)
     
@@ -218,65 +392,215 @@ class DomainAdaptationCORAL:
 
 
 class OptimizedEnsemble:
-    """Optimized ensemble with calibration and threshold optimization."""
+    """Enhanced optimized ensemble with advanced neural architectures and calibration."""
     
-    def __init__(self, use_calibration=True, optimize_threshold=True):
+    def __init__(self, use_calibration=True, optimize_threshold=True,
+                 use_advanced_networks=True, use_stacking=True,
+                 ensemble_diversity=True):
         self.use_calibration = use_calibration
         self.optimize_threshold = optimize_threshold
+        self.use_advanced_networks = use_advanced_networks
+        self.use_stacking = use_stacking
+        self.ensemble_diversity = ensemble_diversity
+        
         self.ensemble = None
         self.optimal_threshold = 0.5
         self.calibrator = None
+        self.threshold_metrics = {}
         
-    def create_base_models(self):
-        """Create diverse base models for ensemble."""
-        models = [
-            ('rf', RandomForestClassifier(
-                n_estimators=200, max_depth=15, min_samples_split=5,
-                min_samples_leaf=2, random_state=42, class_weight='balanced'
+    def _create_optimized_mlp(self, input_dim: Optional[int] = None) -> MLPClassifier:
+        """Create an optimized MLP with adaptive architecture."""
+        
+        # Adaptive architecture based on input dimension
+        if input_dim is not None:
+            if input_dim <= 10:
+                hidden_layers = (64, 32)
+            elif input_dim <= 50:
+                hidden_layers = (128, 64, 32)
+            else:
+                hidden_layers = (256, 128, 64, 32)
+        else:
+            hidden_layers = (128, 64, 32)  # Default
+        
+        return MLPClassifier(
+            hidden_layer_sizes=hidden_layers,
+            activation='relu',
+            solver='adam',
+            alpha=0.001,  # L2 regularization
+            learning_rate='adaptive',
+            learning_rate_init=0.001,
+            max_iter=500,
+            early_stopping=True,
+            validation_fraction=0.15,
+            n_iter_no_change=15,
+            random_state=42,
+            batch_size='auto'
+        )
+    
+    def _create_diverse_mlp_ensemble(self, input_dim: Optional[int] = None) -> List:
+        """Create diverse MLP architectures for better ensemble diversity."""
+        mlp_models = []
+        
+        # Deep narrow network
+        mlp_models.append(('mlp_deep', MLPClassifier(
+            hidden_layer_sizes=(64, 64, 64),
+            activation='relu', solver='adam', alpha=0.01,
+            learning_rate='adaptive', max_iter=300,
+            early_stopping=True, random_state=42
+        )))
+        
+        # Wide shallow network
+        mlp_models.append(('mlp_wide', MLPClassifier(
+            hidden_layer_sizes=(200,),
+            activation='tanh', solver='adam', alpha=0.001,
+            learning_rate='adaptive', max_iter=400,
+            early_stopping=True, random_state=43
+        )))
+        
+        # Optimized architecture
+        mlp_models.append(('mlp_optimized', self._create_optimized_mlp(input_dim)))
+        
+        return mlp_models
+        
+    def create_base_models(self, input_dim: Optional[int] = None):
+        """Create enhanced diverse base models for ensemble."""
+        models = []
+        
+        # Tree-based models with different configurations
+        models.extend([
+            ('rf_balanced', RandomForestClassifier(
+                n_estimators=300, max_depth=20, min_samples_split=3,
+                min_samples_leaf=1, random_state=42, class_weight='balanced',
+                max_features='sqrt', bootstrap=True
             )),
-            ('gb', GradientBoostingClassifier(
-                n_estimators=100, max_depth=8, learning_rate=0.1,
-                random_state=42
+            ('rf_depth', RandomForestClassifier(
+                n_estimators=200, max_depth=25, min_samples_split=5,
+                min_samples_leaf=2, random_state=43, class_weight='balanced_subsample',
+                max_features='log2', bootstrap=True
             )),
-            ('lr', LogisticRegression(
+            ('gb_adaptive', GradientBoostingClassifier(
+                n_estimators=150, max_depth=8, learning_rate=0.08,
+                subsample=0.8, random_state=42, validation_fraction=0.1,
+                n_iter_no_change=10
+            )),
+            ('gb_robust', GradientBoostingClassifier(
+                n_estimators=200, max_depth=6, learning_rate=0.05,
+                subsample=0.9, random_state=43, max_features='sqrt'
+            ))
+        ])
+        
+        # Linear models with different regularization
+        models.extend([
+            ('lr_l1', LogisticRegression(
+                penalty='l1', solver='liblinear', C=0.1,
                 random_state=42, class_weight='balanced', max_iter=1000
             )),
-            ('mlp', MLPClassifier(
-                hidden_layer_sizes=(100, 50), max_iter=500, 
-                random_state=42, early_stopping=True,
-                validation_fraction=0.1
+            ('lr_l2', LogisticRegression(
+                penalty='l2', solver='lbfgs', C=1.0,
+                random_state=42, class_weight='balanced', max_iter=1000
+            )),
+            ('lr_elastic', LogisticRegression(
+                penalty='elasticnet', solver='saga', C=0.5, l1_ratio=0.5,
+                random_state=42, class_weight='balanced', max_iter=1000
             ))
-        ]
+        ])
         
-        return VotingClassifier(models, voting='soft')
+        # Enhanced neural networks
+        if self.use_advanced_networks:
+            models.extend(self._create_diverse_mlp_ensemble(input_dim))
+        else:
+            # Single optimized MLP
+            models.append(('mlp', self._create_optimized_mlp(input_dim)))
+        
+        # Use stacking or voting ensemble
+        if self.use_stacking:
+            from sklearn.ensemble import StackingClassifier
+            return StackingClassifier(
+                estimators=models,
+                final_estimator=LogisticRegression(
+                    random_state=42, class_weight='balanced', max_iter=1000
+                ),
+                cv=5,
+                stack_method='predict_proba'
+            )
+        else:
+            return VotingClassifier(models, voting='soft')
+    
+    def _optimize_threshold_advanced(self, y_true: np.ndarray, y_prob: np.ndarray) -> Dict:
+        """Advanced threshold optimization with multiple metrics."""
+        from sklearn.metrics import precision_recall_curve, roc_curve
+        
+        # F1-based optimization
+        precision, recall, pr_thresholds = precision_recall_curve(y_true, y_prob)
+        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+        f1_optimal_idx = np.argmax(f1_scores)
+        f1_threshold = pr_thresholds[f1_optimal_idx] if f1_optimal_idx < len(pr_thresholds) else 0.5
+        
+        # Youden's J statistic (sensitivity + specificity - 1)
+        fpr, tpr, roc_thresholds = roc_curve(y_true, y_prob)
+        youden_j = tpr - fpr
+        youden_optimal_idx = np.argmax(youden_j)
+        youden_threshold = roc_thresholds[youden_optimal_idx]
+        
+        # Balanced accuracy optimization
+        balanced_acc_scores = []
+        for threshold in roc_thresholds:
+            y_pred = (y_prob >= threshold).astype(int)
+            balanced_acc = balanced_accuracy_score(y_true, y_pred)
+            balanced_acc_scores.append(balanced_acc)
+        
+        balanced_acc_optimal_idx = np.argmax(balanced_acc_scores)
+        balanced_acc_threshold = roc_thresholds[balanced_acc_optimal_idx]
+        
+        # Return the best performing threshold (using F1 as primary metric)
+        optimal_threshold = f1_threshold
+        
+        return {
+            'f1_threshold': f1_threshold,
+            'f1_score': f1_scores[f1_optimal_idx],
+            'youden_threshold': youden_threshold,
+            'youden_j': youden_j[youden_optimal_idx],
+            'balanced_acc_threshold': balanced_acc_threshold,
+            'balanced_acc': max(balanced_acc_scores),
+            'optimal_threshold': optimal_threshold
+        }
     
     def fit(self, X_train: np.ndarray, y_train: np.ndarray, 
             X_val: Optional[np.ndarray] = None, y_val: Optional[np.ndarray] = None):
-        """Fit ensemble with calibration and threshold optimization."""
+        """Enhanced fit method with advanced calibration and threshold optimization."""
         
-        # Create and fit base ensemble
-        self.ensemble = self.create_base_models()
+        # Create and fit base ensemble with input dimension info
+        input_dim = X_train.shape[1] if X_train.ndim > 1 else None
+        self.ensemble = self.create_base_models(input_dim)
         self.ensemble.fit(X_train, y_train)
         
-        # Calibrate if requested
+        # Enhanced calibration
         if self.use_calibration:
-            self.calibrator = CalibratedClassifierCV(self.ensemble, method='isotonic', cv=3)
+            # Use sigmoid calibration for larger datasets, isotonic for smaller
+            calibration_method = 'sigmoid' if len(y_train) > 1000 else 'isotonic'
+            self.calibrator = CalibratedClassifierCV(
+                self.ensemble, 
+                method=calibration_method, 
+                cv=5 if len(y_train) > 500 else 3
+            )
             self.calibrator.fit(X_train, y_train)
+            logger.info(f"Applied {calibration_method} calibration")
         
-        # Optimize threshold if validation data provided
+        # Advanced threshold optimization if validation data provided
         if self.optimize_threshold and X_val is not None and y_val is not None:
             if self.calibrator:
                 y_prob = self.calibrator.predict_proba(X_val)[:, 1]
             else:
                 y_prob = self.ensemble.predict_proba(X_val)[:, 1]
             
-            # Find optimal threshold using F1 score
-            precision, recall, thresholds = precision_recall_curve(y_val, y_prob)
-            f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
-            optimal_idx = np.argmax(f1_scores)
-            self.optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
+            # Use advanced threshold optimization
+            self.threshold_metrics = self._optimize_threshold_advanced(y_val, y_prob)
+            self.optimal_threshold = self.threshold_metrics['optimal_threshold']
             
-            logger.info(f"Optimal threshold: {self.optimal_threshold:.3f}")
+            logger.info(f"Advanced threshold optimization completed:")
+            logger.info(f"  Optimal threshold: {self.optimal_threshold:.3f}")
+            logger.info(f"  F1 score: {self.threshold_metrics['f1_score']:.3f}")
+            logger.info(f"  Balanced accuracy: {self.threshold_metrics['balanced_acc']:.3f}")
         
         return self
     

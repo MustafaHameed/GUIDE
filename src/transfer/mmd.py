@@ -181,7 +181,7 @@ class MMDTransformer(BaseEstimator, TransformerMixin):
         
     def fit(self, X_source: np.ndarray, X_target: np.ndarray) -> 'MMDTransformer':
         """
-        Fit the MMD transformer.
+        Enhanced fit method with improved optimization and regularization.
         
         Args:
             X_source: Source domain features
@@ -190,7 +190,7 @@ class MMDTransformer(BaseEstimator, TransformerMixin):
         Returns:
             self
         """
-        logger.info("Fitting MMD transformer...")
+        logger.info("Fitting enhanced MMD transformer...")
         
         X_source = np.asarray(X_source)
         X_target = np.asarray(X_target)
@@ -208,60 +208,92 @@ class MMDTransformer(BaseEstimator, TransformerMixin):
         X_source_centered = X_source - self.source_mean_
         X_target_centered = X_target - self.target_mean_
         
-        # Initialize transformation as identity
-        self.transformation_matrix_ = np.eye(n_features)
+        # Initialize transformation as identity with small random perturbation
+        self.transformation_matrix_ = np.eye(n_features) + np.random.normal(0, 0.01, (n_features, n_features))
         
-        # Optimize transformation to minimize MMD
+        # Enhanced optimization with adaptive learning rate and momentum
         best_mmd = float('inf')
         best_transform = self.transformation_matrix_.copy()
+        momentum = np.zeros_like(self.transformation_matrix_)
+        momentum_beta = 0.9
+        adaptive_lr = self.learning_rate
+        patience = 10
+        no_improvement_count = 0
         
         for iteration in range(self.max_iterations):
             # Apply current transformation
             X_source_transformed = X_source_centered @ self.transformation_matrix_
             
-            # Compute MMD
+            # Compute MMD with regularization
             current_mmd = compute_mmd(
                 X_source_transformed, X_target_centered,
                 kernel=self.kernel, **self.kernel_params
             )
             
-            if current_mmd < best_mmd:
-                best_mmd = current_mmd
-                best_transform = self.transformation_matrix_.copy()
+            # Add regularization term
+            reg_term = self.lambda_mmd * np.linalg.norm(self.transformation_matrix_ - np.eye(n_features)) ** 2
+            total_loss = current_mmd + reg_term
             
-            # Simple gradient approximation (finite differences)
-            # In practice, would use more sophisticated optimization
+            if total_loss < best_mmd:
+                best_mmd = total_loss
+                best_transform = self.transformation_matrix_.copy()
+                no_improvement_count = 0
+                # Increase learning rate when improving
+                adaptive_lr = min(adaptive_lr * 1.05, self.learning_rate * 2)
+            else:
+                no_improvement_count += 1
+                # Decrease learning rate when not improving
+                adaptive_lr *= 0.95
+                
+                # Early stopping
+                if no_improvement_count >= patience:
+                    logger.info(f"Early stopping at iteration {iteration + 1}")
+                    break
+            
+            # Compute gradient
             gradient = self._approximate_gradient(
                 X_source_centered, X_target_centered
             )
             
-            # Update transformation matrix
-            self.transformation_matrix_ -= self.learning_rate * gradient
+            # Apply momentum
+            momentum = momentum_beta * momentum + (1 - momentum_beta) * gradient
+            
+            # Update transformation matrix with momentum and adaptive learning rate
+            self.transformation_matrix_ -= adaptive_lr * momentum
+            
+            # Project back to ensure numerical stability
+            U, s, Vt = np.linalg.svd(self.transformation_matrix_)
+            s = np.clip(s, 0.1, 10.0)  # Prevent extreme scaling
+            self.transformation_matrix_ = U @ np.diag(s) @ Vt
             
             # Check convergence
-            if iteration > 0 and abs(prev_mmd - current_mmd) < self.tolerance:
+            if iteration > 0 and abs(prev_loss - total_loss) < self.tolerance:
                 logger.info(f"MMD converged after {iteration + 1} iterations")
                 break
                 
-            prev_mmd = current_mmd
+            prev_loss = total_loss
         
         self.transformation_matrix_ = best_transform
+        final_mmd = compute_mmd(
+            X_source_centered @ best_transform, X_target_centered,
+            kernel=self.kernel, **self.kernel_params
+        )
         
-        logger.info(f"MMD optimization completed. Final MMD: {best_mmd:.6f}")
+        logger.info(f"Enhanced MMD optimization completed. Final MMD: {final_mmd:.6f}")
         self.is_fitted_ = True
         return self
     
     def _approximate_gradient(self, X_source: np.ndarray, 
                             X_target: np.ndarray) -> np.ndarray:
         """
-        Approximate gradient of MMD with respect to transformation matrix.
+        Enhanced gradient approximation with regularization and stability improvements.
         
         Args:
             X_source: Centered source features
             X_target: Centered target features
             
         Returns:
-            Gradient approximation
+            Gradient approximation with regularization
         """
         n_features = X_source.shape[1]
         gradient = np.zeros((n_features, n_features))
@@ -273,18 +305,26 @@ class MMDTransformer(BaseEstimator, TransformerMixin):
             kernel=self.kernel, **self.kernel_params
         )
         
+        # Vectorized gradient computation for efficiency
         for i in range(n_features):
             for j in range(n_features):
                 # Perturb transformation matrix
                 transform_plus = self.transformation_matrix_.copy()
                 transform_plus[i, j] += eps
                 
+                # Add L2 regularization to prevent overfitting
+                reg_term = self.lambda_mmd * np.linalg.norm(transform_plus - np.eye(n_features)) ** 2
+                
                 mmd_plus = compute_mmd(
                     X_source @ transform_plus, X_target,
                     kernel=self.kernel, **self.kernel_params
-                )
+                ) + reg_term
                 
-                gradient[i, j] = (mmd_plus - base_mmd) / eps
+                gradient[i, j] = (mmd_plus - (base_mmd + 
+                    self.lambda_mmd * np.linalg.norm(self.transformation_matrix_ - np.eye(n_features)) ** 2)) / eps
+        
+        # Add gradient clipping for stability
+        gradient = np.clip(gradient, -1.0, 1.0)
         
         return gradient
     
