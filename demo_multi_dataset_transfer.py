@@ -100,9 +100,11 @@ class MultiDatasetTransferLearning:
         # Create common features
         common_features = []
         
-        # Gender (standardize naming)
+        # Gender (standardize naming and values)
         if 'sex' in processed_df.columns:
-            processed_df['gender'] = processed_df['sex']
+            # Standardize gender values to M/F
+            gender_mapping = {'F': 'F', 'M': 'M', 'Female': 'F', 'Male': 'M'}
+            processed_df['gender'] = processed_df['sex'].map(gender_mapping).fillna('F')
             common_features.append('gender')
         
         # Age (normalize different age representations)
@@ -115,15 +117,32 @@ class MultiDatasetTransferLearning:
             processed_df['age_normalized'] = processed_df['age_band'].map(age_mapping).fillna(25)
             common_features.append('age_normalized')
         
-        # Educational background
+        # Educational background - standardize to numeric scale
         if 'highest_education' in processed_df.columns:
-            processed_df['education'] = processed_df['highest_education']
+            # Map OULAD education strings to numeric scale
+            education_mapping = {
+                'No Formal quals': 0,
+                'Lower Than A Level': 1, 
+                'A Level or Equivalent': 2,
+                'HE Qualification': 3,
+                'Post Graduate Qualification': 4
+            }
+            processed_df['education'] = processed_df['highest_education'].map(education_mapping).fillna(1)
             common_features.append('education')
         elif 'education_level' in processed_df.columns:
-            processed_df['education'] = processed_df['education_level']
+            # Map synthetic education levels to numeric
+            education_mapping = {
+                'Primary': 0,
+                'Secondary': 1,
+                'High School': 2,
+                'Bachelor': 3,
+                'Master': 4,
+                'PhD': 5
+            }
+            processed_df['education'] = processed_df['education_level'].map(education_mapping).fillna(2)
             common_features.append('education')
         elif 'Medu' in processed_df.columns or 'Fedu' in processed_df.columns:
-            # Use parent education as proxy
+            # Use parent education as proxy (already numeric)
             medu = processed_df.get('Medu', 0)
             fedu = processed_df.get('Fedu', 0)
             processed_df['education'] = np.maximum(medu, fedu)
@@ -171,30 +190,58 @@ class MultiDatasetTransferLearning:
         # Handle missing values first
         X_clean = X.copy()
         
-        # Fill missing values
+        # Identify truly numeric vs categorical columns more carefully
+        numeric_features = []
+        categorical_features = []
+        
         for col in X_clean.columns:
             if X_clean[col].dtype == 'object':
-                X_clean[col] = X_clean[col].fillna('Unknown')
+                # Definitely categorical
+                categorical_features.append(col)
             else:
-                X_clean[col] = X_clean[col].fillna(X_clean[col].median())
+                # Check if numeric column contains only integers that might be categorical
+                # (e.g., education levels coded as 1,2,3,4)
+                unique_vals = X_clean[col].dropna().unique()
+                if len(unique_vals) <= 10 and all(isinstance(x, (int, np.integer)) or x.is_integer() for x in unique_vals if pd.notna(x)):
+                    # Likely categorical (few integer values)
+                    categorical_features.append(col)
+                else:
+                    # Truly numeric
+                    numeric_features.append(col)
         
-        numeric_features = X_clean.select_dtypes(include=[np.number]).columns.tolist()
-        categorical_features = X_clean.select_dtypes(include=[object]).columns.tolist()
+        # Fill missing values appropriately
+        for col in X_clean.columns:
+            if col in categorical_features:
+                X_clean[col] = X_clean[col].fillna('Unknown')
+                # Convert to string to ensure consistent handling
+                X_clean[col] = X_clean[col].astype(str)
+            else:
+                # Only use median for truly numeric columns
+                median_val = X_clean[col].median()
+                if pd.isna(median_val):
+                    median_val = 0  # fallback
+                X_clean[col] = X_clean[col].fillna(median_val)
         
         from sklearn.impute import SimpleImputer
         
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ('num', Pipeline([
-                    ('imputer', SimpleImputer(strategy='median')),
-                    ('scaler', StandardScaler())
-                ]), numeric_features),
-                ('cat', Pipeline([
-                    ('imputer', SimpleImputer(strategy='constant', fill_value='Unknown')),
-                    ('encoder', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
-                ]), categorical_features)
-            ]
-        )
+        transformers = []
+        if numeric_features:
+            transformers.append(('num', Pipeline([
+                ('imputer', SimpleImputer(strategy='median')),
+                ('scaler', StandardScaler())
+            ]), numeric_features))
+            
+        if categorical_features:
+            transformers.append(('cat', Pipeline([
+                ('imputer', SimpleImputer(strategy='constant', fill_value='Unknown')),
+                ('encoder', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+            ]), categorical_features))
+        
+        if not transformers:
+            # Fallback if no features detected
+            transformers = [('passthrough', 'passthrough', list(X_clean.columns))]
+        
+        preprocessor = ColumnTransformer(transformers=transformers)
         
         return preprocessor
     
