@@ -1,0 +1,54 @@
+{
+  "total_experiments": 12,
+  "successful_experiments": 8,
+  "failed_experiments": 4,
+  "average_accuracy": 0.41785224089635853,
+  "std_accuracy": 0.07782795146001445,
+  "average_f1": 0.18782270965388861,
+  "std_f1": 0.20670632906116765,
+  "average_auc": 0.48829550874094185,
+  "std_auc": 0.07728964019583887,
+  "best_transfer": [
+    "xuetangx_to_oulad_random_forest",
+    {
+      "source_dataset": "xuetangx",
+      "target_dataset": "oulad",
+      "model_type": "random_forest",
+      "common_features": [
+        "age_normalized",
+        "gender_x_age",
+        "gender",
+        "engagement_score",
+        "education"
+      ],
+      "n_common_features": 5,
+      "source_samples": 1000,
+      "target_train_samples": 3500,
+      "target_test_samples": 1500,
+      "source_pass_rate": 0.527,
+      "target_pass_rate": 0.402,
+      "accuracy": 0.526,
+      "balanced_accuracy": 0.5110040655141239,
+      "f1_score": 0.4242914979757085,
+      "roc_auc": 0.5103782462640347
+    }
+  ],
+  "dataset_stats": {
+    "oulad": {
+      "samples": 5000,
+      "features": 23,
+      "pass_rate": 0.402
+    },
+    "xuetangx": {
+      "samples": 1000,
+      "features": 29,
+      "pass_rate": 0.527
+    },
+    "uci": {
+      "samples": 395,
+      "features": 34,
+      "pass_rate": 0.6708860759493671
+    }
+  },
+  "execution_time": 2.013561487197876
+}

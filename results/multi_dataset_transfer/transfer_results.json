@@ -1,0 +1,192 @@
+{
+  "oulad_to_xuetangx_logistic": {
+    "source_dataset": "oulad",
+    "target_dataset": "xuetangx",
+    "model_type": "logistic",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 5000,
+    "target_train_samples": 700,
+    "target_test_samples": 300,
+    "source_pass_rate": 0.402,
+    "target_pass_rate": 0.527,
+    "accuracy": 0.47333333333333333,
+    "balanced_accuracy": 0.5,
+    "f1_score": 0.0,
+    "roc_auc": 0.4920217507577108
+  },
+  "oulad_to_xuetangx_random_forest": {
+    "source_dataset": "oulad",
+    "target_dataset": "xuetangx",
+    "model_type": "random_forest",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 5000,
+    "target_train_samples": 700,
+    "target_test_samples": 300,
+    "source_pass_rate": 0.402,
+    "target_pass_rate": 0.527,
+    "accuracy": 0.49666666666666665,
+    "balanced_accuracy": 0.5189427705473346,
+    "f1_score": 0.17486338797814208,
+    "roc_auc": 0.5204136209663041
+  },
+  "oulad_to_uci_logistic": {
+    "source_dataset": "oulad",
+    "target_dataset": "uci",
+    "model_type": "logistic",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 5000,
+    "target_train_samples": 276,
+    "target_test_samples": 119,
+    "source_pass_rate": 0.402,
+    "target_pass_rate": 0.6708860759493671,
+    "accuracy": 0.3277310924369748,
+    "balanced_accuracy": 0.5,
+    "f1_score": 0.0,
+    "roc_auc": 0.308974358974359
+  },
+  "oulad_to_uci_random_forest": {
+    "source_dataset": "oulad",
+    "target_dataset": "uci",
+    "model_type": "random_forest",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 5000,
+    "target_train_samples": 276,
+    "target_test_samples": 119,
+    "source_pass_rate": 0.402,
+    "target_pass_rate": 0.6708860759493671,
+    "accuracy": 0.3277310924369748,
+    "balanced_accuracy": 0.5,
+    "f1_score": 0.0,
+    "roc_auc": 0.510576923076923
+  },
+  "xuetangx_to_oulad_logistic": {
+    "source_dataset": "xuetangx",
+    "target_dataset": "oulad",
+    "model_type": "logistic",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 1000,
+    "target_train_samples": 3500,
+    "target_test_samples": 1500,
+    "source_pass_rate": 0.527,
+    "target_pass_rate": 0.402,
+    "accuracy": 0.4686666666666667,
+    "balanced_accuracy": 0.5016583747927031,
+    "f1_score": 0.5034267912772585,
+    "roc_auc": 0.49540942629845935
+  },
+  "xuetangx_to_oulad_random_forest": {
+    "source_dataset": "xuetangx",
+    "target_dataset": "oulad",
+    "model_type": "random_forest",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "education"
+    ],
+    "n_common_features": 5,
+    "source_samples": 1000,
+    "target_train_samples": 3500,
+    "target_test_samples": 1500,
+    "source_pass_rate": 0.527,
+    "target_pass_rate": 0.402,
+    "accuracy": 0.526,
+    "balanced_accuracy": 0.5110040655141239,
+    "f1_score": 0.4242914979757085,
+    "roc_auc": 0.5103782462640347
+  },
+  "xuetangx_to_uci_logistic": {
+    "source_dataset": "xuetangx",
+    "target_dataset": "uci",
+    "model_type": "logistic",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "prior_performance",
+      "education"
+    ],
+    "n_common_features": 6,
+    "source_samples": 1000,
+    "target_train_samples": 276,
+    "target_test_samples": 119,
+    "source_pass_rate": 0.527,
+    "target_pass_rate": 0.6708860759493671,
+    "accuracy": 0.3277310924369748,
+    "balanced_accuracy": 0.5,
+    "f1_score": 0.0,
+    "roc_auc": 0.6025641025641025
+  },
+  "xuetangx_to_uci_random_forest": {
+    "source_dataset": "xuetangx",
+    "target_dataset": "uci",
+    "model_type": "random_forest",
+    "common_features": [
+      "age_normalized",
+      "gender_x_age",
+      "gender",
+      "engagement_score",
+      "prior_performance",
+      "education"
+    ],
+    "n_common_features": 6,
+    "source_samples": 1000,
+    "target_train_samples": 276,
+    "target_test_samples": 119,
+    "source_pass_rate": 0.527,
+    "target_pass_rate": 0.6708860759493671,
+    "accuracy": 0.3949579831932773,
+    "balanced_accuracy": 0.44487179487179485,
+    "f1_score": 0.4,
+    "roc_auc": 0.46602564102564104
+  },
+  "uci_to_oulad_logistic": {
+    "error": "Cannot use median strategy with non-numeric data:\ncould not convert string to float: 'No Formal quals'"
+  },
+  "uci_to_oulad_random_forest": {
+    "error": "Cannot use median strategy with non-numeric data:\ncould not convert string to float: 'No Formal quals'"
+  },
+  "uci_to_xuetangx_logistic": {
+    "error": "Cannot use median strategy with non-numeric data:\ncould not convert string to float: 'Bachelor'"
+  },
+  "uci_to_xuetangx_random_forest": {
+    "error": "Cannot use median strategy with non-numeric data:\ncould not convert string to float: 'Bachelor'"
+  }
+}

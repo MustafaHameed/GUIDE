@@ -1,0 +1,20 @@
+OULAD Dataset Download Instructions
+
+The OULAD dataset requires registration and manual download from:
+https://analyse.kmi.open.ac.uk/open_dataset
+
+Please download the following files and place them in this directory:
+- studentInfo.csv
+- studentRegistration.csv
+- studentAssessment.csv
+- studentVle.csv
+- vle.csv
+- assessments.csv
+- courses.csv
+
+Alternative: The dataset is also available from:
+- UCI ML Repository: https://archive.ics.uci.edu/ml/datasets/Open+University+Learning+Analytics+dataset
+- Kaggle: https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset
+
+After downloading, run the preprocessing script:
+python scripts/preprocess_oulad.py

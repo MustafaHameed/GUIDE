@@ -1,0 +1,25 @@
+XuetangX Dataset Download Instructions
+
+The XuetangX dataset is available from multiple sources:
+
+1. Original Paper: "Understanding Learner Behavior in MOOCs through Data Mining"
+   - May require contacting authors or institution
+   
+2. Alternative sources:
+   - Some preprocessed versions may be available on academic repositories
+   - Check with educational data mining conferences (EDM, LAK, etc.)
+   
+3. Similar MOOC datasets available:
+   - Stanford MOOC Data: https://datastage.stanford.edu/
+   - HarvardX and MITx data: https://dataverse.harvard.edu/
+   - Coursera Research Data: https://www.coursera.org/about/research
+
+Expected format:
+- Student interactions with course materials
+- Video watching behavior
+- Assignment submissions
+- Discussion forum participation
+- Final grades/completion status
+
+After obtaining the dataset, place CSV files in this directory and run:
+python scripts/preprocess_xuetangx.py
