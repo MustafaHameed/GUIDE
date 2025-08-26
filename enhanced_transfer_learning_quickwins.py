@@ -545,11 +545,54 @@ def main():
     oulad_df = load_oulad_data(args.oulad_path)
     uci_df = load_uci_data(args.uci_path)
     
-    # Prepare data for OULAD → UCI transfer
-    X_source = oulad_df.drop(['final_result'], axis=1, errors='ignore')
-    y_source = (oulad_df['final_result'].isin(['Pass', 'Distinction'])).astype(int) if 'final_result' in oulad_df else np.random.binomial(1, 0.5, len(oulad_df))
+    # Prepare data for OULAD → UCI transfer with preprocessing
+    from sklearn.preprocessing import LabelEncoder
+    from sklearn.impute import SimpleImputer
     
+    # Prepare source data (OULAD)
+    X_source = oulad_df.drop(['label_pass', 'label_fail_or_withdraw', 'final_result', 'id_student'], axis=1, errors='ignore')
+    
+    # Handle categorical columns for OULAD
+    categorical_cols = X_source.select_dtypes(include=['object']).columns
+    le_dict = {}
+    for col in categorical_cols:
+        le = LabelEncoder()
+        X_source[col] = le.fit_transform(X_source[col].fillna('Unknown').astype(str))
+        le_dict[col] = le
+    
+    # Handle missing values in numeric columns
+    numeric_cols = X_source.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) > 0:
+        imputer = SimpleImputer(strategy='median')
+        X_source[numeric_cols] = imputer.fit_transform(X_source[numeric_cols])
+    
+    y_source = oulad_df['label_pass'].values if 'label_pass' in oulad_df else (oulad_df['final_result'].isin(['Pass', 'Distinction'])).astype(int) if 'final_result' in oulad_df else np.random.binomial(1, 0.5, len(oulad_df))
+    
+    # Prepare target data (UCI)
     X_target = uci_df.drop(['label_pass', 'G3'], axis=1, errors='ignore')
+    
+    # Handle categorical columns for UCI
+    categorical_cols_target = X_target.select_dtypes(include=['object']).columns
+    for col in categorical_cols_target:
+        if col in le_dict:
+            # Use existing encoder if available
+            try:
+                X_target[col] = le_dict[col].transform(X_target[col].fillna('Unknown').astype(str))
+            except ValueError:
+                # Handle unseen labels
+                le = LabelEncoder()
+                X_target[col] = le.fit_transform(X_target[col].fillna('Unknown').astype(str))
+        else:
+            # Create new encoder
+            le = LabelEncoder()
+            X_target[col] = le.fit_transform(X_target[col].fillna('Unknown').astype(str))
+    
+    # Handle missing values in numeric columns for target
+    numeric_cols_target = X_target.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols_target) > 0:
+        imputer_target = SimpleImputer(strategy='median')
+        X_target[numeric_cols_target] = imputer_target.fit_transform(X_target[numeric_cols_target])
+    
     y_target = uci_df['label_pass'].values if 'label_pass' in uci_df else np.random.binomial(1, 0.5, len(uci_df))
     
     logger.info(f"Source domain (OULAD): {X_source.shape[0]} samples, {X_source.shape[1]} features")
