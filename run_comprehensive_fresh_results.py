@@ -47,90 +47,152 @@ FINAL_RESULTS_DIR.mkdir(exist_ok=True)
 
 
 def collect_all_results():
-    """Collect results from all sources."""
-    logger.info("📊 Collecting all available results...")
+    """Collect results from all sources using comprehensive collector."""
+    logger.info("📊 Collecting all available results using comprehensive collector...")
     
-    all_results = {}
-    
-    # 1. Collect OULAD training results
-    oulad_models_path = project_root / "models" / "oulad"
-    if oulad_models_path.exists():
-        logger.info("✅ Found OULAD models directory")
-        all_results['oulad_traditional'] = {
-            'logistic': {'accuracy': 0.5960, 'roc_auc': 0.5191, 'source': 'OULAD Traditional'},
-            'random_forest': {'accuracy': 0.5860, 'roc_auc': 0.5083, 'source': 'OULAD Traditional'},
-            'mlp': {'accuracy': 0.5530, 'roc_auc': 0.5010, 'source': 'OULAD Traditional'}
-        }
+    # Import and use the comprehensive collector
+    try:
+        from comprehensive_results_collector import ComprehensiveResultsCollector
+        collector = ComprehensiveResultsCollector(project_root)
+        comprehensive_results = collector.collect_all_results()
         
-        all_results['oulad_deep_learning'] = {
-            'advanced_mlp': {'accuracy': 0.5460, 'roc_auc': 0.5114, 'source': 'OULAD Advanced DL'},
-            'residual_mlp': {'accuracy': 0.5800, 'roc_auc': 0.5106, 'source': 'OULAD Advanced DL'},
-            'wide_deep': {'accuracy': 0.5350, 'roc_auc': 0.5202, 'source': 'OULAD Advanced DL'},
-            'deep_ensemble': {'accuracy': 0.5710, 'roc_auc': 0.5152, 'source': 'OULAD Advanced DL'},
-            'final_lightweight': {'accuracy': 0.5690, 'roc_auc': 0.5287, 'source': 'OULAD Final DL'},
-            'final_ensemble': {'accuracy': 0.5500, 'roc_auc': 0.5331, 'source': 'OULAD Final DL'}
-        }
-    
-    # 2. Collect fresh deep learning results
-    fresh_dl_dirs = list(project_root.glob("fresh_dl_results_*"))
-    if fresh_dl_dirs:
-        latest_fresh_dir = max(fresh_dl_dirs, key=lambda x: x.stat().st_mtime)
-        results_file = latest_fresh_dir / "tables" / "deep_learning_results.csv"
+        # Convert to format expected by this script
+        all_results = {}
         
-        if results_file.exists():
-            fresh_df = pd.read_csv(results_file)
-            logger.info(f"✅ Found fresh deep learning results: {len(fresh_df)} models")
-            
-            all_results['fresh_deep_learning'] = {}
-            for _, row in fresh_df.iterrows():
-                all_results['fresh_deep_learning'][row['Model'].lower()] = {
-                    'accuracy': row['Test_Accuracy'],
-                    'roc_auc': row['Test_ROC_AUC'],
-                    'f1_score': row['Test_F1_Score'],
-                    'source': 'Fresh Deep Learning'
-                }
-    
-    # 3. Collect enhanced feature engineering results
-    enhanced_fe_dir = project_root / "enhanced_feature_engineering_results"
-    if enhanced_fe_dir.exists():
-        summary_file = enhanced_fe_dir / "model_comparison_summary.csv"
-        if summary_file.exists():
-            enhanced_df = pd.read_csv(summary_file)
-            logger.info(f"✅ Found enhanced feature engineering results: {len(enhanced_df)} models")
-            
-            all_results['enhanced_feature_engineering'] = {}
-            for _, row in enhanced_df.iterrows():
-                model_name = row['Model_Name'].lower().replace(' ', '_')
-                all_results['enhanced_feature_engineering'][model_name] = {
-                    'baseline_accuracy': row['Baseline_Accuracy'],
-                    'enhanced_accuracy': row['Enhanced_Accuracy'],
-                    'accuracy_improvement': row['Accuracy_Improvement'],
-                    'baseline_auc': row['Baseline_AUC'],
-                    'enhanced_auc': row['Enhanced_AUC'],
-                    'auc_improvement': row['AUC_Improvement'],
-                    'source': 'Enhanced Feature Engineering'
-                }
-    
-    # 4. Collect comprehensive results
-    complete_results_dirs = list(project_root.glob("complete_results_*"))
-    if complete_results_dirs:
-        latest_complete_dir = max(complete_results_dirs, key=lambda x: x.stat().st_mtime)
+        # Extract results by type for backward compatibility
+        if 'results_by_type' in comprehensive_results:
+            for result_type, type_data in comprehensive_results['results_by_type'].items():
+                if 'models' in type_data:
+                    all_results[result_type] = {}
+                    for model_name, model_data in type_data['models'].items():
+                        # Standardize model data format
+                        standardized_data = {}
+                        if 'accuracy' in model_data:
+                            standardized_data['accuracy'] = model_data['accuracy']
+                        elif 'enhanced_accuracy' in model_data:
+                            standardized_data['accuracy'] = model_data['enhanced_accuracy']
+                            
+                        if 'roc_auc' in model_data:
+                            standardized_data['roc_auc'] = model_data['roc_auc']
+                        elif 'enhanced_auc' in model_data:
+                            standardized_data['roc_auc'] = model_data['enhanced_auc']
+                            
+                        if 'f1_score' in model_data:
+                            standardized_data['f1_score'] = model_data['f1_score']
+                        
+                        standardized_data['source'] = result_type.replace('_', ' ').title()
+                        
+                        # Add all original data
+                        standardized_data.update(model_data)
+                        
+                        all_results[result_type][model_name.lower().replace(' ', '_')] = standardized_data
         
-        # Get model performance
-        model_perf_file = latest_complete_dir / "tables" / "model_performance.csv"
-        if model_perf_file.exists():
-            comp_df = pd.read_csv(model_perf_file)
-            logger.info(f"✅ Found comprehensive results: {len(comp_df)} models")
+        # Add transfer learning results
+        if 'cross_dataset_results' in comprehensive_results and 'transfer_learning' in comprehensive_results['cross_dataset_results']:
+            transfer_data = comprehensive_results['cross_dataset_results']['transfer_learning']
+            if 'transfers' in transfer_data:
+                all_results['transfer_learning'] = {}
+                for transfer_name, transfer_metrics in transfer_data['transfers'].items():
+                    all_results['transfer_learning'][transfer_name] = {
+                        'accuracy': transfer_metrics['accuracy'],
+                        'roc_auc': transfer_metrics.get('auc', 0),
+                        'f1_score': transfer_metrics.get('f1', 0),
+                        'source': f"Transfer: {transfer_metrics['direction']}"
+                    }
+        
+        logger.info(f"✅ Comprehensive collection found {len(all_results)} result categories")
+        for category, models in all_results.items():
+            if isinstance(models, dict):
+                logger.info(f"  📊 {category}: {len(models)} models")
+        
+        return all_results
+        
+    except ImportError as e:
+        logger.warning(f"Could not import comprehensive collector: {e}")
+        logger.info("Falling back to original collection method...")
+        
+        # Original collection method as fallback
+        all_results = {}
+        
+        # 1. Collect OULAD training results
+        oulad_models_path = project_root / "models" / "oulad"
+        if oulad_models_path.exists():
+            logger.info("✅ Found OULAD models directory")
+            all_results['oulad_traditional'] = {
+                'logistic': {'accuracy': 0.5960, 'roc_auc': 0.5191, 'source': 'OULAD Traditional'},
+                'random_forest': {'accuracy': 0.5860, 'roc_auc': 0.5083, 'source': 'OULAD Traditional'},
+                'mlp': {'accuracy': 0.5530, 'roc_auc': 0.5010, 'source': 'OULAD Traditional'}
+            }
             
-            all_results['comprehensive_models'] = {}
-            for _, row in comp_df.iterrows():
-                all_results['comprehensive_models'][row['model_type']] = {
-                    'accuracy': row['accuracy_mean'],
-                    'accuracy_std': row['accuracy_std'],
-                    'source': 'Comprehensive Pipeline'
-                }
-    
-    return all_results
+            all_results['oulad_deep_learning'] = {
+                'advanced_mlp': {'accuracy': 0.5460, 'roc_auc': 0.5114, 'source': 'OULAD Advanced DL'},
+                'residual_mlp': {'accuracy': 0.5800, 'roc_auc': 0.5106, 'source': 'OULAD Advanced DL'},
+                'wide_deep': {'accuracy': 0.5350, 'roc_auc': 0.5202, 'source': 'OULAD Advanced DL'},
+                'deep_ensemble': {'accuracy': 0.5710, 'roc_auc': 0.5152, 'source': 'OULAD Advanced DL'},
+                'final_lightweight': {'accuracy': 0.5690, 'roc_auc': 0.5287, 'source': 'OULAD Final DL'},
+                'final_ensemble': {'accuracy': 0.5500, 'roc_auc': 0.5331, 'source': 'OULAD Final DL'}
+            }
+        
+        # 2. Collect fresh deep learning results
+        fresh_dl_dirs = list(project_root.glob("fresh_dl_results_*"))
+        if fresh_dl_dirs:
+            latest_fresh_dir = max(fresh_dl_dirs, key=lambda x: x.stat().st_mtime)
+            results_file = latest_fresh_dir / "tables" / "deep_learning_results.csv"
+            
+            if results_file.exists():
+                fresh_df = pd.read_csv(results_file)
+                logger.info(f"✅ Found fresh deep learning results: {len(fresh_df)} models")
+                
+                all_results['fresh_deep_learning'] = {}
+                for _, row in fresh_df.iterrows():
+                    all_results['fresh_deep_learning'][row['Model'].lower()] = {
+                        'accuracy': row['Test_Accuracy'],
+                        'roc_auc': row['Test_ROC_AUC'],
+                        'f1_score': row['Test_F1_Score'],
+                        'source': 'Fresh Deep Learning'
+                    }
+        
+        # 3. Collect enhanced feature engineering results
+        enhanced_fe_dir = project_root / "enhanced_feature_engineering_results"
+        if enhanced_fe_dir.exists():
+            summary_file = enhanced_fe_dir / "model_comparison_summary.csv"
+            if summary_file.exists():
+                enhanced_df = pd.read_csv(summary_file)
+                logger.info(f"✅ Found enhanced feature engineering results: {len(enhanced_df)} models")
+                
+                all_results['enhanced_feature_engineering'] = {}
+                for _, row in enhanced_df.iterrows():
+                    model_name = row['Model_Name'].lower().replace(' ', '_')
+                    all_results['enhanced_feature_engineering'][model_name] = {
+                        'baseline_accuracy': row['Baseline_Accuracy'],
+                        'enhanced_accuracy': row['Enhanced_Accuracy'],
+                        'accuracy_improvement': row['Accuracy_Improvement'],
+                        'baseline_auc': row['Baseline_AUC'],
+                        'enhanced_auc': row['Enhanced_AUC'],
+                        'auc_improvement': row['AUC_Improvement'],
+                        'source': 'Enhanced Feature Engineering'
+                    }
+        
+        # 4. Collect comprehensive results
+        complete_results_dirs = list(project_root.glob("complete_results_*"))
+        if complete_results_dirs:
+            latest_complete_dir = max(complete_results_dirs, key=lambda x: x.stat().st_mtime)
+            
+            # Get model performance
+            model_perf_file = latest_complete_dir / "tables" / "model_performance.csv"
+            if model_perf_file.exists():
+                comp_df = pd.read_csv(model_perf_file)
+                logger.info(f"✅ Found comprehensive results: {len(comp_df)} models")
+                
+                all_results['comprehensive_models'] = {}
+                for _, row in comp_df.iterrows():
+                    all_results['comprehensive_models'][row['model_type']] = {
+                        'accuracy': row['accuracy_mean'],
+                        'accuracy_std': row['accuracy_std'],
+                        'source': 'Comprehensive Pipeline'
+                    }
+        
+        return all_results
 
 
 def create_master_comparison_table(all_results):
