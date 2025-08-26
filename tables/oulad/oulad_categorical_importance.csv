@@ -1,8 +1,3 @@
-feature,mutual_info,unique_values
-code_module,0.00782042799998428,6
-age_band,0.005908953557240748,3
-sex_x_age,0.0058129324758631196,6
-imd_band,0.00421144181765265,10
-highest_education,3.798724990566882e-05,5
-sex,0.0,2
-code_presentation,0.0,4
+version https://git-lfs.github.com/spec/v1
+oid sha256:d116555dc46b2fd24767810e4823cd99d7e510719c54cc3de031f0968b60f045
+size 242

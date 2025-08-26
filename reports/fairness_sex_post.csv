@@ -1,3 +1,3 @@
-sex,demographic_parity_pre,demographic_parity_post,dp_delta,equalized_odds_pre,equalized_odds_post,eo_delta
-F,0.6382978723404256,0.6382978723404256,0.0,0.06108597285067874,0.06108597285067874,0.0
-M,0.59375,0.59375,0.0,0.11538461538461539,0.11538461538461539,0.0
+version https://git-lfs.github.com/spec/v1
+oid sha256:86083ce17a70ae57e1f3716d741799f30e7e24573b6f524979be2ff3efdcb58e
+size 262
