@@ -1,0 +1,162 @@
+{
+  "datasets": {
+    "oulad_samples": 5000,
+    "uci_samples": 395,
+    "shared_features": [
+      "sex",
+      "age_band",
+      "ses_proxy",
+      "attendance_proxy",
+      "internet"
+    ],
+    "uci_baseline_accuracy": 0.6708860759493671
+  },
+  "experiments": {
+    "baseline": {
+      "logistic": {
+        "error": "Cannot convert [['Female' 'Female' 'Male' ... 'Female' 'Female' 'Female']\n ['55<=' '35-55' '35-55' ... '55<=' '35-55' '35-55']\n ['yes' 'yes' 'yes' ... 'yes' 'yes' 'yes']] to numeric"
+      },
+      "random_forest": {
+        "error": "Cannot convert [['Female' 'Female' 'Male' ... 'Female' 'Female' 'Female']\n ['55<=' '35-55' '35-55' ... '55<=' '35-55' '35-55']\n ['yes' 'yes' 'yes' ... 'yes' 'yes' 'yes']] to numeric"
+      },
+      "mlp": {
+        "error": "Cannot convert [['Female' 'Female' 'Male' ... 'Female' 'Female' 'Female']\n ['55<=' '35-55' '35-55' ... '55<=' '35-55' '35-55']\n ['yes' 'yes' 'yes' ... 'yes' 'yes' 'yes']] to numeric"
+      }
+    },
+    "improved": {
+      "ensemble_only": {
+        "accuracy": 0.3291139240506329,
+        "balanced_accuracy": 0.5,
+        "f1": 0.0,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 9,
+        "auc": 0.5467489114658926,
+        "source_cv_accuracy": 0.5889997270653913
+      },
+      "ensemble_with_da": {
+        "accuracy": 0.3240506329113924,
+        "balanced_accuracy": 0.49034833091436864,
+        "f1": 0.007434944237918215,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 9,
+        "auc": 0.5224528301886793,
+        "source_cv_accuracy": 0.5889997270653913
+      },
+      "single_model_with_da": {
+        "accuracy": 0.32151898734177214,
+        "balanced_accuracy": 0.48846153846153845,
+        "f1": 0.0,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 9,
+        "auc": 0.5192888243831639,
+        "source_cv_accuracy": 0.5239996418483409
+      }
+    },
+    "enhanced": {
+      "enhanced_features_only": {
+        "accuracy": 0.40253164556962023,
+        "balanced_accuracy": 0.45478955007256894,
+        "f1": 0.40404040404040403,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 10,
+        "auc": 0.4302612481857765,
+        "source_cv_accuracy": 0.5821972460249847,
+        "enhanced_features": true,
+        "source_features": 33,
+        "target_features": 33,
+        "feature_enhancement_ratio": {
+          "source": 6.6,
+          "target": 2.75
+        }
+      },
+      "enhanced_features_with_da": {
+        "accuracy": 0.3367088607594937,
+        "balanced_accuracy": 0.5017416545718433,
+        "f1": 0.03676470588235294,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 10,
+        "auc": 0.6234397677793905,
+        "source_cv_accuracy": 0.5946001676015337,
+        "enhanced_features": true,
+        "source_features": 33,
+        "target_features": 33,
+        "feature_enhancement_ratio": {
+          "source": 6.6,
+          "target": 2.75
+        }
+      }
+    },
+    "domain_adaptation": {
+      "baseline": {
+        "accuracy": 0.5063291139240507,
+        "balanced_accuracy": 0.5007982583454281,
+        "roc_auc": 0.4815820029027576
+      },
+      "adapted_model": {
+        "accuracy": 0.369620253164557,
+        "balanced_accuracy": 0.49687953555878084,
+        "roc_auc": 0.43532656023222066
+      },
+      "label_shift_corrected": {
+        "accuracy": 0.6708860759493671,
+        "balanced_accuracy": 0.5,
+        "roc_auc": 0.43532656023222066
+      }
+    }
+  },
+  "best_results": {
+    "baseline": [
+      "logistic",
+      {
+        "error": "Cannot convert [['Female' 'Female' 'Male' ... 'Female' 'Female' 'Female']\n ['55<=' '35-55' '35-55' ... '55<=' '35-55' '35-55']\n ['yes' 'yes' 'yes' ... 'yes' 'yes' 'yes']] to numeric"
+      }
+    ],
+    "improved": [
+      "ensemble_only",
+      {
+        "accuracy": 0.3291139240506329,
+        "balanced_accuracy": 0.5,
+        "f1": 0.0,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 9,
+        "auc": 0.5467489114658926,
+        "source_cv_accuracy": 0.5889997270653913
+      }
+    ],
+    "enhanced": [
+      "enhanced_features_only",
+      {
+        "accuracy": 0.40253164556962023,
+        "balanced_accuracy": 0.45478955007256894,
+        "f1": 0.40404040404040403,
+        "source_size": 5000,
+        "target_size": 395,
+        "n_features": 10,
+        "auc": 0.4302612481857765,
+        "source_cv_accuracy": 0.5821972460249847,
+        "enhanced_features": true,
+        "source_features": 33,
+        "target_features": 33,
+        "feature_enhancement_ratio": {
+          "source": 6.6,
+          "target": 2.75
+        }
+      }
+    ],
+    "domain_adaptation": [
+      "label_shift_corrected",
+      {
+        "accuracy": 0.6708860759493671,
+        "balanced_accuracy": 0.5,
+        "roc_auc": 0.43532656023222066
+      }
+    ]
+  },
+  "timestamp": "2025-08-26T11:34:08.803390"
+}
