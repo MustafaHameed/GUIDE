@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divA9783JT80AG28FM"></div>
+        <div class="lime top_div" id="top_div1AIJUPI0XVKZAOC"></div>
         
         <script>
-        var top_div = d3.select('#top_divA9783JT80AG28FM').classed('lime top_div', true);
+        var top_div = d3.select('#top_div1AIJUPI0XVKZAOC').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.66, 0.34]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.8508744758424592, 0.14912552415754077]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.3838761489832706], ["num__G1 <= -0.88", -0.18157990913070454], ["num__failures <= -0.42", 0.08808902212060138], ["cat__schoolsup_yes > 0.00", -0.029875679457976072], ["0.00 < cat__activities_yes <= 1.00", -0.021903695813830656]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.46884080269396283], ["num__G1 <= -0.88", -0.284744967251742], ["num__failures <= -0.42", 0.14248441581308827], ["ord__Walc <= 0.00", -0.054350013841059155], ["num__Fedu <= -0.47", -0.050744027379085226]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.49", -0.3838761489832706], ["num__G1", "-0.88", -0.18157990913070454], ["num__failures", "-0.42", 0.08808902212060138], ["cat__schoolsup_yes", "1.00", -0.029875679457976072], ["cat__activities_yes", "1.00", -0.021903695813830656]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.49", -0.46884080269396283], ["num__G1", "-0.88", -0.284744967251742], ["num__failures", "-0.42", 0.14248441581308827], ["ord__Walc", "0.00", -0.054350013841059155], ["num__Fedu", "-1.39", -0.050744027379085226]], 1, raw_div);
         
         </script>
         </body></html>

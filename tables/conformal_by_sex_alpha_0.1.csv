@@ -1,0 +1,3 @@
+coverage,target_coverage,coverage_gap,average_set_size,singleton_rate,empty_set_rate,full_set_rate,group,n_samples
+0.8723404255319149,0.9,-0.02765957446808509,1.0,1.0,0.0,0.0,F,47
+0.875,0.9,-0.025000000000000022,1.0,1.0,0.0,0.0,M,32

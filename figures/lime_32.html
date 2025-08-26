@@ -37089,25 +37089,25 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_div51Z67UHDOGVT5H2"></div>
+        <div class="lime top_div" id="top_divA3HBB93H3V2ZT78"></div>
         
         <script>
-        var top_div = d3.select('#top_div51Z67UHDOGVT5H2').classed('lime top_div', true);
+        var top_div = d3.select('#top_divA3HBB93H3V2ZT78').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
             var pp_svg = pp_div.append('svg').style('width', '100%');
-            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.791170580779132, 0.2088294192208679]);
+            var pp = new lime.PredictProba(pp_svg, ["negative", "positive"], [0.4938360846873576, 0.5061639153126424]);
             
         
         var exp_div;
             var exp = new lime.Explanation(["negative", "positive"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["num__G2 <= -0.49", -0.4530332455050927], ["num__G1 <= -0.88", -0.2973194952103636], ["num__failures <= -0.42", 0.1313106661945674], ["0.04 < num__famrel <= 1.18", 0.07111164722519085], ["ord__Walc <= 0.00", -0.04447829709075109]], 1, exp_div);
+                exp.show([["num__G2 <= -0.49", -0.9178864081157128], ["cat__Fjob_other <= 0.00", -0.028541010524604248], ["num__freetime <= -0.22", 0.020905763466737295], ["num__G1 <= -0.88", -0.020881079198564852], ["num__famrel <= 0.04", -0.020526187254939487]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["num__G2", "-0.76", -0.4530332455050927], ["num__G1", "-0.88", -0.2973194952103636], ["num__failures", "-0.42", 0.1313106661945674], ["num__famrel", "1.18", 0.07111164722519085], ["ord__Walc", "0.00", -0.04447829709075109]], 1, raw_div);
+            exp.show_raw_tabular([["num__G2", "-0.49", -0.9178864081157128], ["cat__Fjob_other", "0.00", -0.028541010524604248], ["num__freetime", "-1.24", 0.020905763466737295], ["num__G1", "-0.88", -0.020881079198564852], ["num__famrel", "-1.10", -0.020526187254939487]], 1, raw_div);
         
         </script>
         </body></html>
