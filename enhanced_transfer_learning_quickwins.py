@@ -41,11 +41,24 @@ from src.transfer import (
 import sys
 sys.path.append('.')
 
+# Import enhanced data loader
+try:
+    from scripts.enhanced_data_loader import load_dataset, load_all_datasets
+    ENHANCED_LOADER_AVAILABLE = True
+except ImportError:
+    ENHANCED_LOADER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
 def load_oulad_data(data_path: str = "data/oulad/processed/oulad_ml.csv") -> pd.DataFrame:
     """Load OULAD dataset."""
+    if ENHANCED_LOADER_AVAILABLE:
+        try:
+            return load_dataset('oulad')
+        except Exception as e:
+            logger.warning(f"Enhanced loader failed: {e}, falling back to original method")
+    
     try:
         df = pd.read_csv(data_path)
         logger.info(f"Loaded OULAD data: {df.shape}")
@@ -57,6 +70,12 @@ def load_oulad_data(data_path: str = "data/oulad/processed/oulad_ml.csv") -> pd.
 
 def load_uci_data(data_path: str = "student-mat.csv") -> pd.DataFrame:
     """Load UCI student performance dataset."""
+    if ENHANCED_LOADER_AVAILABLE:
+        try:
+            return load_dataset('uci')
+        except Exception as e:
+            logger.warning(f"Enhanced loader failed: {e}, falling back to original method")
+    
     try:
         df = pd.read_csv(data_path)  # Use default comma separator
         # Create pass/fail label
@@ -67,6 +86,17 @@ def load_uci_data(data_path: str = "student-mat.csv") -> pd.DataFrame:
     except FileNotFoundError:
         logger.warning(f"UCI data not found at {data_path}, creating synthetic data")
         return create_synthetic_uci_data()
+
+
+def load_xuetangx_data() -> pd.DataFrame:
+    """Load XuetangX MOOC dataset."""
+    if ENHANCED_LOADER_AVAILABLE:
+        try:
+            return load_dataset('xuetangx')
+        except Exception as e:
+            logger.warning(f"Enhanced loader failed: {e}, creating synthetic data")
+    
+    return create_synthetic_xuetangx_data()
 
 
 def create_synthetic_oulad_data(n_samples: int = 500) -> pd.DataFrame:
@@ -108,6 +138,33 @@ def create_synthetic_uci_data(n_samples: int = 400) -> pd.DataFrame:
     
     df = pd.DataFrame(data)
     df['label_pass'] = (df['G3'] >= 10).astype(int)
+    return df
+
+
+def create_synthetic_xuetangx_data(n_samples: int = 600) -> pd.DataFrame:
+    """Create synthetic XuetangX-like MOOC data for demonstration."""
+    np.random.seed(44)
+    
+    data = {
+        'sex': np.random.choice(['M', 'F'], n_samples),
+        'age': np.random.randint(18, 50, n_samples),
+        'education_level': np.random.choice(['High School', 'Bachelor', 'Master', 'PhD'], 
+                                          n_samples, p=[0.3, 0.4, 0.2, 0.1]),
+        'country': np.random.choice(['China', 'USA', 'India', 'Other'], 
+                                   n_samples, p=[0.6, 0.15, 0.1, 0.15]),
+        'total_video_time': np.random.exponential(1000, n_samples),
+        'videos_watched': np.random.poisson(15, n_samples),
+        'video_completion_rate': np.random.beta(2, 3, n_samples),
+        'assignments_submitted': np.random.poisson(8, n_samples),
+        'assignment_avg_score': np.random.beta(5, 3, n_samples) * 100,
+        'forum_posts': np.random.poisson(3, n_samples),
+        'days_active': np.random.poisson(30, n_samples),
+        'final_score': np.random.normal(70, 20, n_samples)
+    }
+    
+    df = pd.DataFrame(data)
+    df['final_score'] = df['final_score'].clip(0, 100)
+    df['label_pass'] = (df['final_score'] >= 60).astype(int)
     return df
 
 
