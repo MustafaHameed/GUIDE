@@ -74,6 +74,63 @@ transfer: train
 	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.transfer.uci_transfer
 	@echo "Transfer learning completed"
 
+# Enhanced transfer learning targets
+.PHONY: transfer-diagnostics transfer-simple transfer-weighted transfer-aligned transfer-dann transfer-ssl transfer-fairness
+
+transfer-diagnostics:
+	@echo "Running transfer learning shift diagnostics..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --no-diagnostics
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) -m src.transfer.diagnostics --from oulad --to uci --output-dir tables/transfer
+	@echo "Transfer diagnostics completed"
+
+transfer-simple:
+	@echo "Running simple transfer learning (baseline)..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci
+	@echo "Simple transfer completed"
+
+transfer-weighted:
+	@echo "Running transfer learning with importance weighting and label shift correction..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --iw --label_shift
+	@echo "Weighted transfer completed"
+
+transfer-aligned:
+	@echo "Running transfer learning with feature alignment..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --iw --coral --label_shift
+	@echo "Aligned transfer completed"
+
+transfer-dann:
+	@echo "Running transfer learning with DANN..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --dann
+	@echo "DANN transfer completed"
+
+transfer-ssl:
+	@echo "Running transfer learning with self-supervised learning..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --self_train
+	@echo "Self-supervised transfer completed"
+
+transfer-fairness:
+	@echo "Running transfer learning with fairness optimization..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --fairness_grid
+	@echo "Fairness transfer completed"
+
+# Combined transfer learning experiments
+.PHONY: transfer-all transfer-standard transfer-advanced
+
+transfer-standard:
+	@echo "Running standard transfer learning methods..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --standard
+	@echo "Standard transfer methods completed"
+
+transfer-advanced:
+	@echo "Running advanced transfer learning methods..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --advanced
+	@echo "Advanced transfer methods completed"
+
+transfer-all:
+	@echo "Running all transfer learning methods..."
+	PYTHONHASHSEED=$(PYTHONHASHSEED) $(PYTHON) transfer_learning.py --from oulad --to uci --all-methods
+	@echo "All transfer methods completed"
+
 # Fairness analysis
 .PHONY: fairness
 fairness: train
@@ -279,7 +336,17 @@ help:
 	@echo "  train        - Train baseline models"
 	@echo "  early-risk   - Run early risk assessment"
 	@echo "  nested-cv    - Run nested cross-validation"
-	@echo "  transfer     - Run transfer learning experiments"
+	@echo "  transfer                - Run basic transfer learning experiments"
+	@echo "  transfer-diagnostics    - Run shift diagnostics analysis"
+	@echo "  transfer-simple         - Simple baseline transfer learning"
+	@echo "  transfer-weighted       - Transfer with importance weighting + label shift"
+	@echo "  transfer-aligned        - Transfer with CORAL feature alignment"
+	@echo "  transfer-dann           - Transfer with domain adversarial training"
+	@echo "  transfer-ssl            - Transfer with self-supervised learning"
+	@echo "  transfer-fairness       - Transfer with fairness optimization"
+	@echo "  transfer-standard       - Standard methods combination"
+	@echo "  transfer-advanced       - Advanced methods combination" 
+	@echo "  transfer-all            - All transfer learning methods"
 	@echo "  fairness     - Run fairness analysis"
 	@echo "  explain      - Run explainability analysis"
 	@echo "  dashboard    - Prepare dashboard (then run streamlit manually)"

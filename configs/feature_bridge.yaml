@@ -1,0 +1,335 @@
+# Feature Bridge Configuration for UCI ↔ OULAD Transfer Learning
+# 
+# This YAML configuration defines the canonical feature schema and mapping rules
+# between UCI student performance dataset and OULAD dataset for transfer learning.
+
+# Canonical feature schema with typed groups
+canonical_schema:
+  demographics:
+    sex:
+      type: categorical
+      values: ["F", "M"]
+      description: "Student gender"
+    
+    age_group:
+      type: ordinal
+      values: ["young", "middle", "older"]
+      description: "Age grouping for compatibility"
+  
+  socioeconomic:
+    ses_index:
+      type: ordinal
+      range: [0, 4]
+      description: "Socioeconomic status index (0=low, 4=high)"
+    
+    family_support:
+      type: ordinal
+      range: [0, 4] 
+      description: "Family educational support level"
+  
+  academic_background:
+    prior_performance:
+      type: continuous
+      range: [0, 1]
+      description: "Normalized prior academic performance"
+    
+    study_load:
+      type: continuous
+      range: [0, 1]
+      description: "Normalized study load/credits"
+  
+  engagement:
+    activity_level:
+      type: continuous
+      range: [0, 1]
+      description: "Normalized engagement/activity level"
+    
+    study_time:
+      type: ordinal
+      range: [0, 4]
+      description: "Weekly study time level"
+
+# Mapping rules UCI → Canonical Schema
+uci_mapping:
+  demographics:
+    sex:
+      source_column: "sex"
+      transform: "direct_map"
+      mapping:
+        "F": "F"
+        "M": "M"
+    
+    age_group:
+      source_column: "age"
+      transform: "age_to_group"
+      mapping:
+        "young": [15, 16, 17]
+        "middle": [18, 19, 20]
+        "older": [21, 22, 23, 24, 25]
+  
+  socioeconomic:
+    ses_index:
+      source_column: "Medu"  # Mother's education as SES proxy
+      transform: "ordinal_map"
+      mapping:
+        0: 0  # No education
+        1: 1  # Primary education
+        2: 2  # Middle school
+        3: 3  # Secondary education
+        4: 4  # Higher education
+    
+    family_support:
+      source_column: "famrel"  # Family relationships
+      transform: "scale_map"
+      input_range: [1, 5]
+      output_range: [0, 4]
+  
+  academic_background:
+    prior_performance:
+      source_column: "G1"  # First period grade
+      transform: "normalize"
+      input_range: [0, 20]
+      output_range: [0, 1]
+    
+    study_load:
+      source_column: "studytime"  # Weekly study time
+      transform: "normalize_log"
+      input_range: [1, 4]
+      output_range: [0, 1]
+  
+  engagement:
+    activity_level:
+      source_column: "studytime"  # Use study time as activity proxy
+      transform: "normalize"
+      input_range: [1, 4]
+      output_range: [0, 1]
+    
+    study_time:
+      source_column: "studytime"
+      transform: "ordinal_map"
+      mapping:
+        1: 0  # <2 hours
+        2: 1  # 2-5 hours  
+        3: 2  # 5-10 hours
+        4: 3  # >10 hours
+
+# Mapping rules OULAD → Canonical Schema  
+oulad_mapping:
+  demographics:
+    sex:
+      source_column: "sex"
+      transform: "direct_map"
+      mapping:
+        "F": "F"
+        "M": "M"
+    
+    age_group:
+      source_column: "age_band"
+      transform: "age_band_map"
+      mapping:
+        "0-35": "young"
+        "35-55": "middle"
+        "55<=": "older"
+  
+  socioeconomic:
+    ses_index:
+      source_column: "imd_band"  # Index of Multiple Deprivation
+      transform: "reverse_ordinal"
+      input_range: [0, 90]  # Lower percentile = higher deprivation
+      output_range: [4, 0]   # Reverse to make higher = better SES
+    
+    family_support:
+      source_column: "disability"  # Use disability as proxy (inverse)
+      transform: "binary_to_ordinal"
+      mapping:
+        "N": 3  # No disability = good support
+        "Y": 1  # Disability = lower support
+        null: 2  # Unknown = medium
+  
+  academic_background:
+    prior_performance:
+      source_column: "prev_attempts"  # Previous attempts (inverse indicator)
+      transform: "attempts_to_performance"
+      mapping:
+        0: 1.0    # No previous attempts = high performance
+        1: 0.7    # One attempt = medium performance
+        2: 0.4    # Two attempts = lower performance
+        "3+": 0.1 # Many attempts = low performance
+    
+    study_load:
+      source_column: "studied_credits"
+      transform: "normalize"
+      input_range: [30, 240]  # Typical credit range
+      output_range: [0, 1]
+  
+  engagement:
+    activity_level:
+      source_column: "vle_total_clicks"  # VLE engagement
+      transform: "log_normalize"
+      input_range: [0, 10000]  # Typical click range
+      output_range: [0, 1]
+    
+    study_time:
+      source_column: "vle_total_clicks"  # Use clicks as study time proxy
+      transform: "clicks_to_studytime"
+      mapping:
+        "low": [0, 100]      # 0 = minimal study
+        "medium": [101, 500] # 1 = low study
+        "high": [501, 2000]  # 2 = medium study
+        "very_high": [2001, "inf"] # 3 = high study
+
+# Target variable mapping
+target_mapping:
+  uci:
+    source_column: "G3"  # Final grade
+    transform: "grade_to_binary"
+    threshold: 10  # Pass threshold
+    mapping:
+      "pass": 1    # G3 >= 10
+      "fail": 0    # G3 < 10
+  
+  oulad:
+    source_column: "final_result" 
+    transform: "result_to_binary"
+    mapping:
+      "Pass": 1
+      "Distinction": 1
+      "Fail": 0
+      "Withdrawn": 0
+
+# Data quality and validation rules
+validation_rules:
+  demographics:
+    sex:
+      required: true
+      allowed_missing: 0.05
+    
+    age_group:
+      required: true
+      allowed_missing: 0.10
+  
+  socioeconomic:
+    ses_index:
+      required: false
+      allowed_missing: 0.20
+      default_value: 2  # Medium SES
+    
+    family_support:
+      required: false
+      allowed_missing: 0.30
+      default_value: 2  # Medium support
+  
+  academic_background:
+    prior_performance:
+      required: true
+      allowed_missing: 0.05
+      range_check: [0, 1]
+    
+    study_load:
+      required: true
+      allowed_missing: 0.10
+      range_check: [0, 1]
+  
+  engagement:
+    activity_level:
+      required: false
+      allowed_missing: 0.25
+      default_value: 0.5  # Medium activity
+    
+    study_time:
+      required: false
+      allowed_missing: 0.20
+      default_value: 1  # Low-medium study time
+
+# Feature alignment strategies
+alignment_strategies:
+  covariate_shift:
+    methods: ["importance_weighting", "coral"]
+    importance_weighting:
+      classifier: "logistic"
+      clip_weights: true
+      clip_quantile: 0.95
+    
+    coral:
+      lambda_coral: 1.0
+      regularization: 1e-6
+  
+  label_shift:
+    method: "saerens_decock"
+    max_iterations: 100
+    tolerance: 1e-6
+  
+  domain_adaptation:
+    dann:
+      hidden_dims: [128, 64]
+      num_epochs: 100
+      lambda_schedule: "grl"
+    
+    self_training:
+      confidence_threshold: 0.8
+      max_iterations: 3
+      class_balance: true
+
+# Evaluation metrics for transfer learning
+evaluation_metrics:
+  performance:
+    - accuracy
+    - balanced_accuracy
+    - roc_auc
+    - pr_auc
+    - f1_score
+  
+  fairness:
+    sensitive_attributes: ["sex", "age_group", "ses_index"]
+    metrics:
+      - demographic_parity
+      - equalized_odds
+      - worst_group_accuracy
+  
+  calibration:
+    - expected_calibration_error
+    - brier_score
+  
+  shift_analysis:
+    - proxy_a_distance
+    - domain_classifier_auc
+    - label_shift_detection
+
+# Preprocessing pipelines
+preprocessing:
+  feature_engineering:
+    interaction_terms:
+      - ["sex", "ses_index"]
+      - ["age_group", "prior_performance"]
+    
+    polynomial_features:
+      degree: 2
+      include_bias: false
+      interaction_only: true
+    
+    feature_selection:
+      method: "mutual_info"
+      k_best: 15
+  
+  scaling:
+    numerical: "robust"  # RobustScaler for outlier resistance
+    categorical: "label"  # LabelEncoder
+  
+  missing_values:
+    numerical: "median"
+    categorical: "mode"
+
+# Output configuration
+output_config:
+  save_transformed_data: true
+  save_feature_importance: true
+  save_alignment_metrics: true
+  
+  report_format: "markdown"
+  
+  tables_dir: "tables/transfer"
+  figures_dir: "figures/transfer"
+  
+  file_naming:
+    pattern: "{method}_{source}_to_{target}_{timestamp}"
+    timestamp_format: "%Y%m%d_%H%M%S"
