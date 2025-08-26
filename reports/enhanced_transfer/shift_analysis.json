@@ -20,15 +20,15 @@
       "source_std": 2.8795743504900164,
       "target_std": 1.0775832716865472
     },
-    "sex": {
-      "feature": "sex",
-      "psi": 0.005125225057705345,
-      "ks_statistic": 0.03578227848101266,
-      "ks_pvalue": 0.7216998585013413,
-      "source_mean": 0.5092,
-      "target_mean": 0.47341772151898737,
-      "source_std": 0.4999153528348575,
-      "target_std": 0.49929288245553616
+    "age_band": {
+      "feature": "age_band",
+      "psi": 6.794847118943761,
+      "ks_statistic": 0.5863822784810127,
+      "ks_pvalue": 2.0982920112364157e-119,
+      "source_mean": 0.9966,
+      "target_mean": 0.07341772151898734,
+      "source_std": 0.8227930724064223,
+      "target_std": 0.2608209341405474
     },
     "academic_proxy": {
       "feature": "academic_proxy",
@@ -40,15 +40,15 @@
       "source_std": 1.0,
       "target_std": 0.005872047274731256
     },
-    "age_band": {
-      "feature": "age_band",
-      "psi": 6.794847118943761,
-      "ks_statistic": 0.5863822784810127,
-      "ks_pvalue": 2.0982920112364157e-119,
-      "source_mean": 0.9966,
-      "target_mean": 0.07341772151898734,
-      "source_std": 0.8227930724064223,
-      "target_std": 0.2608209341405474
+    "sex": {
+      "feature": "sex",
+      "psi": 0.005125225057705345,
+      "ks_statistic": 0.03578227848101266,
+      "ks_pvalue": 0.7216998585013413,
+      "source_mean": 0.5092,
+      "target_mean": 0.47341772151898737,
+      "source_std": 0.4999153528348575,
+      "target_std": 0.49929288245553616
     }
   },
   "domain_metrics": {
@@ -79,10 +79,10 @@
     "features_with_significant_ks": [
       "engagement_proxy",
       "ses_proxy",
-      "academic_proxy",
-      "age_band"
+      "age_band",
+      "academic_proxy"
     ],
-    "mean_psi": 9.747346225443241,
+    "mean_psi": 9.74734622544324,
     "median_psi": 10.058448980333683,
     "max_psi": 17.14701967781683
   }
