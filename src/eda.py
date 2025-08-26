@@ -39,7 +39,6 @@ plt.rcParams["axes.spines.right"] = False
 
 def _save_table(table: pd.DataFrame, name: str, directory: Path) -> None:
     """Save a table to ``directory`` ensuring the folder exists."""
-
     ensure_dir(directory)
     table.to_csv(directory / name)
 
@@ -407,131 +406,52 @@ def run_eda(
     plt.close(g.fig)
 
     # Generate narrative summary
-    _generate_narrative_summary(
-        df, cat_associations if cat_cols else None, numeric_corr, report_dir
-    )
+    _generate_narrative_summary(df, cat_associations if cat_cols else None, numeric_corr, report_dir)
 
 
 def _generate_narrative_summary(
-    df: pd.DataFrame,
-    cat_associations: pd.DataFrame,
-    numeric_corr: pd.DataFrame,
-    report_dir: Path,
+    df: pd.DataFrame, 
+    cat_associations: pd.DataFrame | None, 
+    numeric_corr: pd.DataFrame, 
+    out_dir: Path
 ) -> None:
-    """Generate a narrative summary of key EDA findings."""
-    ensure_dir(report_dir)
+    """Generate a narrative summary of the EDA findings."""
+    out_dir.mkdir(exist_ok=True)
+    
+    # Calculate key statistics
+    g3_mean = df['G3'].mean()
+    g3_std = df['G3'].std()
+    passing_students = (df['G3'] >= 10).sum()
+    passing_rate = (passing_students / len(df)) * 100
+    g1_g3_corr = df['G1'].corr(df['G3']) if 'G1' in df.columns else 0
+    g2_g3_corr = df['G2'].corr(df['G3']) if 'G2' in df.columns else 0
+    avg_studytime = df['studytime'].mean() if 'studytime' in df.columns else 0
+    avg_absences = df['absences'].mean() if 'absences' in df.columns else 0
+    
+    # Build narrative text
+    report = f"""# Student Performance Dataset Analysis
 
-    # Calculate basic statistics
-    total_students = len(df)
-    pass_rate = (df["G3"] >= 10).mean() * 100
-    avg_grade = df["G3"].mean()
-    grade_std = df["G3"].std()
+## Dataset Overview
+The dataset contains {len(df)} students with {len(df.columns)} features.
 
-    # Find strongest correlations
-    numeric_corr_abs = numeric_corr.abs()
-    # Remove diagonal and upper triangle for unique pairs
-    mask = np.triu(np.ones_like(numeric_corr_abs, dtype=bool))
-    numeric_corr_abs = numeric_corr_abs.where(~mask)
-    strongest_corr = (
-        numeric_corr_abs.unstack().dropna().sort_values(ascending=False).head(5)
-    )
-
-    # Find most important categorical variables
-    if cat_associations is not None:
-        top_cat_features = cat_associations.head(3)
-
-    # Generate markdown report
-    report = f"""# Exploratory Data Analysis Report: Student Performance Dataset
-
-## Executive Summary
-
-This report presents key findings from the exploratory data analysis of the student performance dataset containing **{total_students} students** across various demographic and academic variables.
+## Grade Distribution Analysis
+- Average final grade (G3): {g3_mean:.2f}
+- Standard deviation: {g3_std:.2f}
+- Students with G3 >= 10 (passing): {passing_students} ({passing_rate:.1f}%)
 
 ## Key Findings
+{chr(8226)} The correlation between G1 and G3 is {g1_g3_corr:.3f}
+{chr(8226)} The correlation between G2 and G3 is {g2_g3_corr:.3f}
+{chr(8226)} Students study on average {avg_studytime:.1f} hours per week
+{chr(8226)} Average absences: {avg_absences:.1f}
 
-### Overall Performance
-- **Pass Rate**: {pass_rate:.1f}% of students achieved a passing grade (≥10)
-- **Average Final Grade**: {avg_grade:.2f} ± {grade_std:.2f}
-- **Grade Range**: {df['G3'].min():.0f} to {df['G3'].max():.0f}
-
-### Strongest Numerical Correlations
-The following variable pairs show the strongest linear relationships:
-
+## Recommendations
+Based on the analysis, early grades (G1, G2) are strong predictors of final performance.
+Intervention programs should focus on students with low G1/G2 scores.
 """
 
-    for i, ((var1, var2), corr_val) in enumerate(strongest_corr.items(), 1):
-        correlation_strength = (
-            "strong"
-            if abs(corr_val) > 0.7
-            else "moderate" if abs(corr_val) > 0.5 else "weak"
-        )
-        direction = "positive" if corr_val > 0 else "negative"
-        report += f"{i}. **{var1} ↔ {var2}**: {corr_val:.3f} ({correlation_strength} {direction} correlation)\n"
-
-    if cat_associations is not None:
-        report += f"""
-
-### Most Influential Categorical Variables
-Based on mutual information analysis, the following categorical variables have the strongest association with final grades:
-
-"""
-        for i, row in top_cat_features.iterrows():
-            significance = (
-                "highly significant"
-                if row["chi2_pvalue"] < 0.001
-                else "significant" if row["chi2_pvalue"] < 0.05 else "not significant"
-            )
-            report += f"- **{row['variable'].title()}**: Mutual Information = {row['mutual_info']:.3f}, Association strength (Cramér's V) = {row['cramers_v']:.3f} ({significance})\n"
-
-    # Add specific insights
-    report += f"""
-
-### Detailed Insights
-
-#### Academic Performance Patterns
-- **Grade Progression**: The correlation between G1→G2→G3 shows {numeric_corr.loc['G1', 'G2']:.3f} (G1-G2) and {numeric_corr.loc['G2', 'G3']:.3f} (G2-G3)
-- **Study Time Impact**: Weekly study time shows a correlation of {numeric_corr.loc['studytime', 'G3']:.3f} with final grades
-- **Attendance Effect**: School absences correlate {numeric_corr.loc['absences', 'G3']:.3f} with final performance
-
-#### Demographic Factors
-"""
-
-    # Gender analysis
-    gender_stats = df.groupby("sex")["G3"].agg(["mean", "count"])
-    if "F" in gender_stats.index and "M" in gender_stats.index:
-        female_avg = gender_stats.loc["F", "mean"]
-        male_avg = gender_stats.loc["M", "mean"]
-        gender_diff = abs(female_avg - male_avg)
-        better_gender = "Female" if female_avg > male_avg else "Male"
-        report += f"- **Gender Performance**: {better_gender} students perform slightly better (average difference: {gender_diff:.2f} points)\n"
-
-    # School analysis
-    school_stats = df.groupby("school")["G3"].agg(["mean", "count"])
-    if len(school_stats) > 1:
-        best_school = school_stats["mean"].idxmax()
-        school_diff = school_stats["mean"].max() - school_stats["mean"].min()
-        report += f"- **School Performance**: School '{best_school}' shows higher average performance (difference: {school_diff:.2f} points)\n"
-
-    report += f"""
-
-#### Risk Factors
-- **High Absence Risk**: Students with >10 absences have an average grade of {df[df['absences'] > 10]['G3'].mean():.2f}
-- **Previous Failures**: Students with past failures average {df[df['failures'] > 0]['G3'].mean():.2f} vs {df[df['failures'] == 0]['G3'].mean():.2f} for those without
-
-## Recommendations for Further Analysis
-
-1. **Intervention Targeting**: Focus on students with high absences and previous failures
-2. **Early Warning System**: Use G1 and G2 grades as strong predictors for final performance
-3. **Support Programs**: Consider targeted support for underperforming demographic groups
-4. **Study Habits**: Investigate the relationship between study time and effective learning strategies
-
----
-*Report generated automatically from EDA analysis*
-"""
-
-    # Save the report
-    report_path = report_dir / "eda_narrative_summary.md"
-    with open(report_path, "w") as f:
+    report_path = out_dir / "eda_narrative_summary.txt"
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
 
     logger.info(f"Generated narrative summary: {report_path}")

@@ -1,0 +1,19 @@
+# Student Performance Dataset Analysis
+
+## Dataset Overview
+The dataset contains 395 students with 33 features.
+
+## Grade Distribution Analysis
+- Average final grade (G3): 10.42
+- Standard deviation: 4.58
+- Students with G3 >= 10 (passing): 265 (67.1%)
+
+## Key Findings
+• The correlation between G1 and G3 is 0.801
+• The correlation between G2 and G3 is 0.905
+• Students study on average 2.0 hours per week
+• Average absences: 5.7
+
+## Recommendations
+Based on the analysis, early grades (G1, G2) are strong predictors of final performance.
+Intervention programs should focus on students with low G1/G2 scores.
