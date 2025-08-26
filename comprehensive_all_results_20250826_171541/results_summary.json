@@ -1,0 +1,53 @@
+{
+  "total_datasets": 4,
+  "dataset_names": [
+    "OULAD",
+    "UCI_Math",
+    "UCI_Portuguese",
+    "SAM"
+  ],
+  "total_result_types": 7,
+  "result_types": [
+    "fresh_deep_learning",
+    "enhanced_feature_engineering",
+    "transfer_learning",
+    "transfer_learning_additional",
+    "comprehensive_pipeline",
+    "oulad_specific",
+    "traditional_ml"
+  ],
+  "dataset_coverage": {
+    "OULAD": {
+      "result_types": [
+        "fresh_deep_learning",
+        "traditional_ml",
+        "oulad_specific",
+        "enhanced_feature_engineering"
+      ],
+      "result_type_count": 4
+    },
+    "UCI_Math": {
+      "result_types": [
+        "enhanced_feature_engineering"
+      ],
+      "result_type_count": 1
+    },
+    "UCI_Portuguese": {
+      "result_types": [
+        "enhanced_feature_engineering"
+      ],
+      "result_type_count": 1
+    },
+    "SAM": {
+      "result_types": [],
+      "result_type_count": 0
+    }
+  },
+  "model_counts": {
+    "fresh_deep_learning": 6,
+    "enhanced_feature_engineering": 3,
+    "transfer_learning": 6,
+    "comprehensive_pipeline": 12
+  },
+  "performance_summary": {}
+}
