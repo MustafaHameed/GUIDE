@@ -1,0 +1,25 @@
+{
+  "total_students": 1000,
+  "pass_rate": 0.527,
+  "completion_rate": 0.024,
+  "certificate_rate": 0.112,
+  "courses": 3,
+  "demographics": {
+    "sex": {
+      "M": 527,
+      "F": 473
+    },
+    "education_level": {
+      "Bachelor": 406,
+      "High School": 297,
+      "Master": 208,
+      "PhD": 89
+    },
+    "country": {
+      "China": 603,
+      "USA": 149,
+      "Other": 139,
+      "India": 109
+    }
+  }
+}

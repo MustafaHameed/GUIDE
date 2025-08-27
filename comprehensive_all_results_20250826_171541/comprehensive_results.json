@@ -1,0 +1,710 @@
+{
+  "datasets": {
+    "OULAD": {
+      "name": "Open University Learning Analytics Dataset",
+      "type": "educational",
+      "raw_path": "/home/runner/work/GUIDE/GUIDE/data/oulad/raw",
+      "processed_path": "/home/runner/work/GUIDE/GUIDE/data/oulad/processed",
+      "description": "Student performance prediction in online courses"
+    },
+    "UCI_Math": {
+      "name": "UCI Student Math Performance",
+      "type": "educational",
+      "file_path": "/home/runner/work/GUIDE/GUIDE/student-mat.csv",
+      "description": "Student math grade prediction"
+    },
+    "UCI_Portuguese": {
+      "name": "UCI Student Portuguese Performance",
+      "type": "educational",
+      "file_path": "/home/runner/work/GUIDE/GUIDE/student-por.csv",
+      "description": "Student Portuguese grade prediction"
+    },
+    "SAM": {
+      "name": "SAM Dataset",
+      "type": "other",
+      "path": "/home/runner/work/GUIDE/GUIDE/data/sam",
+      "description": "SAM dataset analysis"
+    }
+  },
+  "result_sources": {
+    "fresh_dl_results": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/fresh_dl_results_20250825_170911"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/fresh_dl_results_20250825_170911"
+    },
+    "complete_results": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300"
+    },
+    "comprehensive_fresh_results": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/comprehensive_fresh_results_20250825_171159",
+        "/home/runner/work/GUIDE/GUIDE/comprehensive_fresh_results_20250826_171249"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/comprehensive_fresh_results_20250826_171249"
+    },
+    "enhanced_feature_engineering": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/enhanced_feature_engineering_results"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/enhanced_feature_engineering_results"
+    },
+    "results": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/results"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/results"
+    },
+    "tables": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/tables"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/tables"
+    },
+    "figures": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/figures"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/figures"
+    },
+    "reports": {
+      "directories": [
+        "/home/runner/work/GUIDE/GUIDE/reports"
+      ],
+      "latest": "/home/runner/work/GUIDE/GUIDE/reports"
+    },
+    "csv_files": {
+      "files": [
+        "/home/runner/work/GUIDE/GUIDE/tables/transfer_results.csv",
+        "/home/runner/work/GUIDE/GUIDE/tables/model_performance.csv",
+        "/home/runner/work/GUIDE/GUIDE/enhanced_feature_engineering_results/model_comparison_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/enhanced_feature_engineering_results/overall_improvements.csv",
+        "/home/runner/work/GUIDE/GUIDE/fresh_dl_results_20250825_170911/tables/deep_learning_results.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_grade_by_school.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/segmentation_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/transfer_results.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/rmse_tukey_hsd.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/grade_by_studytime.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/conformal_overall_alpha_0.1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/grade_by_sex.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/example_experiment_metrics.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/rmse_anova.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/concept_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/nested_cv_metrics.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/nested_cv_regression_metrics.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/conformal_set_size_dist_alpha_0.1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/statistical_tests.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_grade_by_sex.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_categorical_correlation_matrix.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/rmse_bootstrap_ci.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/correlation_matrix.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/model_performance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_grade_by_studytime.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/threshold_tuning.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_numeric_correlation_matrix.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_summary_statistics.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/eda_categorical_feature_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/classification_report.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/classification_report_sex_M.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_risk_probabilities_G1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/fairness_sex_pre.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_37.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_feature_importance_G1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_39.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_40.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_counterfactual_G1_17.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/best_params.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_cv_metrics_G1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/concept_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_31.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/classification_report_sex_F.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_classification_report_G1.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_18.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_counterfactual_G1_10.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/fairness_sex.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/feature_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/fairness_sex_post.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/counterfactual_36.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/reports/early_counterfactual_G1_4.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_categorical_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_demographics_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_fairness_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_feature_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_vle_summary_stats.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_assessment_summary_stats.csv",
+        "/home/runner/work/GUIDE/GUIDE/comprehensive_fresh_results_20250825_171159/tables/master_model_comparison.csv",
+        "/home/runner/work/GUIDE/GUIDE/reports/enhanced_transfer/performance_comparison_oulad_to_uci.csv",
+        "/home/runner/work/GUIDE/GUIDE/reports/enhanced_transfer/diagnostics/feature_shift_analysis.csv",
+        "/home/runner/work/GUIDE/GUIDE/comprehensive_fresh_results_20250826_171249/tables/master_model_comparison.csv"
+      ],
+      "count": 62
+    }
+  },
+  "results_by_dataset": {
+    "OULAD": {
+      "dataset_info": {
+        "name": "Open University Learning Analytics Dataset",
+        "type": "educational",
+        "raw_path": "/home/runner/work/GUIDE/GUIDE/data/oulad/raw",
+        "processed_path": "/home/runner/work/GUIDE/GUIDE/data/oulad/processed",
+        "description": "Student performance prediction in online courses"
+      },
+      "results": {
+        "fresh_deep_learning": {
+          "source_file": "/home/runner/work/GUIDE/GUIDE/fresh_dl_results_20250825_170911/tables/deep_learning_results.csv",
+          "models": {
+            "SimpleTabularMLP": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9084760145759496,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.912,
+              "val_auc": 0.9231060416978653
+            },
+            "DeepTabularNet": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9176151017487812,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.912,
+              "val_auc": 0.934383267608446
+            },
+            "WideAndDeep": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9171866420406328,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.911,
+              "val_auc": 0.9238880846603104
+            },
+            "LightweightMLP": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9073279089502322,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.912,
+              "val_auc": 0.923201717166675
+            },
+            "DeepMLP": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9163338824273282,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.912,
+              "val_auc": 0.9296161333799232
+            },
+            "Ensemble": {
+              "accuracy": 0.903,
+              "roc_auc": 0.9110134944009052,
+              "f1_score": 0.8923418423973363,
+              "val_accuracy": 0.0,
+              "val_auc": 0.0
+            }
+          },
+          "summary": {
+            "model_count": 6,
+            "avg_accuracy": 0.9030000000000001,
+            "best_accuracy": 0.903,
+            "avg_auc": 0.9129921740239716,
+            "best_auc": 0.9176151017487812
+          }
+        },
+        "traditional_ml": {
+          "oulad_traditional": {
+            "logistic": {
+              "accuracy": 0.596,
+              "roc_auc": 0.5191
+            },
+            "random_forest": {
+              "accuracy": 0.586,
+              "roc_auc": 0.5083
+            },
+            "mlp": {
+              "accuracy": 0.553,
+              "roc_auc": 0.501
+            }
+          },
+          "oulad_deep_learning": {
+            "advanced_mlp": {
+              "accuracy": 0.546,
+              "roc_auc": 0.5114
+            },
+            "residual_mlp": {
+              "accuracy": 0.58,
+              "roc_auc": 0.5106
+            },
+            "wide_deep": {
+              "accuracy": 0.535,
+              "roc_auc": 0.5202
+            },
+            "deep_ensemble": {
+              "accuracy": 0.571,
+              "roc_auc": 0.5152
+            }
+          }
+        },
+        "oulad_specific": {
+          "files": [
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_categorical_importance.csv",
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_demographics_summary.csv",
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_fairness_summary.csv",
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_feature_importance.csv",
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_vle_summary_stats.csv",
+            "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_assessment_summary_stats.csv"
+          ],
+          "file_count": 6
+        },
+        "enhanced_feature_engineering": {
+          "models": {
+            "Deep_Neural_Network": {
+              "model_type": "OULAD_Deep_Learning",
+              "baseline_accuracy": 0.5822784810126582,
+              "enhanced_accuracy": 0.5949367088607594,
+              "accuracy_improvement": 0.0126582278481012,
+              "baseline_auc": 0.6332046332046333,
+              "enhanced_auc": 0.62998712998713,
+              "auc_improvement": -0.0032175032175032
+            }
+          }
+        }
+      }
+    },
+    "UCI_Math": {
+      "dataset_info": {
+        "name": "UCI Student Math Performance",
+        "type": "educational",
+        "file_path": "/home/runner/work/GUIDE/GUIDE/student-mat.csv",
+        "description": "Student math grade prediction"
+      },
+      "results": {
+        "enhanced_feature_engineering": {
+          "models": {
+            "Random Forest": {
+              "model_type": "UCI_ML",
+              "baseline_accuracy": 0.6386554621848739,
+              "enhanced_accuracy": 0.5126050420168067,
+              "accuracy_improvement": -0.1260504201680672,
+              "baseline_auc": 0.7317176870748299,
+              "enhanced_auc": 0.5916950113378685,
+              "auc_improvement": -0.1400226757369613
+            },
+            "Logistic Regression": {
+              "model_type": "UCI_ML",
+              "baseline_accuracy": 0.6554621848739496,
+              "enhanced_accuracy": 0.5378151260504201,
+              "accuracy_improvement": -0.1176470588235294,
+              "baseline_auc": 0.7264739229024942,
+              "enhanced_auc": 0.5739795918367347,
+              "auc_improvement": -0.1524943310657595
+            }
+          }
+        }
+      }
+    },
+    "UCI_Portuguese": {
+      "dataset_info": {
+        "name": "UCI Student Portuguese Performance",
+        "type": "educational",
+        "file_path": "/home/runner/work/GUIDE/GUIDE/student-por.csv",
+        "description": "Student Portuguese grade prediction"
+      },
+      "results": {
+        "enhanced_feature_engineering": {
+          "models": {
+            "Random Forest": {
+              "model_type": "UCI_ML",
+              "baseline_accuracy": 0.6386554621848739,
+              "enhanced_accuracy": 0.5126050420168067,
+              "accuracy_improvement": -0.1260504201680672,
+              "baseline_auc": 0.7317176870748299,
+              "enhanced_auc": 0.5916950113378685,
+              "auc_improvement": -0.1400226757369613
+            },
+            "Logistic Regression": {
+              "model_type": "UCI_ML",
+              "baseline_accuracy": 0.6554621848739496,
+              "enhanced_accuracy": 0.5378151260504201,
+              "accuracy_improvement": -0.1176470588235294,
+              "baseline_auc": 0.7264739229024942,
+              "enhanced_auc": 0.5739795918367347,
+              "auc_improvement": -0.1524943310657595
+            }
+          }
+        }
+      }
+    },
+    "SAM": {
+      "dataset_info": {
+        "name": "SAM Dataset",
+        "type": "other",
+        "path": "/home/runner/work/GUIDE/GUIDE/data/sam",
+        "description": "SAM dataset analysis"
+      },
+      "results": {}
+    }
+  },
+  "results_by_type": {
+    "fresh_deep_learning": {
+      "source_file": "/home/runner/work/GUIDE/GUIDE/fresh_dl_results_20250825_170911/tables/deep_learning_results.csv",
+      "models": {
+        "SimpleTabularMLP": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9084760145759496,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.912,
+          "val_auc": 0.9231060416978653
+        },
+        "DeepTabularNet": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9176151017487812,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.912,
+          "val_auc": 0.934383267608446
+        },
+        "WideAndDeep": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9171866420406328,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.911,
+          "val_auc": 0.9238880846603104
+        },
+        "LightweightMLP": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9073279089502322,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.912,
+          "val_auc": 0.923201717166675
+        },
+        "DeepMLP": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9163338824273282,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.912,
+          "val_auc": 0.9296161333799232
+        },
+        "Ensemble": {
+          "accuracy": 0.903,
+          "roc_auc": 0.9110134944009052,
+          "f1_score": 0.8923418423973363,
+          "val_accuracy": 0.0,
+          "val_auc": 0.0
+        }
+      },
+      "summary": {
+        "model_count": 6,
+        "avg_accuracy": 0.9030000000000001,
+        "best_accuracy": 0.903,
+        "avg_auc": 0.9129921740239716,
+        "best_auc": 0.9176151017487812
+      }
+    },
+    "enhanced_feature_engineering": {
+      "source_file": "/home/runner/work/GUIDE/GUIDE/enhanced_feature_engineering_results/model_comparison_summary.csv",
+      "models": {
+        "Deep_Neural_Network": {
+          "model_type": "OULAD_Deep_Learning",
+          "baseline_accuracy": 0.5822784810126582,
+          "enhanced_accuracy": 0.5949367088607594,
+          "accuracy_improvement": 0.0126582278481012,
+          "baseline_auc": 0.6332046332046333,
+          "enhanced_auc": 0.62998712998713,
+          "auc_improvement": -0.0032175032175032
+        },
+        "Random Forest": {
+          "model_type": "UCI_ML",
+          "baseline_accuracy": 0.6386554621848739,
+          "enhanced_accuracy": 0.5126050420168067,
+          "accuracy_improvement": -0.1260504201680672,
+          "baseline_auc": 0.7317176870748299,
+          "enhanced_auc": 0.5916950113378685,
+          "auc_improvement": -0.1400226757369613
+        },
+        "Logistic Regression": {
+          "model_type": "UCI_ML",
+          "baseline_accuracy": 0.6554621848739496,
+          "enhanced_accuracy": 0.5378151260504201,
+          "accuracy_improvement": -0.1176470588235294,
+          "baseline_auc": 0.7264739229024942,
+          "enhanced_auc": 0.5739795918367347,
+          "auc_improvement": -0.1524943310657595
+        }
+      },
+      "summary": {
+        "model_count": 3,
+        "avg_baseline_accuracy": 0.6254653760238272,
+        "avg_enhanced_accuracy": 0.5484522923093288,
+        "avg_improvement": -0.07701308371449846
+      }
+    },
+    "transfer_learning": {
+      "source_file": "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/transfer_results.csv",
+      "transfers": {
+        "OULAD_to_UCI_logistic": {
+          "direction": "OULAD_to_UCI",
+          "model": "logistic",
+          "accuracy": 0.6708860759493671,
+          "balanced_accuracy": 0.5,
+          "f1": 0.803030303030303,
+          "auc": 0.4251523947750363,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_logistic": {
+          "direction": "UCI_to_OULAD",
+          "model": "logistic",
+          "accuracy": 0.596260530100678,
+          "balanced_accuracy": 0.5011339755215761,
+          "f1": 0.0257808626673277,
+          "auc": 0.4903253105442872,
+          "source_size": 395,
+          "target_size": 4867
+        },
+        "OULAD_to_UCI_random_forest": {
+          "direction": "OULAD_to_UCI",
+          "model": "random_forest",
+          "accuracy": 0.6759493670886076,
+          "balanced_accuracy": 0.5076923076923077,
+          "f1": 0.8054711246200608,
+          "auc": 0.5010740203193034,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_random_forest": {
+          "direction": "UCI_to_OULAD",
+          "model": "random_forest",
+          "accuracy": 0.5611259502773782,
+          "balanced_accuracy": 0.4924722281320017,
+          "f1": 0.204765450483991,
+          "auc": 0.4937436499126172,
+          "source_size": 395,
+          "target_size": 4867
+        },
+        "OULAD_to_UCI_mlp": {
+          "direction": "OULAD_to_UCI",
+          "model": "mlp",
+          "accuracy": 0.4962025316455696,
+          "balanced_accuracy": 0.5324383164005806,
+          "f1": 0.5317647058823529,
+          "auc": 0.5679825834542815,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_mlp": {
+          "direction": "UCI_to_OULAD",
+          "model": "mlp",
+          "accuracy": 0.5913293610026711,
+          "balanced_accuracy": 0.4989231620995188,
+          "f1": 0.046957355055103,
+          "auc": 0.4932699606022498,
+          "source_size": 395,
+          "target_size": 4867
+        }
+      },
+      "summary": {
+        "transfer_count": 6,
+        "avg_accuracy": 0.598625636010712,
+        "best_accuracy": 0.6759493670886076,
+        "directions": [
+          "OULAD_to_UCI",
+          "UCI_to_OULAD"
+        ],
+        "models": [
+          "logistic",
+          "random_forest",
+          "mlp"
+        ]
+      }
+    },
+    "transfer_learning_additional": {
+      "files": [
+        {
+          "file": "/home/runner/work/GUIDE/GUIDE/tables/transfer_results.csv",
+          "records": 6
+        }
+      ]
+    },
+    "comprehensive_pipeline": {
+      "source_file": "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/model_performance.csv",
+      "models": {
+        "logistic": {
+          "accuracy_mean": 0.911392405063291,
+          "accuracy_std": 0.0330086197731779
+        },
+        "random_forest": {
+          "accuracy_mean": 0.8962025316455696,
+          "accuracy_std": 0.0293059162095954
+        },
+        "gradient_boosting": {
+          "accuracy_mean": 0.9063291139240508,
+          "accuracy_std": 0.0171704556534816
+        },
+        "svm": {
+          "accuracy_mean": 0.8734177215189873,
+          "accuracy_std": 0.0358028749967872
+        },
+        "knn": {
+          "accuracy_mean": 0.8101265822784809,
+          "accuracy_std": 0.0620123985514728
+        },
+        "naive_bayes": {
+          "accuracy_mean": 0.7873417721518987,
+          "accuracy_std": 0.0352617424738838
+        },
+        "extra_trees": {
+          "accuracy_mean": 0.8405063291139241,
+          "accuracy_std": 0.0612846503134693
+        },
+        "mlp": {
+          "accuracy_mean": 0.8911392405063292,
+          "accuracy_std": 0.0272666572513139
+        },
+        "xgboost": {
+          "accuracy_mean": 0.9164556962025316,
+          "accuracy_std": 0.0171704556534817
+        },
+        "lightgbm": {
+          "accuracy_mean": 0.9088607594936708,
+          "accuracy_std": 0.0217780386507408
+        },
+        "bagging": {
+          "accuracy_mean": 0.8987341772151899,
+          "accuracy_std": 0.0277327877217805
+        },
+        "stacking": {
+          "accuracy_mean": 0.9189873417721518,
+          "accuracy_std": 0.0284176510387894
+        }
+      },
+      "summary": {
+        "model_count": 12,
+        "avg_accuracy": 0.8799578059071728,
+        "best_accuracy": 0.9189873417721518
+      }
+    },
+    "oulad_specific": {
+      "files": [
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_categorical_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_demographics_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_fairness_summary.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_feature_importance.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_vle_summary_stats.csv",
+        "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/oulad/oulad_assessment_summary_stats.csv"
+      ],
+      "file_count": 6
+    },
+    "traditional_ml": {
+      "oulad_traditional": {
+        "logistic": {
+          "accuracy": 0.596,
+          "roc_auc": 0.5191
+        },
+        "random_forest": {
+          "accuracy": 0.586,
+          "roc_auc": 0.5083
+        },
+        "mlp": {
+          "accuracy": 0.553,
+          "roc_auc": 0.501
+        }
+      },
+      "oulad_deep_learning": {
+        "advanced_mlp": {
+          "accuracy": 0.546,
+          "roc_auc": 0.5114
+        },
+        "residual_mlp": {
+          "accuracy": 0.58,
+          "roc_auc": 0.5106
+        },
+        "wide_deep": {
+          "accuracy": 0.535,
+          "roc_auc": 0.5202
+        },
+        "deep_ensemble": {
+          "accuracy": 0.571,
+          "roc_auc": 0.5152
+        }
+      }
+    }
+  },
+  "cross_dataset_results": {
+    "transfer_learning": {
+      "source_file": "/home/runner/work/GUIDE/GUIDE/complete_results_2025-08-25-141300/tables/transfer_results.csv",
+      "transfers": {
+        "OULAD_to_UCI_logistic": {
+          "direction": "OULAD_to_UCI",
+          "model": "logistic",
+          "accuracy": 0.6708860759493671,
+          "balanced_accuracy": 0.5,
+          "f1": 0.803030303030303,
+          "auc": 0.4251523947750363,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_logistic": {
+          "direction": "UCI_to_OULAD",
+          "model": "logistic",
+          "accuracy": 0.596260530100678,
+          "balanced_accuracy": 0.5011339755215761,
+          "f1": 0.0257808626673277,
+          "auc": 0.4903253105442872,
+          "source_size": 395,
+          "target_size": 4867
+        },
+        "OULAD_to_UCI_random_forest": {
+          "direction": "OULAD_to_UCI",
+          "model": "random_forest",
+          "accuracy": 0.6759493670886076,
+          "balanced_accuracy": 0.5076923076923077,
+          "f1": 0.8054711246200608,
+          "auc": 0.5010740203193034,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_random_forest": {
+          "direction": "UCI_to_OULAD",
+          "model": "random_forest",
+          "accuracy": 0.5611259502773782,
+          "balanced_accuracy": 0.4924722281320017,
+          "f1": 0.204765450483991,
+          "auc": 0.4937436499126172,
+          "source_size": 395,
+          "target_size": 4867
+        },
+        "OULAD_to_UCI_mlp": {
+          "direction": "OULAD_to_UCI",
+          "model": "mlp",
+          "accuracy": 0.4962025316455696,
+          "balanced_accuracy": 0.5324383164005806,
+          "f1": 0.5317647058823529,
+          "auc": 0.5679825834542815,
+          "source_size": 4867,
+          "target_size": 395
+        },
+        "UCI_to_OULAD_mlp": {
+          "direction": "UCI_to_OULAD",
+          "model": "mlp",
+          "accuracy": 0.5913293610026711,
+          "balanced_accuracy": 0.4989231620995188,
+          "f1": 0.046957355055103,
+          "auc": 0.4932699606022498,
+          "source_size": 395,
+          "target_size": 4867
+        }
+      },
+      "summary": {
+        "transfer_count": 6,
+        "avg_accuracy": 0.598625636010712,
+        "best_accuracy": 0.6759493670886076,
+        "directions": [
+          "OULAD_to_UCI",
+          "UCI_to_OULAD"
+        ],
+        "models": [
+          "logistic",
+          "random_forest",
+          "mlp"
+        ]
+      }
+    }
+  }
+}

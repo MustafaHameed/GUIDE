@@ -1,0 +1,46 @@
+{
+  "best_method": "advanced_ensemble",
+  "best_improvement": 0.004024144869215207,
+  "all_results": {
+    "direct_transfer": {
+      "accuracy": 0.9083333333333333,
+      "f1": 0.9483568075117371,
+      "auc": 0.9106753812636167
+    },
+    "target_only": {
+      "accuracy": 0.8916666666666667,
+      "f1": 0.9400921658986175,
+      "auc": 0.8687363834422658
+    },
+    "combined_training": {
+      "accuracy": 0.9,
+      "f1": 0.9439252336448598,
+      "auc": 0.9531590413943355
+    },
+    "feature_alignment": {
+      "accuracy": 0.7833333333333333,
+      "f1": 0.8571428571428571,
+      "auc": 0.9289215686274509
+    },
+    "instance_weighting": {
+      "accuracy": 0.9,
+      "f1": 0.9439252336448598,
+      "auc": 0.8924291938997821
+    },
+    "ensemble_adaptation": {
+      "accuracy": 0.8,
+      "f1": 0.8723404255319149,
+      "auc": 0.9297385620915032
+    },
+    "progressive_finetuning": {
+      "accuracy": 0.9083333333333333,
+      "f1": 0.9488372093023256,
+      "auc": 0.8940631808278868
+    },
+    "advanced_ensemble": {
+      "accuracy": 0.9166666666666666,
+      "f1": 0.9523809523809523,
+      "auc": 0.9537037037037036
+    }
+  }
+}

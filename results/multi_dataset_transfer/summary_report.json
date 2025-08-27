@@ -1,0 +1,55 @@
+{
+  "total_experiments": 12,
+  "successful_experiments": 12,
+  "failed_experiments": 0,
+  "average_accuracy": 0.44692903828197933,
+  "std_accuracy": 0.07116936733141131,
+  "average_f1": 0.4078383030208463,
+  "std_f1": 0.230021415746778,
+  "average_auc": 0.4970594070902423,
+  "std_auc": 0.02759164368586803,
+  "best_transfer": [
+    "uci_to_xuetangx_logistic",
+    {
+      "source_dataset": "uci",
+      "target_dataset": "xuetangx",
+      "model_type": "logistic",
+      "common_features": [
+        "gender_x_age",
+        "education",
+        "gender",
+        "prior_performance",
+        "engagement_score",
+        "age_normalized"
+      ],
+      "n_common_features": 6,
+      "source_samples": 395,
+      "target_train_samples": 700,
+      "target_test_samples": 300,
+      "source_pass_rate": 0.6708860759493671,
+      "target_pass_rate": 0.527,
+      "accuracy": 0.5266666666666666,
+      "balanced_accuracy": 0.5,
+      "f1_score": 0.6899563318777293,
+      "roc_auc": 0.5128810839721876
+    }
+  ],
+  "dataset_stats": {
+    "oulad": {
+      "samples": 5000,
+      "features": 23,
+      "pass_rate": 0.402
+    },
+    "xuetangx": {
+      "samples": 1000,
+      "features": 29,
+      "pass_rate": 0.527
+    },
+    "uci": {
+      "samples": 395,
+      "features": 34,
+      "pass_rate": 0.6708860759493671
+    }
+  },
+  "execution_time": 2.107670545578003
+}
