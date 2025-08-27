@@ -1,3 +1,3 @@
-coverage,target_coverage,coverage_gap,average_set_size,singleton_rate,empty_set_rate,full_set_rate,group,n_samples
-0.8723404255319149,0.9,-0.02765957446808509,1.0,1.0,0.0,0.0,F,47
-0.875,0.9,-0.025000000000000022,1.0,1.0,0.0,0.0,M,32
+version https://git-lfs.github.com/spec/v1
+oid sha256:2ea2414753316fc8514d674d651aa1ef96c6a7d3e9e8a9150284bcb9e701af3b
+size 236

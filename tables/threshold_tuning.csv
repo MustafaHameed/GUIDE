@@ -1,2 +1,3 @@
-threshold,precision_mean,precision_ci_lower,precision_ci_upper,recall_mean,recall_ci_lower,recall_ci_upper,f1_mean,f1_ci_lower,f1_ci_upper
-0.29099652105637114,0.8815763524393803,0.7994652006683185,0.9571948998178504,0.9240656287703622,0.8493640148011101,1.0,0.9016349885244611,0.8210454978173439,0.9538132523066101
+version https://git-lfs.github.com/spec/v1
+oid sha256:415a78eed2e7a778c6ba06a5bee4e582736963817a6e31bbfd7c274ee5b5430a
+size 317

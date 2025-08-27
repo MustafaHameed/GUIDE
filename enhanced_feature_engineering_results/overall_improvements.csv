@@ -1,2 +1,3 @@
-mean_accuracy_improvement,mean_auc_improvement,mean_f1_improvement,median_accuracy_improvement,median_auc_improvement,median_f1_improvement,models_with_accuracy_improvement,models_with_auc_improvement,models_with_f1_improvement,total_models_tested
--0.07701308371449848,-0.09857817000674136,-0.3355287036698491,-0.11764705882352944,-0.14002267573696137,-0.4584606287572681,1,0,1,3
+version https://git-lfs.github.com/spec/v1
+oid sha256:b7e0bd75b66347c53b426bb2dd9812424712a5bc44381284c61a2f1a29a1c65e
+size 382

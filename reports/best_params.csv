@@ -1,2 +1,3 @@
-best_score,C,break_ties,cache_size,class_weight,coef0,decision_function_shape,degree,gamma,kernel,max_iter,probability,random_state,shrinking,tol,verbose
-,1.0,False,200,,0.0,ovr,3,scale,rbf,-1,True,,True,0.001,False
+version https://git-lfs.github.com/spec/v1
+oid sha256:a52f8a5e48c6b99e8bfa2b8553bdb872c085fa7545bcc1787d6f058f8691ee39
+size 218

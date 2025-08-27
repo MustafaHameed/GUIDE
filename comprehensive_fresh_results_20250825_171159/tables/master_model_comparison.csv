@@ -1,31 +1,3 @@
-Category,Model,Accuracy,ROC_AUC,F1_Score,Source,Accuracy_Improvement,AUC_Improvement
-Comprehensive Models,Stacking,0.921518987341772,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Xgboost,0.9164556962025316,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Logistic,0.911392405063291,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Lightgbm,0.9088607594936708,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Bagging,0.9063291139240508,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Random Forest,0.9037974683544304,0.0,0.0,Comprehensive Pipeline,,
-Fresh Deep Learning,Deeptabularnet,0.903,0.9176151017487812,0.8923418423973363,Fresh Deep Learning,,
-Fresh Deep Learning,Ensemble,0.903,0.9110134944009052,0.8923418423973363,Fresh Deep Learning,,
-Fresh Deep Learning,Lightweightmlp,0.903,0.9073279089502322,0.8923418423973363,Fresh Deep Learning,,
-Fresh Deep Learning,Deepmlp,0.903,0.9163338824273282,0.8923418423973363,Fresh Deep Learning,,
-Fresh Deep Learning,Simpletabularmlp,0.903,0.9084760145759496,0.8923418423973363,Fresh Deep Learning,,
-Fresh Deep Learning,Wideanddeep,0.903,0.9171866420406328,0.8923418423973363,Fresh Deep Learning,,
-Comprehensive Models,Gradient Boosting,0.9012658227848102,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Mlp,0.8936708860759494,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Svm,0.8734177215189873,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Extra Trees,0.8556962025316455,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Knn,0.8101265822784809,0.0,0.0,Comprehensive Pipeline,,
-Comprehensive Models,Naive Bayes,0.7873417721518987,0.0,0.0,Comprehensive Pipeline,,
-Oulad Traditional,Logistic,0.596,0.5191,0.0,OULAD Traditional,,
-Enhanced Feature Engineering,Deep Neural Network,0.5949367088607594,0.62998712998713,0.0,Enhanced Feature Engineering,0.0126582278481012,-0.0032175032175032
-Oulad Traditional,Random Forest,0.586,0.5083,0.0,OULAD Traditional,,
-Oulad Deep Learning,Residual Mlp,0.58,0.5106,0.0,OULAD Advanced DL,,
-Oulad Deep Learning,Deep Ensemble,0.571,0.5152,0.0,OULAD Advanced DL,,
-Oulad Deep Learning,Final Lightweight,0.569,0.5287,0.0,OULAD Final DL,,
-Oulad Traditional,Mlp,0.553,0.501,0.0,OULAD Traditional,,
-Oulad Deep Learning,Final Ensemble,0.55,0.5331,0.0,OULAD Final DL,,
-Oulad Deep Learning,Advanced Mlp,0.546,0.5114,0.0,OULAD Advanced DL,,
-Enhanced Feature Engineering,Logistic Regression,0.5378151260504201,0.5739795918367347,0.0,Enhanced Feature Engineering,-0.1176470588235294,-0.1524943310657595
-Oulad Deep Learning,Wide Deep,0.535,0.5202,0.0,OULAD Advanced DL,,
-Enhanced Feature Engineering,Random Forest,0.5126050420168067,0.5916950113378685,0.0,Enhanced Feature Engineering,-0.1260504201680672,-0.1400226757369613
+version https://git-lfs.github.com/spec/v1
+oid sha256:01af850a017093f4bc0f3c19eec6b3bba0aea2247844af3016f1e6de45971383
+size 2772
