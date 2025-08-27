@@ -1,0 +1,47 @@
+OULAD Dataset Upload Summary
+========================================
+
+studentInfo.csv:
+  Rows: 100
+  Columns: 11
+  Size: 0.01 MB
+  Columns: code_module, code_presentation, id_student, gender, region...
+
+studentRegistration.csv:
+  Rows: 100
+  Columns: 6
+  Size: 0.0 MB
+  Columns: code_module, code_presentation, id_student, date_registration, date_unregistration...
+
+studentAssessment.csv:
+  Rows: 142
+  Columns: 5
+  Size: 0.0 MB
+  Columns: id_assessment, id_student, date, is_banked, score
+
+studentVle.csv:
+  Rows: 6,077
+  Columns: 6
+  Size: 0.13 MB
+  Columns: code_module, code_presentation, id_student, id_site, date...
+
+vle.csv:
+  Rows: 332
+  Columns: 6
+  Size: 0.01 MB
+  Columns: id_site, code_module, code_presentation, activity_type, week_from...
+
+assessments.csv:
+  Rows: 15
+  Columns: 6
+  Size: 0.0 MB
+  Columns: code_module, code_presentation, id_assessment, assessment_type, date...
+
+courses.csv:
+  Rows: 3
+  Columns: 3
+  Size: 0.0 MB
+  Columns: code_module, code_presentation, module_presentation_length
+
+Total dataset size: 0.15 MB
+Total rows across all files: 6,769

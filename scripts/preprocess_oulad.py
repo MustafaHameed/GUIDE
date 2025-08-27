@@ -109,6 +109,13 @@ class OULADPreprocessor:
             self.data['assessments'], on='id_assessment', how='left'
         )
         
+        # The merge creates date_x (from studentAssessment) and date_y (from assessments)
+        # Rename them for clarity
+        assessment_data = assessment_data.rename(columns={
+            'date_x': 'date_submitted',
+            'date_y': 'date_deadline'
+        })
+        
         # Aggregate assessment features
         assessment_features = assessment_data.groupby(['code_module', 'code_presentation', 'id_student']).agg({
             'score': ['count', 'mean', 'max', 'min', 'std'],
@@ -125,11 +132,8 @@ class OULADPreprocessor:
         ]
         
         # Calculate submission timing features
-        assessment_with_deadlines = assessment_data.merge(
-            self.data['assessments'][['id_assessment', 'date']], 
-            on='id_assessment', 
-            suffixes=('_submitted', '_deadline')
-        )
+        # Use the renamed columns for on-time calculation
+        assessment_with_deadlines = assessment_data.copy()  # Already has date_submitted and date_deadline
         
         # On-time submission rate
         assessment_with_deadlines['on_time'] = (
@@ -184,8 +188,11 @@ class OULADPreprocessor:
             assessment_features, on=['code_module', 'code_presentation', 'id_student'], how='left'
         )
         
-        # Create interaction features
-        ml_data['sex_x_age'] = ml_data['sex'] + '_x_' + ml_data['age_band']
+        # Create interaction features (but only if gender column exists)
+        if 'gender' in ml_data.columns:
+            ml_data['sex_x_age'] = ml_data['gender'] + '_x_' + ml_data['age_band']
+        else:
+            logger.warning("Gender column not found, skipping sex_x_age feature creation")
         
         # Select final columns to match existing format
         final_columns = [
@@ -222,7 +229,7 @@ class OULADPreprocessor:
             'modules': ml_data['code_module'].nunique(),
             'presentations': ml_data['code_presentation'].nunique(),
             'demographics': {
-                'sex': ml_data['sex'].value_counts().to_dict(),
+                'gender': ml_data['gender'].value_counts().to_dict() if 'gender' in ml_data.columns else {},
                 'age_band': ml_data['age_band'].value_counts().to_dict(),
                 'education': ml_data['highest_education'].value_counts().to_dict()
             }

@@ -1,20 +1,39 @@
-OULAD Dataset Download Instructions
+OULAD Dataset Upload Instructions
 
-The OULAD dataset requires registration and manual download from:
-https://analyse.kmi.open.ac.uk/open_dataset
+## Method 1: Direct Upload to Repository
 
-Please download the following files and place them in this directory:
-- studentInfo.csv
-- studentRegistration.csv
-- studentAssessment.csv
-- studentVle.csv
-- vle.csv
-- assessments.csv
-- courses.csv
+If you have the OULAD dataset files on your local computer, follow these steps:
 
-Alternative: The dataset is also available from:
+1. **Locate your local OULAD files** (e.g., from C:\Users\MyName\Documents\Github\10-Aug-25\data\oulad\raw)
+
+2. **Copy the following CSV files to this directory** (data/oulad/raw/):
+   - studentInfo.csv
+   - studentRegistration.csv
+   - studentAssessment.csv
+   - studentVle.csv
+   - vle.csv
+   - assessments.csv
+   - courses.csv
+
+3. **Commit and push the files** to the repository:
+   ```bash
+   git add data/oulad/raw/*.csv
+   git commit -m "Add OULAD dataset CSV files"
+   git push
+   ```
+
+## Method 2: Download from Official Sources
+
+The OULAD dataset can be downloaded from:
+- Primary: https://analyse.kmi.open.ac.uk/open_dataset
 - UCI ML Repository: https://archive.ics.uci.edu/ml/datasets/Open+University+Learning+Analytics+dataset
 - Kaggle: https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset
 
-After downloading, run the preprocessing script:
+## After Adding Files
+
+Once the CSV files are in place, run the preprocessing script:
+```bash
 python scripts/preprocess_oulad.py
+```
+
+This will create the processed ML-ready dataset in data/oulad/processed/

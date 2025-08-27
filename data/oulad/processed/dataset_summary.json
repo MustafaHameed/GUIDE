@@ -1,0 +1,19 @@
+{
+  "total_students": 100,
+  "pass_rate": 0.36,
+  "modules": 3,
+  "presentations": 2,
+  "demographics": {
+    "gender": {},
+    "age_band": {
+      "0-35": 38,
+      "55<=": 35,
+      "35-55": 27
+    },
+    "education": {
+      "A Level or Equivalent": 40,
+      "HE Qualification": 33,
+      "Lower Than A Level": 27
+    }
+  }
+}
