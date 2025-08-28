@@ -21,8 +21,8 @@ def detect_action_columns(columns: Sequence[str]) -> List[str]:
     return sorted(cols)
 
 
-DEFAULT_DEMOG_CAT = ["sex", "education_level", "country"]
-DEFAULT_DEMOG_NUM = ["age"]
+DEFAULT_DEMOG_CAT = ["gender", "education"]
+DEFAULT_DEMOG_NUM = ["birth"]
 
 
 def make_demog_features_train(demog_csv: str, usernames: Sequence[str]) -> Tuple[pd.DataFrame, List[str]]:
@@ -31,7 +31,10 @@ def make_demog_features_train(demog_csv: str, usernames: Sequence[str]) -> Tuple
     dfu = pd.read_csv(demog_csv, low_memory=False)
     if "username" not in dfu.columns:
         # try alternate key names
-        return pd.DataFrame({"username": list(set(usernames))}), []
+        if "user_id" in dfu.columns:
+            dfu["username"] = dfu["user_id"]
+        else:
+            return pd.DataFrame({"username": list(set(usernames))}), []
     dfu = dfu.copy()
     dfu["username"] = dfu["username"].astype(str)
     dfu = dfu[dfu["username"].isin(set(map(str, usernames)))]
@@ -65,6 +68,11 @@ def make_demog_features_infer(demog_csv: str, usernames: Sequence[str], demog_fe
         if "username" in dfu.columns:
             dfu = dfu.copy()
             dfu["username"] = dfu["username"].astype(str)
+            # Recreate the same one-hot schema and numeric cols
+            out = base.merge(dfu, on="username", how="left")
+        elif "user_id" in dfu.columns:
+            dfu = dfu.copy()
+            dfu["username"] = dfu["user_id"].astype(str)
             # Recreate the same one-hot schema and numeric cols
             out = base.merge(dfu, on="username", how="left")
         else:
