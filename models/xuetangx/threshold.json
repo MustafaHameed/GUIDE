@@ -1,0 +1,10 @@
+{
+  "threshold": 0.4,
+  "criterion": "f1",
+  "grid": 0.01,
+  "weights": {
+    "gru": 0.0,
+    "transformer": 0.25
+  },
+  "note": "Apply to per-row or per-user-course averaged probs"
+}
