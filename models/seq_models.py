@@ -356,5 +356,3 @@ class TCNClassifier(nn.Module):
         if mask is not None:
             logits = logits * mask
         return logits
-    else:
-        return loss.mean()

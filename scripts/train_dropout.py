@@ -147,6 +147,7 @@ def main() -> None:
     try:
         demog_tbl, demog_cols = make_demog_features_train(args.demographics_csv, df["username"].astype(str))
         if demog_cols:
+            df["username"] = df["username"].astype(str)  # Ensure consistent string type for merge
             df = df.merge(demog_tbl, on="username", how="left")
             print(f"[Demog] Added {len(demog_cols)} demographic feature columns")
     except Exception as e:
