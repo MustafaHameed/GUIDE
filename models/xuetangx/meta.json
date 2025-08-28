@@ -1,5 +1,5 @@
 {
-  "model_type": "tcn",
+  "model_type": "gru",
   "feature_names": [
     "action_click_about",
     "action_click_courseware",
@@ -383,7 +383,7 @@
     "d_model": 128,
     "dim_feedforward": 256,
     "nhead": 4,
-    "num_layers": 4,
+    "num_layers": 2,
     "dropout": 0.1,
     "course_emb_dim": 16,
     "time_freqs": 8,
