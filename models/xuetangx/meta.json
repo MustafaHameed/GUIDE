@@ -1,5 +1,5 @@
 {
-  "model_type": "transformer",
+  "model_type": "lstm",
   "feature_names": [
     "action_click_about",
     "action_click_courseware",
@@ -23,6 +23,18 @@
     "action_reset_problem",
     "action_seek_video",
     "action_stop_video",
+    "demog_birth",
+    "demog_education_Associate",
+    "demog_education_Bachelor's",
+    "demog_education_Doctorate",
+    "demog_education_High",
+    "demog_education_Master's",
+    "demog_education_Middle",
+    "demog_education_Primary",
+    "demog_education_nan",
+    "demog_gender_female",
+    "demog_gender_male",
+    "demog_gender_nan",
     "log_dt"
   ],
   "course_to_idx": {
@@ -298,6 +310,18 @@
       0.02912805788218975,
       0.9588915705680847,
       0.9120268225669861,
+      7.596921920776367,
+      0.01702161692082882,
+      0.12037871778011322,
+      0.006004871800541878,
+      0.03784049674868584,
+      0.040657542645931244,
+      0.002135160379111767,
+      0.0007074582972563803,
+      0.46840131282806396,
+      0.09082315862178802,
+      0.20486457645893097,
+      0.3974594473838806,
       0.0
     ],
     "std": [
@@ -323,11 +347,36 @@
       0.2153528928756714,
       1.4294754266738892,
       1.3870972394943237,
+      0.0031758917029947042,
+      0.10727884620428085,
+      0.2625816762447357,
+      0.06423551589250565,
+      0.15747104585170746,
+      0.16287609934806824,
+      0.0384112149477005,
+      0.022133057937026024,
+      0.3244553208351135,
+      0.23389093577861786,
+      0.3162780702114105,
+      0.3428175747394562,
       9.999999747378752e-05
     ]
   },
   "demog": {
-    "feature_cols": []
+    "feature_cols": [
+      "demog_birth",
+      "demog_education_Associate",
+      "demog_education_Bachelor's",
+      "demog_education_Doctorate",
+      "demog_education_High",
+      "demog_education_Master's",
+      "demog_education_Middle",
+      "demog_education_Primary",
+      "demog_education_nan",
+      "demog_gender_female",
+      "demog_gender_male",
+      "demog_gender_nan"
+    ]
   },
   "hparams": {
     "hidden_dim": 128,
