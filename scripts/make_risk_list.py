@@ -199,6 +199,7 @@ def main() -> None:
     if demog_cols:
         try:
             demog_tbl = make_demog_features_infer(str(Path("data/xuetangx/raw/user_info (1).csv")), df["username"].astype(str), demog_cols)
+            df["username"] = df["username"].astype(str)
             df = df.merge(demog_tbl, on="username", how="left")
             for c in demog_cols:
                 if c not in df.columns:

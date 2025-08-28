@@ -68,38 +68,36 @@ def make_demog_features_infer(demog_csv: str, usernames: Sequence[str], demog_fe
         if "username" in dfu.columns:
             dfu = dfu.copy()
             dfu["username"] = dfu["username"].astype(str)
-            # Recreate the same one-hot schema and numeric cols
             out = base.merge(dfu, on="username", how="left")
         elif "user_id" in dfu.columns:
             dfu = dfu.copy()
             dfu["username"] = dfu["user_id"].astype(str)
-            # Recreate the same one-hot schema and numeric cols
             out = base.merge(dfu, on="username", how="left")
         else:
             out = base
     else:
         out = base
-    # Initialize requested columns
+    # Initialize requested columns to match training schema
     for col in demog_feature_cols:
-        if col.startswith("demog_age"):
-            src = "age"
-            if src in out.columns:
-                v = pd.to_numeric(out[src], errors="coerce").fillna(out[src].median() if src in out else 0.0)
-                out[col] = v.astype(float)
+        if not col.startswith("demog_"):
+            out[col] = 0.0
+            continue
+        parts = col.split("_")
+        if len(parts) == 2:
+            # Numeric column replicated from raw field: demog_<field>
+            field = parts[1]
+            if field in out.columns:
+                v = pd.to_numeric(out[field], errors="coerce")
+                fill = float(v.median()) if v.notna().any() else 0.0
+                out[col] = v.fillna(fill).astype(float)
             else:
                 out[col] = 0.0
         else:
-            # one-hot column: set 1 if matches category
-            # parse field and category from prefix
-            # expected format 'demog_<field>_<val>'
-            parts = col.split("_")
-            if len(parts) >= 3:
-                field = parts[1]
-                val = "_".join(parts[2:])
-                if field in out.columns:
-                    out[col] = (out[field].astype(str) == val).astype(float)
-                else:
-                    out[col] = 0.0
+            # One-hot: demog_<field>_<value>
+            field = parts[1]
+            val = "_".join(parts[2:])
+            if field in out.columns:
+                out[col] = (out[field].astype(str) == val).astype(float)
             else:
                 out[col] = 0.0
     keep = ["username"] + demog_feature_cols
