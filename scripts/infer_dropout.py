@@ -189,6 +189,7 @@ def main() -> None:
         device=args.device,
         model_type=ckpt_model_type,
     )
+    model_type_used = ckpt_model_type if ckpt_model_type is not None else meta.get("model_type")
     # Safer load when supported (PyTorch >=2.4): weights_only=True
     try:
         state = torch.load(ckpt_path, map_location=args.device, weights_only=True)  # type: ignore[call-arg]
@@ -205,7 +206,7 @@ def main() -> None:
             dt = batch["dt"].to(args.device)
             mask = batch["mask"].to(args.device)
             course_ids = batch["course_ids"].to(args.device)
-            if meta["model_type"] in ("gru", "lstm", "tcn"):
+            if model_type_used in ("gru", "lstm", "tcn"):
                 logits = model(x=x, mask=mask, course_ids=course_ids)
             else:
                 logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
