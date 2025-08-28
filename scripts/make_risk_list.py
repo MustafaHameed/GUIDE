@@ -160,6 +160,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--test_preds", default=str(Path("data/xuetangx/processed/Test_predictions_ensemble.csv")))
     p.add_argument("--out_risk", default=str(Path("data/xuetangx/processed/Test_risk_by_user_course.csv")))
     p.add_argument("--save_threshold", default="", help="Optional JSON path; defaults to model_dir/threshold.json")
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")), help="Optional demographics CSV with 'username' and fields like sex, education_level, country, age")
     return p.parse_args()
 
 

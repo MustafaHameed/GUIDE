@@ -120,6 +120,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--grid", type=float, default=0.05, help="Weight grid step for ensemble (0..1)")
     p.add_argument("--save_json", default="", help="Optional path to save chosen weights (defaults to model_dir/ensemble.json)")
     p.add_argument("--save_val_preds", default="", help="Optional CSV path to save validation probs for each model")
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")), help="Optional demographics CSV with 'username' and fields like sex, education_level, country, age")
     return p.parse_args()
 
 
@@ -139,7 +140,8 @@ def main() -> None:
     demog_cols = meta.get("demog", {}).get("feature_cols", []) if isinstance(meta.get("demog"), dict) else []
     if demog_cols:
         try:
-            demog_tbl = make_demog_features_infer(str(Path("data/xuetangx/raw/user_info (1).csv")), df["username"].astype(str), demog_cols)
+            demog_tbl = make_demog_features_infer(args.demographics_csv, df["username"].astype(str), demog_cols)
+            df["username"] = df["username"].astype(str)  # Ensure consistent string type for merge
             df = df.merge(demog_tbl, on="username", how="left")
             for c in demog_cols:
                 if c not in df.columns:
