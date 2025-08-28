@@ -186,30 +186,84 @@ def main() -> None:
         }
         print(f"[{mtype}] AUPRC={per_model[mtype]['auprc']:.4f} ROC-AUC={per_model[mtype]['roc_auc']:.4f} LogLoss={per_model[mtype]['logloss']:.4f}")
 
-    # Ensemble grid search (only if >=2 models)
-    best_w = None
-    best_metric = -float("inf") if args.metric == "auprc" else float("inf")
+    # Ensemble grid search on simplex for K models (K>=2). Uses step=args.grid.
     names = [m for m, _ in ckpts]
+    best_metric = -float("inf") if args.metric == "auprc" else float("inf")
+    best_weights_vec: np.ndarray | None = None
     if len(names) >= 2:
-        m1, m2 = names[0], names[1]
         y_true = y_true_ref  # type: ignore
-        p1 = probs_map[m1]
-        p2 = probs_map[m2]
-        grid = np.linspace(0.0, 1.0, int(1.0 / max(args.grid, 1e-6)) + 1)
-        for w in grid:
-            pe = w * p1 + (1.0 - w) * p2
+        # Stack probs matrix: (N,K)
+        P = np.stack([probs_map[n] for n in names], axis=1).astype(np.float64)
+        # Normalize grid so it partitions [0,1] exactly
+        step_raw = max(args.grid, 1e-6)
+        n_steps = int(round(1.0 / step_raw))
+        step = 1.0 / max(n_steps, 1)
+
+        K = len(names)
+        def eval_weights(w: np.ndarray) -> float:
+            w = w / max(w.sum(), 1e-12)
+            pe = (P * w.reshape(1, -1)).sum(axis=1)
             if args.metric == "auprc":
-                m = average_precision(y_true, pe)
-                better = m > best_metric
+                return average_precision(y_true, pe)
             else:
-                m = log_loss(y_true, pe)
-                better = m < best_metric
-            if better:
-                best_metric = m
-                best_w = float(w)
-        if best_w is None:
-            best_w = 0.5
-        print(f"[Ensemble {m1} vs {m2}] best_w={best_w:.2f} metric({args.metric})={best_metric:.4f}")
+                return -log_loss(y_true, pe)  # negate to keep maximize convention
+
+        if K == 2:
+            for i in range(n_steps + 1):
+                w0 = i * step
+                w = np.array([w0, 1.0 - w0], dtype=np.float64)
+                m = eval_weights(w)
+                if m > best_metric:
+                    best_metric = m
+                    best_weights_vec = w
+        elif K == 3:
+            for i in range(n_steps + 1):
+                w0 = i * step
+                rem1 = 1.0 - w0
+                sub_steps = int(round(rem1 / step))
+                for j in range(sub_steps + 1):
+                    w1 = j * step
+                    w2 = 1.0 - (w0 + w1)
+                    if w2 < -1e-9:
+                        continue
+                    w = np.array([w0, w1, max(w2, 0.0)], dtype=np.float64)
+                    m = eval_weights(w)
+                    if m > best_metric:
+                        best_metric = m
+                        best_weights_vec = w
+        else:  # K >= 4 (search first 3, assign remainder to last)
+            for i in range(n_steps + 1):
+                w0 = i * step
+                rem1 = 1.0 - w0
+                s1 = int(round(rem1 / step))
+                for j in range(s1 + 1):
+                    w1 = j * step
+                    rem2 = 1.0 - (w0 + w1)
+                    if rem2 < -1e-12:
+                        continue
+                    s2 = int(round(max(rem2, 0.0) / step))
+                    for k in range(s2 + 1):
+                        w2 = k * step
+                        w_rest = 1.0 - (w0 + w1 + w2)
+                        if w_rest < -1e-9:
+                            continue
+                        # Distribute remainder entirely to last component; remaining (if any) to zeros of middle if K>4
+                        w = np.zeros(K, dtype=np.float64)
+                        w[0] = w0
+                        w[1] = w1
+                        w[2] = w2
+                        w[3] = max(w_rest, 0.0)
+                        m = eval_weights(w)
+                        if m > best_metric:
+                            best_metric = m
+                            best_weights_vec = w
+        # Convert best_metric back if logloss (we maximized negative logloss)
+        final_metric = best_metric if args.metric == "auprc" else -best_metric
+        if best_weights_vec is None:
+            print("[Ensemble] Grid search failed to find weights; defaulting to equal")
+            best_weights_vec = np.ones(len(names), dtype=np.float64) / len(names)
+        print(f"[Ensemble] best weights {dict(zip(names, np.round(best_weights_vec, 3)))} metric({args.metric})={final_metric:.4f}")
+        best_metric = final_metric
     else:
         print("[Ensemble] Only one model available; skipping weight search")
 
@@ -225,11 +279,11 @@ def main() -> None:
         "weights": None,
         "val_ratio": args.val_ratio,
         "seed": args.seed,
-        "note": "weights refer to order [names list below]; combine as w*names[0] + (1-w)*names[1]",
+        "note": "weights is a mapping over model names that sum to 1",
         "names": names,
     }
-    if len(names) >= 2 and best_w is not None:
-        payload["weights"] = {names[0]: best_w, names[1]: 1.0 - best_w}
+    if len(names) >= 2 and best_weights_vec is not None:
+        payload["weights"] = {n: float(w) for n, w in zip(names, (best_weights_vec / best_weights_vec.sum()))}
     out_json.parent.mkdir(parents=True, exist_ok=True)
     with open(out_json, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)

@@ -129,6 +129,8 @@ def main() -> None:
     p.add_argument("--log_every", type=int, default=0, help="Log every N training batches (0=epoch only)")
     p.add_argument("--build_progress", action="store_true", help="Show progress while building sequences")
     p.add_argument("--build_log_every", type=int, default=2000, help="Groups per progress print while building")
+    # Pretraining init (Transformer only)
+    p.add_argument("--init_from_pretrained", default="", help="Optional path to a pretrained state_dict (Transformer encoder); loaded with strict=False")
 
     args = p.parse_args()
     set_seed(args.seed)
@@ -181,6 +183,22 @@ def main() -> None:
     model = build_model(args.model, input_dim, course_vocab=len(course_to_idx), args=args)
     model.to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+    # Optional: initialize from pretrained encoder (Transformer)
+    if args.init_from_pretrained:
+        if args.model != "transformer":
+            print(f"[Init] --init_from_pretrained is intended for transformer; ignoring for {args.model}")
+        else:
+            pp = Path(args.init_from_pretrained)
+            if not pp.exists():
+                print(f"[Init] Pretrained path not found: {pp}")
+            else:
+                try:
+                    state = torch.load(pp, map_location=args.device)
+                    missing, unexpected = model.load_state_dict(state, strict=False)
+                    print(f"[Init] Loaded pretrained with strict=False. Missing keys={len(missing)} unexpected={len(unexpected)}")
+                except Exception as e:
+                    print(f"[Init] Failed to load pretrained: {e}")
 
     # Compute class weight if requested
     pos_weight_value: Optional[float] = None

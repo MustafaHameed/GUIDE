@@ -29,9 +29,12 @@ from scripts.data_utils import (
 )
 
 
-def build_model_from_meta(meta: Dict[str, object], input_dim: int, course_vocab: int, device: str) -> torch.nn.Module:
+def build_model_from_meta(
+    meta: Dict[str, object], input_dim: int, course_vocab: int, device: str, model_type: str | None = None
+) -> torch.nn.Module:
     h = meta.get("hparams", {})
-    model_type = meta["model_type"]
+    if model_type is None:
+        model_type = meta["model_type"]
     if model_type == "gru":
         model = GRUClassifier(
             input_dim=input_dim,
@@ -105,7 +108,11 @@ def main() -> None:
         expected = (
             "model_gru.pt"
             if mt == "gru"
-            else ("model_lstm.pt" if mt == "lstm" else ("model_transformer.pt" if mt == "transformer" else "model_tcn.pt"))
+            else (
+                "model_lstm.pt"
+                if mt == "lstm"
+                else ("model_transformer.pt" if mt == "transformer" else "model_tcn.pt")
+            )
         )
         p_expected = Path(args.model_dir) / expected
         if p_expected.exists():
@@ -139,7 +146,26 @@ def main() -> None:
         pin_memory=(args.device == "cuda"),
     )
 
-    model = build_model_from_meta(meta, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device)
+    # Infer model type from explicit ckpt name if provided, else use meta
+    ckpt_model_type: str | None = None
+    if args.ckpt:
+        n = ckpt_path.name.lower()
+        if "gru" in n:
+            ckpt_model_type = "gru"
+        elif "lstm" in n:
+            ckpt_model_type = "lstm"
+        elif "transformer" in n:
+            ckpt_model_type = "transformer"
+        elif "tcn" in n:
+            ckpt_model_type = "tcn"
+
+    model = build_model_from_meta(
+        meta,
+        input_dim=len(feature_names),
+        course_vocab=len(course_to_idx),
+        device=args.device,
+        model_type=ckpt_model_type,
+    )
     # Safer load when supported (PyTorch >=2.4): weights_only=True
     try:
         state = torch.load(ckpt_path, map_location=args.device, weights_only=True)  # type: ignore[call-arg]

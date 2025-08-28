@@ -239,3 +239,23 @@ def save_meta(path: str, meta: Dict[str, object]) -> None:
 def load_meta(path: str) -> Dict[str, object]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def truncate_items(items: List[SequenceItem], max_steps: int) -> List[SequenceItem]:
+    if max_steps <= 0:
+        return items
+    out: List[SequenceItem] = []
+    for it in items:
+        L = min(max_steps, it.x.shape[0])
+        out.append(
+            SequenceItem(
+                username=it.username,
+                course_id=it.course_id,
+                course_idx=it.course_idx,
+                x=it.x[:L].copy(),
+                dt=it.dt[:L].copy(),
+                y=None if it.y is None else it.y[:L].copy(),
+                row_ids=None if it.row_ids is None else it.row_ids[:L].copy(),
+            )
+        )
+    return out
