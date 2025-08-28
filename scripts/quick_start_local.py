@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--risk_criterion", choices=["f1", "youden"], default="f1")
     p.add_argument("--threshold_grouped", action="store_true", help="Choose threshold over grouped validation averages")
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")), help="Optional demographics CSV with 'username' and fields like sex, education_level, country, age")
     return p.parse_args()
 
 
@@ -90,6 +91,8 @@ def main() -> None:
                 str(args.epochs_gru),
                 "--save_dir",
                 args.model_dir,
+                "--demographics_csv",
+                args.demographics_csv,
             ]
         )
     else:
@@ -125,6 +128,8 @@ def main() -> None:
                 str(args.epochs_tr),
                 "--save_dir",
                 args.model_dir,
+                "--demographics_csv",
+                args.demographics_csv,
             ]
         )
     else:
@@ -159,6 +164,8 @@ def main() -> None:
                     str(args.epochs_lstm),
                     "--save_dir",
                     args.model_dir,
+                    "--demographics_csv",
+                    args.demographics_csv,
                 ]
             )
         else:
@@ -195,6 +202,8 @@ def main() -> None:
                     str(args.epochs_tcn),
                     "--save_dir",
                     args.model_dir,
+                    "--demographics_csv",
+                    args.demographics_csv,
                 ]
             )
         else:
@@ -216,6 +225,8 @@ def main() -> None:
         str(args.batch_size_infer),
         "--num_workers",
         str(args.num_workers),
+        "--demographics_csv",
+        args.demographics_csv,
     ]
     if args.weights is not None and len(args.weights) > 0:
         infer_cmd += ["--weights"] + [str(w) for w in args.weights]
@@ -242,6 +253,8 @@ def main() -> None:
         str(Path(args.out_dir) / "Test_risk_by_user_course_ensemble.csv"),
         "--criterion",
         args.risk_criterion,
+        "--demographics_csv",
+        args.demographics_csv,
     ]
     if args.threshold_grouped:
         risk_cmd.append("--threshold_grouped")

@@ -28,10 +28,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional weights in order of available models (gru lstm transformer tcn). If omitted, tries ensemble.json, else equal",
     )
     p.add_argument("--skip_if_exists", action="store_true", help="Skip inference if per-model outputs already exist")
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")), help="Optional demographics CSV with 'username' and fields like sex, education_level, country, age")
     return p.parse_args()
 
 
-def run_infer(model_dir: str, test_csv: str, ckpt: str, out_csv: str, device: str, batch_size: int, num_workers: int) -> None:
+def run_infer(model_dir: str, test_csv: str, ckpt: str, out_csv: str, device: str, batch_size: int, num_workers: int, demographics_csv: str) -> None:
     cmd = [
         sys.executable,
         os.path.join("scripts", "infer_dropout.py"),
@@ -49,6 +50,8 @@ def run_infer(model_dir: str, test_csv: str, ckpt: str, out_csv: str, device: st
         str(batch_size),
         "--num_workers",
         str(num_workers),
+        "--demographics_csv",
+        demographics_csv,
     ]
     print("[Run]", " ".join(cmd))
     subprocess.check_call(cmd)
@@ -73,13 +76,13 @@ def main() -> None:
     out_tcn = out_dir / "Test_predictions_tcn.csv"
 
     if ckpt_gru.exists() and (not args.skip_if_exists or not out_gru.exists()):
-        run_infer(str(model_dir), args.test_csv, str(ckpt_gru), str(out_gru), args.device, args.batch_size, args.num_workers)
+        run_infer(str(model_dir), args.test_csv, str(ckpt_gru), str(out_gru), args.device, args.batch_size, args.num_workers, args.demographics_csv)
     if ckpt_tr.exists() and (not args.skip_if_exists or not out_tr.exists()):
-        run_infer(str(model_dir), args.test_csv, str(ckpt_tr), str(out_tr), args.device, args.batch_size, args.num_workers)
+        run_infer(str(model_dir), args.test_csv, str(ckpt_tr), str(out_tr), args.device, args.batch_size, args.num_workers, args.demographics_csv)
     if ckpt_lstm.exists() and (not args.skip_if_exists or not out_lstm.exists()):
-        run_infer(str(model_dir), args.test_csv, str(ckpt_lstm), str(out_lstm), args.device, args.batch_size, args.num_workers)
+        run_infer(str(model_dir), args.test_csv, str(ckpt_lstm), str(out_lstm), args.device, args.batch_size, args.num_workers, args.demographics_csv)
     if ckpt_tcn.exists() and (not args.skip_if_exists or not out_tcn.exists()):
-        run_infer(str(model_dir), args.test_csv, str(ckpt_tcn), str(out_tcn), args.device, args.batch_size, args.num_workers)
+        run_infer(str(model_dir), args.test_csv, str(ckpt_tcn), str(out_tcn), args.device, args.batch_size, args.num_workers, args.demographics_csv)
 
     # Determine weights
     # Determine weights for any subset of models (gru, transformer, tcn) in that order
