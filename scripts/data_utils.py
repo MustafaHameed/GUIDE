@@ -21,6 +21,83 @@ def detect_action_columns(columns: Sequence[str]) -> List[str]:
     return sorted(cols)
 
 
+DEFAULT_DEMOG_CAT = ["sex", "education_level", "country"]
+DEFAULT_DEMOG_NUM = ["age"]
+
+
+def make_demog_features_train(demog_csv: str, usernames: Sequence[str]) -> Tuple[pd.DataFrame, List[str]]:
+    if not demog_csv or not os.path.exists(demog_csv):
+        return pd.DataFrame({"username": list(set(usernames))}), []
+    dfu = pd.read_csv(demog_csv, low_memory=False)
+    if "username" not in dfu.columns:
+        # try alternate key names
+        return pd.DataFrame({"username": list(set(usernames))}), []
+    dfu = dfu.copy()
+    dfu["username"] = dfu["username"].astype(str)
+    dfu = dfu[dfu["username"].isin(set(map(str, usernames)))]
+    demog_cols: List[str] = []
+    # numeric
+    for col in DEFAULT_DEMOG_NUM:
+        if col in dfu.columns:
+            v = pd.to_numeric(dfu[col], errors="coerce")
+            v = v.fillna(v.median())
+            dfu[f"demog_{col}"] = v.astype(float)
+            demog_cols.append(f"demog_{col}")
+    # categorical one-hots
+    for col in DEFAULT_DEMOG_CAT:
+        if col in dfu.columns:
+            dummies = pd.get_dummies(dfu[col].astype(str), prefix=f"demog_{col}")
+            dfu = pd.concat([dfu, dummies], axis=1)
+            demog_cols.extend(list(dummies.columns))
+    keep = ["username"] + demog_cols
+    df_dem = dfu[keep].drop_duplicates("username")
+    demog_cols = sorted([c for c in demog_cols if c.startswith("demog_")])
+    return df_dem, demog_cols
+
+
+def make_demog_features_infer(demog_csv: str, usernames: Sequence[str], demog_feature_cols: List[str]) -> pd.DataFrame:
+    # Build a frame with all usernames and ensure all demog_feature_cols exist
+    base = pd.DataFrame({"username": list(set(map(str, usernames)))})
+    if not demog_feature_cols:
+        return base
+    if os.path.exists(demog_csv):
+        dfu = pd.read_csv(demog_csv, low_memory=False)
+        if "username" in dfu.columns:
+            dfu = dfu.copy()
+            dfu["username"] = dfu["username"].astype(str)
+            # Recreate the same one-hot schema and numeric cols
+            out = base.merge(dfu, on="username", how="left")
+        else:
+            out = base
+    else:
+        out = base
+    # Initialize requested columns
+    for col in demog_feature_cols:
+        if col.startswith("demog_age"):
+            src = "age"
+            if src in out.columns:
+                v = pd.to_numeric(out[src], errors="coerce").fillna(out[src].median() if src in out else 0.0)
+                out[col] = v.astype(float)
+            else:
+                out[col] = 0.0
+        else:
+            # one-hot column: set 1 if matches category
+            # parse field and category from prefix
+            # expected format 'demog_<field>_<val>'
+            parts = col.split("_")
+            if len(parts) >= 3:
+                field = parts[1]
+                val = "_".join(parts[2:])
+                if field in out.columns:
+                    out[col] = (out[field].astype(str) == val).astype(float)
+                else:
+                    out[col] = 0.0
+            else:
+                out[col] = 0.0
+    keep = ["username"] + demog_feature_cols
+    return out[keep].drop_duplicates("username")
+
+
 def prepare_dataframe(df: pd.DataFrame, drop_leaky: bool = True) -> pd.DataFrame:
     df = df.copy()
     # Required columns guard
@@ -52,6 +129,9 @@ class SequenceItem:
     dt: np.ndarray  # (T,)
     y: Optional[np.ndarray]  # (T,) or None for test
     row_ids: Optional[np.ndarray]  # indices in original file order for reconstructing predictions
+    # Demographics (static per user)
+    demog_cat: Optional[np.ndarray] = None  # (C,) int64 indices per categorical field
+    demog_num: Optional[np.ndarray] = None  # (R,) float32 normalized numeric features
 
 
 def build_sequences_from_df(
@@ -62,6 +142,7 @@ def build_sequences_from_df(
     progress: bool = False,
     log_every: int = 2000,
     logger: Optional[Callable[[str], None]] = None,
+    extra_feature_cols: Optional[List[str]] = None,
 ) -> Tuple[List[SequenceItem], List[str], Dict[str, int]]:
     """Group by (username, course_id) and build sequences.
 
@@ -70,7 +151,8 @@ def build_sequences_from_df(
     """
     if action_cols is None:
         action_cols = detect_action_columns(df.columns)
-    used_cols = ["username", "course_id", "timestamp"] + action_cols
+    feature_cols = action_cols + (extra_feature_cols or [])
+    used_cols = ["username", "course_id", "timestamp"] + feature_cols
     if label_col is not None and label_col in df.columns:
         used_cols += [label_col]
     if "session_id" in df.columns:
@@ -85,7 +167,7 @@ def build_sequences_from_df(
         unique_courses = sub["course_id"].astype(str).unique().tolist()
         course_to_idx = {c: i for i, c in enumerate(sorted(unique_courses))}
 
-    feature_names = action_cols + ["log_dt"]
+    feature_names = feature_cols + ["log_dt"]
 
     items: List[SequenceItem] = []
     gb = sub.groupby(["username", "course_id"], sort=False)
@@ -107,7 +189,7 @@ def build_sequences_from_df(
             # Clamp negatives to zero
             dt = np.maximum(dt, 0)
         # Features
-        X = g[action_cols].apply(pd.to_numeric, errors="coerce").fillna(0.0).to_numpy(dtype=np.float32)
+        X = g[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0.0).to_numpy(dtype=np.float32)
         # log1p counts
         X = np.log1p(X)
         log_dt = np.log1p(dt.astype(np.float32)).reshape(-1, 1)
@@ -157,6 +239,8 @@ class PackedSequenceDataset(Dataset):
             "row_ids": None if it.row_ids is None else torch.from_numpy(it.row_ids),
             "username": it.username,
             "course_id": it.course_id,
+            "demog_cat": None if it.demog_cat is None else torch.from_numpy(it.demog_cat.astype(np.int64)),
+            "demog_num": None if it.demog_num is None else torch.from_numpy(it.demog_num.astype(np.float32)),
         }
 
 
@@ -182,7 +266,7 @@ def collate_padded(batch: List[Dict[str, object]]) -> Dict[str, torch.Tensor]:
         mask[i, :L] = 1.0
         row_ids_list.append(b["row_ids"])  # tensor or None
 
-    return {
+    out = {
         "x": x,
         "dt": dt,
         "y": y,
@@ -191,6 +275,16 @@ def collate_padded(batch: List[Dict[str, object]]) -> Dict[str, torch.Tensor]:
         "lengths": lengths,
         "row_ids": row_ids_list,
     }
+    # Demographics
+    if batch[0].get("demog_cat") is not None:
+        out["demog_cat"] = torch.stack([b["demog_cat"] for b in batch])
+    else:
+        out["demog_cat"] = None
+    if batch[0].get("demog_num") is not None:
+        out["demog_num"] = torch.stack([b["demog_num"] for b in batch])
+    else:
+        out["demog_num"] = None
+    return out
 
 
 def split_items(items: List[SequenceItem], val_ratio: float = 0.1, seed: int = 42) -> Tuple[List[SequenceItem], List[SequenceItem]]:

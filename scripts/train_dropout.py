@@ -32,6 +32,7 @@ from scripts.data_utils import (
     fit_standardizer,
     prepare_dataframe,
     split_items,
+    make_demog_features_train,
 )
 
 
@@ -129,6 +130,8 @@ def main() -> None:
     p.add_argument("--log_every", type=int, default=0, help="Log every N training batches (0=epoch only)")
     p.add_argument("--build_progress", action="store_true", help="Show progress while building sequences")
     p.add_argument("--build_log_every", type=int, default=2000, help="Groups per progress print while building")
+    # Demographics
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")), help="Optional demographics CSV with 'username' and fields like sex, education_level, country, age")
     # Pretraining init (Transformer only)
     p.add_argument("--init_from_pretrained", default="", help="Optional path to a pretrained state_dict (Transformer encoder); loaded with strict=False")
 
@@ -139,11 +142,22 @@ def main() -> None:
     df = pd.read_csv(args.train_csv, low_memory=False)
     df = prepare_dataframe(df)
 
+    # Optionally augment with demographic features (one-hot + numeric)
+    demog_cols: List[str] = []
+    try:
+        demog_tbl, demog_cols = make_demog_features_train(args.demographics_csv, df["username"].astype(str))
+        if demog_cols:
+            df = df.merge(demog_tbl, on="username", how="left")
+            print(f"[Demog] Added {len(demog_cols)} demographic feature columns")
+    except Exception as e:
+        print(f"[Demog] Skipped demographics due to error: {e}")
+
     # Build sequences and detect action columns dynamically
     items, feature_names, course_to_idx = build_sequences_from_df(
         df,
         progress=args.build_progress,
         log_every=args.build_log_every,
+        extra_feature_cols=demog_cols if demog_cols else None,
     )
     del df
     print(f"[Info] Groups: {len(items)} | Features: {len(feature_names)} | Courses: {len(course_to_idx)}")
@@ -416,6 +430,7 @@ def main() -> None:
         "feature_names": feature_names,
         "course_to_idx": course_to_idx,
         "standardizer": {"mean": np.asarray(mean).tolist(), "std": np.asarray(std).tolist()},
+        "demog": {"feature_cols": demog_cols},
         "hparams": {
             "hidden_dim": args.hidden_dim,
             "d_model": args.d_model,

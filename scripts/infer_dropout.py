@@ -26,6 +26,7 @@ from scripts.data_utils import (
     prepare_dataframe,
     PackedSequenceDataset,
     collate_padded,
+    make_demog_features_infer,
 )
 
 
@@ -87,6 +88,7 @@ def main() -> None:
     p.add_argument("--num_workers", type=int, default=0)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--ckpt", default="", help="Optional explicit checkpoint path to load (overrides auto)")
+    p.add_argument("--demographics_csv", default=str(Path("data/xuetangx/raw/user_info (1).csv")))
 
     args = p.parse_args()
 
@@ -130,10 +132,31 @@ def main() -> None:
     print(f"[Load Test] {args.test_csv}")
     df = pd.read_csv(args.test_csv, low_memory=False)
     df = prepare_dataframe(df, drop_leaky=True)
+    # Demographics: reproduce same feature columns used in training if present
+    demog_cols = meta.get("demog", {}).get("feature_cols", []) if isinstance(meta.get("demog"), dict) else []
+    if demog_cols:
+        try:
+            demog_tbl = make_demog_features_infer(args.demographics_csv, df["username"].astype(str), demog_cols)
+            df = df.merge(demog_tbl, on="username", how="left")
+            missing = [c for c in demog_cols if c not in df.columns]
+            for c in missing:
+                df[c] = 0.0
+            print(f"[Demog] Merged demographics with {len(demog_cols)} columns")
+        except Exception as e:
+            print(f"[Demog] Skipped demographics on inference due to error: {e}")
     # Build sequences without labels
     # Enforce same feature order as training (feature_names includes 'log_dt' at end)
     action_cols = [c for c in feature_names if c != "log_dt"]
-    items, _, _ = build_sequences_from_df(df, action_cols=action_cols, label_col=None, course_to_idx=course_to_idx)
+    # Identify extra (demog) feature cols as those not starting with action_
+    extra_cols = [c for c in action_cols if not c.startswith("action_")]
+    action_only = [c for c in action_cols if c.startswith("action_")]
+    items, _, _ = build_sequences_from_df(
+        df,
+        action_cols=action_only,
+        label_col=None,
+        course_to_idx=course_to_idx,
+        extra_feature_cols=extra_cols if extra_cols else None,
+    )
     apply_standardizer(items, mean, std)
 
     ds = PackedSequenceDataset(items)

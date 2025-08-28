@@ -28,6 +28,7 @@ from scripts.data_utils import (
     prepare_dataframe,
     split_items,
     collate_padded,
+    make_demog_features_infer,
 )
 from scripts.metrics import average_precision, roc_auc, log_loss
 
@@ -134,7 +135,21 @@ def main() -> None:
     # Load and build sequences; split
     df = pd.read_csv(args.train_csv, low_memory=False)
     df = prepare_dataframe(df)
-    items, _, _ = build_sequences_from_df(df, action_cols=[c for c in feature_names if c != "log_dt"], label_col="truth", course_to_idx=course_to_idx)
+    # Demographics merge if present in meta
+    demog_cols = meta.get("demog", {}).get("feature_cols", []) if isinstance(meta.get("demog"), dict) else []
+    if demog_cols:
+        try:
+            demog_tbl = make_demog_features_infer(str(Path("data/xuetangx/raw/user_info (1).csv")), df["username"].astype(str), demog_cols)
+            df = df.merge(demog_tbl, on="username", how="left")
+            for c in demog_cols:
+                if c not in df.columns:
+                    df[c] = 0.0
+        except Exception:
+            pass
+    action_cols = [c for c in feature_names if c != "log_dt"]
+    extra_cols = [c for c in action_cols if not c.startswith("action_")]
+    action_only = [c for c in action_cols if c.startswith("action_")]
+    items, _, _ = build_sequences_from_df(df, action_cols=action_only, label_col="truth", course_to_idx=course_to_idx, extra_feature_cols=extra_cols if extra_cols else None)
     train_items, val_items = split_items(items, val_ratio=args.val_ratio, seed=args.seed)
     apply_standardizer(val_items, mean, std)
 
