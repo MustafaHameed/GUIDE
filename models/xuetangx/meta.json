@@ -1,5 +1,5 @@
 {
-  "model_type": "gru",
+  "model_type": "transformer",
   "feature_names": [
     "action_click_about",
     "action_click_courseware",
