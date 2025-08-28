@@ -70,6 +70,65 @@ class GRUClassifier(nn.Module):
         return logits
 
 
+class LSTMClassifier(nn.Module):
+    """
+    Small LSTM baseline for per-timestep binary classification on sequences.
+
+    Inputs:
+      - x:  (B, T, F) float features
+      - mask: (B, T) mask where 1 means valid timestep
+      - course_ids: Optional (B,) long indices for per-course embedding
+
+    Outputs:
+      - logits: (B, T)
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 128,
+        num_layers: int = 1,
+        dropout: float = 0.1,
+        course_vocab: Optional[int] = None,
+        course_emb_dim: int = 16,
+    ):
+        super().__init__()
+        self.course_emb = None
+        if course_vocab is not None and course_vocab > 0 and course_emb_dim > 0:
+            self.course_emb = nn.Embedding(course_vocab, course_emb_dim)
+            nn.init.normal_(self.course_emb.weight, std=0.02)
+            input_dim = input_dim + course_emb_dim
+
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+            bidirectional=False,
+        )
+        self.head = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        course_ids: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if self.course_emb is not None and course_ids is not None:
+            ce = self.course_emb(course_ids).unsqueeze(1).expand(-1, x.size(1), -1)
+            x = torch.cat([x, ce], dim=-1)
+        out, _ = self.lstm(x)
+        logits = self.head(out).squeeze(-1)
+        if mask is not None:
+            logits = logits * mask
+        return logits
+
+
 class TimePositionalEncoding(nn.Module):
     """Relative/continuous time encoding using log-delta and Fourier features."""
 

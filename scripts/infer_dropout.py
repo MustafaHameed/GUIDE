@@ -18,7 +18,7 @@ _REPO_ROOT = os.path.abspath(os.path.join(_THIS_DIR, os.pardir))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from models.seq_models import GRUClassifier, TimeAwareTransformer, TCNClassifier
+from models.seq_models import GRUClassifier, TimeAwareTransformer, TCNClassifier, LSTMClassifier
 from scripts.data_utils import (
     apply_standardizer,
     build_sequences_from_df,
@@ -34,6 +34,15 @@ def build_model_from_meta(meta: Dict[str, object], input_dim: int, course_vocab:
     model_type = meta["model_type"]
     if model_type == "gru":
         model = GRUClassifier(
+            input_dim=input_dim,
+            hidden_dim=int(h.get("hidden_dim", 128)),
+            num_layers=int(h.get("num_layers", 2)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+        )
+    elif model_type == "lstm":
+        model = LSTMClassifier(
             input_dim=input_dim,
             hidden_dim=int(h.get("hidden_dim", 128)),
             num_layers=int(h.get("num_layers", 2)),
@@ -94,20 +103,22 @@ def main() -> None:
     else:
         mt = meta.get("model_type")
         expected = (
-            "model_gru.pt" if mt == "gru" else ("model_transformer.pt" if mt == "transformer" else "model_tcn.pt")
+            "model_gru.pt"
+            if mt == "gru"
+            else ("model_lstm.pt" if mt == "lstm" else ("model_transformer.pt" if mt == "transformer" else "model_tcn.pt"))
         )
         p_expected = Path(args.model_dir) / expected
         if p_expected.exists():
             ckpt_path = p_expected
         else:
-            for name in ["model_gru.pt", "model_transformer.pt", "model_tcn.pt"]:
+            for name in ["model_gru.pt", "model_lstm.pt", "model_transformer.pt", "model_tcn.pt"]:
                 pth = Path(args.model_dir) / name
                 if pth.exists():
                     ckpt_path = pth
                     print(f"[Warn] Expected {expected} but found {name}. Using {name}.")
                     break
     if ckpt_path is None:
-        raise FileNotFoundError("No model checkpoint found (model_gru.pt/model_transformer.pt/model_tcn.pt)")
+        raise FileNotFoundError("No model checkpoint found (model_gru.pt/model_lstm.pt/model_transformer.pt/model_tcn.pt)")
 
     print(f"[Load Test] {args.test_csv}")
     df = pd.read_csv(args.test_csv, low_memory=False)
@@ -145,7 +156,7 @@ def main() -> None:
             dt = batch["dt"].to(args.device)
             mask = batch["mask"].to(args.device)
             course_ids = batch["course_ids"].to(args.device)
-            if meta["model_type"] in ("gru", "tcn"):
+            if meta["model_type"] in ("gru", "lstm", "tcn"):
                 logits = model(x=x, mask=mask, course_ids=course_ids)
             else:
                 logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)

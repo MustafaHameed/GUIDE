@@ -19,7 +19,7 @@ import sys
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from models.seq_models import GRUClassifier, TimeAwareTransformer, TCNClassifier
+from models.seq_models import GRUClassifier, TimeAwareTransformer, TCNClassifier, LSTMClassifier
 from scripts.data_utils import (
     PackedSequenceDataset,
     apply_standardizer,
@@ -35,6 +35,15 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
     h = meta.get("hparams", {})
     if model_type == "gru":
         model = GRUClassifier(
+            input_dim=input_dim,
+            hidden_dim=int(h.get("hidden_dim", 128)),
+            num_layers=int(h.get("num_layers", 2)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+        )
+    elif model_type == "lstm":
+        model = LSTMClassifier(
             input_dim=input_dim,
             hidden_dim=int(h.get("hidden_dim", 128)),
             num_layers=int(h.get("num_layers", 2)),
@@ -87,7 +96,7 @@ def collect_probs(model: torch.nn.Module, model_type: str, dl: DataLoader, devic
             mask = batch["mask"].to(device)
             course_ids = batch["course_ids"].to(device)
             lengths = batch["lengths"].cpu().numpy()
-            if model_type in ("gru", "tcn"):
+            if model_type in ("gru", "lstm", "tcn"):
                 logits = model(x=x, mask=mask, course_ids=course_ids)
             else:
                 logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
@@ -203,10 +212,13 @@ def main() -> None:
 
     # Available checkpoints
     ckpt_gru = Path(args.model_dir) / "model_gru.pt"
+    ckpt_lstm = Path(args.model_dir) / "model_lstm.pt"
     ckpt_tr = Path(args.model_dir) / "model_transformer.pt"
     avail: List[Tuple[str, Path]] = []
     if ckpt_gru.exists():
         avail.append(("gru", ckpt_gru))
+    if ckpt_lstm.exists():
+        avail.append(("lstm", ckpt_lstm))
     if ckpt_tr.exists():
         avail.append(("transformer", ckpt_tr))
     if not avail:

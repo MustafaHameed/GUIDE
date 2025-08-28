@@ -23,6 +23,7 @@ from models.seq_models import (
     GRUClassifier,
     TimeAwareTransformer,
     TCNClassifier,
+    LSTMClassifier,
     masked_bce_with_logits,
 )
 from scripts.data_utils import (
@@ -46,6 +47,15 @@ def set_seed(seed: int = 42) -> None:
 def build_model(model_type: str, input_dim: int, course_vocab: int, args: argparse.Namespace) -> torch.nn.Module:
     if model_type == "gru":
         return GRUClassifier(
+            input_dim=input_dim,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.num_layers,
+            dropout=args.dropout,
+            course_vocab=course_vocab,
+            course_emb_dim=args.course_emb_dim,
+        )
+    elif model_type == "lstm":
+        return LSTMClassifier(
             input_dim=input_dim,
             hidden_dim=args.hidden_dim,
             num_layers=args.num_layers,
@@ -83,7 +93,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Train GRU/Transformer/TCN baselines for XuetangX dropout prediction (raw)")
     p.add_argument("--train_csv", default=str(Path("data/xuetangx/raw/Train.csv")), help="Path to Train.csv")
     p.add_argument("--save_dir", default=str(Path("models/xuetangx")), help="Directory to save model and meta")
-    p.add_argument("--model", choices=["gru", "transformer", "tcn"], default="gru")
+    p.add_argument("--model", choices=["gru", "lstm", "transformer", "tcn"], default="gru")
 
     # Model hyperparams
     p.add_argument("--hidden_dim", type=int, default=128)
@@ -252,7 +262,7 @@ def main() -> None:
             if is_train:
                 optimizer.zero_grad(set_to_none=True)
 
-            if args.model in ("gru", "tcn"):
+            if args.model in ("gru", "lstm", "tcn"):
                 logits = model(x=x, mask=mask, course_ids=course_ids)
             else:
                 logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
@@ -319,10 +329,10 @@ def main() -> None:
                 mask = batch["mask"].to(args.device)
                 course_ids = batch["course_ids"].to(args.device)
                 optimizer.zero_grad(set_to_none=True)
-            if args.model in ("gru", "tcn"):
-                logits = model(x=x, mask=mask, course_ids=course_ids)
-            else:
-                logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
+                if args.model in ("gru", "lstm", "tcn"):
+                    logits = model(x=x, mask=mask, course_ids=course_ids)
+                else:
+                    logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
                 if args.loss == "bce":
                     loss = masked_bce_with_logits(logits, y, mask)
                 elif args.loss == "weighted_bce":

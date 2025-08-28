@@ -13,14 +13,20 @@ import sys
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Run both model inferences and write an ensemble CSV")
+    p = argparse.ArgumentParser(description="Run GRU/LSTM/Transformer/TCN inferences and write an ensemble CSV")
     p.add_argument("--test_csv", default=str(Path("data/xuetangx/raw/Test.csv")))
     p.add_argument("--model_dir", default=str(Path("models/xuetangx")))
     p.add_argument("--out_dir", default=str(Path("data/xuetangx/processed")))
     p.add_argument("--device", default="cuda")
     p.add_argument("--batch_size", type=int, default=256)
     p.add_argument("--num_workers", type=int, default=0)
-    p.add_argument("--weights", nargs="*", type=float, default=None, help="Optional weights [w_gru w_tr] (if omitted, tries ensemble.json, else equal)")
+    p.add_argument(
+        "--weights",
+        nargs="*",
+        type=float,
+        default=None,
+        help="Optional weights in order of available models (gru lstm transformer tcn). If omitted, tries ensemble.json, else equal",
+    )
     p.add_argument("--skip_if_exists", action="store_true", help="Skip inference if per-model outputs already exist")
     return p.parse_args()
 
@@ -55,37 +61,56 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     ckpt_gru = model_dir / "model_gru.pt"
+    ckpt_lstm = model_dir / "model_lstm.pt"
     ckpt_tr = model_dir / "model_transformer.pt"
-    if not ckpt_gru.exists() and not ckpt_tr.exists():
+    ckpt_tcn = model_dir / "model_tcn.pt"
+    if not ckpt_gru.exists() and not ckpt_lstm.exists() and not ckpt_tr.exists() and not ckpt_tcn.exists():
         raise FileNotFoundError("No checkpoints found in model_dir")
 
     out_gru = out_dir / "Test_predictions_gru.csv"
+    out_lstm = out_dir / "Test_predictions_lstm.csv"
     out_tr = out_dir / "Test_predictions_transformer.csv"
+    out_tcn = out_dir / "Test_predictions_tcn.csv"
 
     if ckpt_gru.exists() and (not args.skip_if_exists or not out_gru.exists()):
         run_infer(str(model_dir), args.test_csv, str(ckpt_gru), str(out_gru), args.device, args.batch_size, args.num_workers)
     if ckpt_tr.exists() and (not args.skip_if_exists or not out_tr.exists()):
         run_infer(str(model_dir), args.test_csv, str(ckpt_tr), str(out_tr), args.device, args.batch_size, args.num_workers)
+    if ckpt_lstm.exists() and (not args.skip_if_exists or not out_lstm.exists()):
+        run_infer(str(model_dir), args.test_csv, str(ckpt_lstm), str(out_lstm), args.device, args.batch_size, args.num_workers)
+    if ckpt_tcn.exists() and (not args.skip_if_exists or not out_tcn.exists()):
+        run_infer(str(model_dir), args.test_csv, str(ckpt_tcn), str(out_tcn), args.device, args.batch_size, args.num_workers)
 
     # Determine weights
-    w = None
+    # Determine weights for any subset of models (gru, transformer, tcn) in that order
+    avail_names: List[str] = []
+    if ckpt_gru.exists():
+        avail_names.append("gru")
+    if ckpt_lstm.exists():
+        avail_names.append("lstm")
+    if ckpt_tr.exists():
+        avail_names.append("transformer")
+    if ckpt_tcn.exists():
+        avail_names.append("tcn")
+
+    w: Optional[np.ndarray] = None
     if args.weights is not None and len(args.weights) > 0:
-        if len(args.weights) != 2:
-            raise ValueError("--weights must be two numbers: w_gru w_transformer")
+        if len(args.weights) != len(avail_names):
+            raise ValueError(f"--weights length ({len(args.weights)}) must match number of available models ({len(avail_names)}): {avail_names}")
         w = np.asarray(args.weights, dtype=np.float64)
+        print(f"[Weights] from CLI for {avail_names}: {w}")
     else:
         ens_path = model_dir / "ensemble.json"
         if ens_path.exists():
             with open(ens_path, "r", encoding="utf-8") as f:
                 ens = json.load(f)
-            names = ens.get("names", [])
-            weights = ens.get("weights", {})
-            if set(names) >= {"gru", "transformer"} and weights:
-                w = np.array([weights.get("gru", 0.5), weights.get("transformer", 0.5)], dtype=np.float64)
-                print(f"[Weights] from ensemble.json: {w}")
+            weight_map = ens.get("weights", {})  # expected like {"gru": 0.4, "transformer": 0.6, "tcn": 0.2}
+            if isinstance(weight_map, dict) and weight_map:
+                w = np.array([float(weight_map.get(name, 1.0)) for name in avail_names], dtype=np.float64)
+                print(f"[Weights] from ensemble.json for {avail_names}: {w}")
     if w is None:
-        w = np.array([0.5, 0.5], dtype=np.float64)
-        print(f"[Weights] default equal: {w}")
+        w = np.ones(len(avail_names), dtype=np.float64)
+        print(f"[Weights] default equal for {avail_names}: {w}")
     w = w / w.sum()
 
     # Load predictions and ensemble
@@ -97,9 +122,15 @@ def main() -> None:
     if ckpt_tr.exists():
         dfs.append(pd.read_csv(out_tr))
         names.append("transformer")
+    if ckpt_lstm.exists():
+        dfs.append(pd.read_csv(out_lstm))
+        names.append("lstm")
+    if ckpt_tcn.exists():
+        dfs.append(pd.read_csv(out_tcn))
+        names.append("tcn")
     if len(dfs) < 2:
         print("[Warn] Only one model predictions available; copying to ensemble output")
-        single = out_gru if ckpt_gru.exists() else out_tr
+        single = out_gru if ckpt_gru.exists() else (out_tr if ckpt_tr.exists() else out_tcn)
         out_final = out_dir / "Test_predictions_ensemble.csv"
         pd.read_csv(single).to_csv(out_final, index=False)
         print(f"[Saved] {out_final}")
@@ -115,12 +146,15 @@ def main() -> None:
         di = dfs[i][keys + ["pred_dropout_prob"]].rename(columns={"pred_dropout_prob": f"pred_{names[i]}"})
         out = out.merge(di, on=keys, how="inner", validate="one_to_one")
 
-    # Weighted average: w[0]*gru + w[1]*transformer (if both exist)
+    # Weighted average across all available models
     pred_cols = [f"pred_{n}" for n in names]
     mat = out[pred_cols].to_numpy(dtype=float)
     # arrange weights per model name order
-    base_w = {"gru": float(w[0]), "transformer": float(w[1])}
-    w_vec = np.array([base_w[n] for n in names], dtype=float)
+    if len(w) != len(names):
+        # adjust to available names
+        print(f"[Warn] weight vector length {len(w)} != models {len(names)}; resizing to equal weights")
+        w = np.ones(len(names), dtype=np.float64)
+    w_vec = np.array([float(w[i]) for i in range(len(names))], dtype=float)
     out["pred_dropout_prob"] = np.clip((mat * (w_vec / w_vec.sum())).sum(axis=1), 0.0, 1.0)
     out = out.drop(columns=pred_cols)
     out_final = out_dir / "Test_predictions_ensemble.csv"
