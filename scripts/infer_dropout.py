@@ -79,6 +79,105 @@ def build_model_from_meta(
     return model.to(device)
 
 
+def _derive_hparams_from_state(model_type: str, state: Dict[str, torch.Tensor]) -> Dict[str, int]:
+    hp: Dict[str, int] = {}
+    try:
+        if model_type in ("gru", "lstm"):
+            prefix = "gru" if model_type == "gru" else "lstm"
+            key_hh = f"{prefix}.weight_hh_l0"
+            if key_hh in state:
+                hp["hidden_dim"] = int(state[key_hh].shape[1])
+            n = 0
+            while f"{prefix}.weight_ih_l{n}" in state:
+                n += 1
+            if n > 0:
+                hp["num_layers"] = n
+        elif model_type == "transformer":
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            idx = -1
+            for k in state.keys():
+                if k.startswith("encoder.layers."):
+                    try:
+                        i = int(k.split(".")[2])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            for k in state.keys():
+                if k.endswith("linear1.weight"):
+                    hp["dim_feedforward"] = int(state[k].shape[0])
+                    break
+        elif model_type == "tcn":
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            idx = -1
+            for k in state.keys():
+                if k.startswith("net."):
+                    try:
+                        i = int(k.split(".")[1])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            for name in ["net.0.conv1.conv.weight", "net.0.conv2.conv.weight"]:
+                if name in state:
+                    hp["tcn_kernel"] = int(state[name].shape[-1])
+                    break
+    except Exception:
+        pass
+    return hp
+
+
+def build_model_for_ckpt(meta: Dict[str, object], model_type: str, input_dim: int, course_vocab: int, device: str, state: Dict[str, torch.Tensor]) -> torch.nn.Module:
+    h = dict(meta.get("hparams", {}))
+    hp = _derive_hparams_from_state(model_type, state)
+    h.update(hp)
+    if model_type == "gru":
+        m = GRUClassifier(
+            input_dim=input_dim,
+            hidden_dim=int(h.get("hidden_dim", 128)),
+            num_layers=int(h.get("num_layers", 2)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+        )
+    elif model_type == "lstm":
+        m = LSTMClassifier(
+            input_dim=input_dim,
+            hidden_dim=int(h.get("hidden_dim", 128)),
+            num_layers=int(h.get("num_layers", 2)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+        )
+    elif model_type == "transformer":
+        m = TimeAwareTransformer(
+            input_dim=input_dim,
+            d_model=int(h.get("d_model", 128)),
+            nhead=int(h.get("nhead", 4)),
+            num_layers=int(h.get("num_layers", 2)),
+            dim_feedforward=int(h.get("dim_feedforward", 256)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+            time_freqs=int(h.get("time_freqs", 8)),
+        )
+    else:
+        m = TCNClassifier(
+            input_dim=input_dim,
+            d_model=int(h.get("d_model", 128)),
+            num_layers=int(h.get("num_layers", 2)),
+            kernel_size=int(h.get("tcn_kernel", 3)),
+            dropout=float(h.get("dropout", 0.1)),
+            course_vocab=course_vocab,
+            course_emb_dim=int(h.get("course_emb_dim", 16)),
+        )
+    return m.to(device)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Inference for XuetangX dropout prediction on Test.csv")
     p.add_argument("--test_csv", default=str(Path("data/xuetangx/raw/Test.csv")))
@@ -183,19 +282,13 @@ def main() -> None:
         elif "tcn" in n:
             ckpt_model_type = "tcn"
 
-    model = build_model_from_meta(
-        meta,
-        input_dim=len(feature_names),
-        course_vocab=len(course_to_idx),
-        device=args.device,
-        model_type=ckpt_model_type,
-    )
     model_type_used = ckpt_model_type if ckpt_model_type is not None else meta.get("model_type")
-    # Safer load when supported (PyTorch >=2.4): weights_only=True
+    # Load state first to derive correct architecture
     try:
         state = torch.load(ckpt_path, map_location=args.device, weights_only=True)  # type: ignore[call-arg]
     except TypeError:
         state = torch.load(ckpt_path, map_location=args.device)
+    model = build_model_for_ckpt(meta, model_type_used, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device, state=state)  # type: ignore[arg-type]
     model.load_state_dict(state)
     model.eval()
 

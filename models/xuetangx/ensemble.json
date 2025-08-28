@@ -1,27 +1,41 @@
 {
   "per_model": {
     "gru": {
-      "auprc": 0.9339217475446265,
-      "roc_auc": 0.8597700271848845,
-      "logloss": 0.36444802527869935
+      "auprc": 0.8567518769661278,
+      "roc_auc": 0.752888130146816,
+      "logloss": 0.8475912808330025
+    },
+    "lstm": {
+      "auprc": 0.6841130020484307,
+      "roc_auc": 0.3984393595459655,
+      "logloss": 0.9477443088785641
     },
     "transformer": {
-      "auprc": 0.9332412473022899,
-      "roc_auc": 0.8585566341013331,
-      "logloss": 0.5524832513894233
+      "auprc": 0.9167520655772186,
+      "roc_auc": 0.8178230327737288,
+      "logloss": 0.7629372222887226
+    },
+    "tcn": {
+      "auprc": 0.9246158620784256,
+      "roc_auc": 0.8418826543804253,
+      "logloss": 0.7547464517556361
     }
   },
   "metric": "auprc",
-  "best_metric": 0.9344765070597703,
+  "best_metric": 0.9263259359682493,
   "weights": {
-    "gru": 0.65,
-    "transformer": 0.35
+    "gru": 0.0,
+    "lstm": 0.05,
+    "transformer": 0.25,
+    "tcn": 0.7
   },
   "val_ratio": 0.1,
   "seed": 42,
   "note": "weights is a mapping over model names that sum to 1",
   "names": [
     "gru",
-    "transformer"
+    "lstm",
+    "transformer",
+    "tcn"
   ]
 }

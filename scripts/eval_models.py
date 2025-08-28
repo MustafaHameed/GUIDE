@@ -33,8 +33,70 @@ from scripts.data_utils import (
 from scripts.metrics import average_precision, roc_auc, log_loss
 
 
-def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: int, course_vocab: int, device: str) -> torch.nn.Module:
-    h = meta.get("hparams", {})
+def _derive_hparams_from_state(model_type: str, state: Dict[str, torch.Tensor]) -> Dict[str, int]:
+    hp: Dict[str, int] = {}
+    try:
+        if model_type in ("gru", "lstm"):
+            prefix = "gru" if model_type == "gru" else "lstm"
+            # hidden dim from weight_hh_l0 shape
+            key_hh = f"{prefix}.weight_hh_l0"
+            if key_hh in state:
+                hp["hidden_dim"] = int(state[key_hh].shape[1])
+            # num_layers from count of weight_ih_l{n}
+            n = 0
+            while f"{prefix}.weight_ih_l{n}" in state:
+                n += 1
+            if n > 0:
+                hp["num_layers"] = n
+        elif model_type == "transformer":
+            # d_model from input_proj
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            # num_layers from encoder.layers.X
+            idx = -1
+            for k in state.keys():
+                if k.startswith("encoder.layers."):
+                    try:
+                        i = int(k.split(".")[2])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            # dim_feedforward from linear1
+            for k in state.keys():
+                if k.endswith("linear1.weight"):
+                    hp["dim_feedforward"] = int(state[k].shape[0])
+                    break
+        elif model_type == "tcn":
+            # d_model from input_proj
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            # num_layers from net.i
+            idx = -1
+            for k in state.keys():
+                if k.startswith("net."):
+                    try:
+                        i = int(k.split(".")[1])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            # kernel size from first conv weight
+            for name in ["net.0.conv1.conv.weight", "net.0.conv2.conv.weight"]:
+                if name in state:
+                    hp["tcn_kernel"] = int(state[name].shape[-1])
+                    break
+    except Exception:
+        pass
+    return hp
+
+
+def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: int, course_vocab: int, device: str, overrides: Optional[Dict[str, int]] = None) -> torch.nn.Module:
+    h = dict(meta.get("hparams", {}))
+    if overrides:
+        h.update(overrides)
     if model_type == "gru":
         model = GRUClassifier(
             input_dim=input_dim,
@@ -186,11 +248,12 @@ def main() -> None:
     probs_map: Dict[str, np.ndarray] = {}
     y_true_ref: Optional[np.ndarray] = None
     for mtype, ckpt in ckpts:
-        model = build_model_from_meta(meta, mtype, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device)
         try:
             state = torch.load(ckpt, map_location=args.device, weights_only=True)  # type: ignore[call-arg]
         except TypeError:
             state = torch.load(ckpt, map_location=args.device)
+        overrides = _derive_hparams_from_state(mtype, state)
+        model = build_model_from_meta(meta, mtype, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device, overrides=overrides)
         model.load_state_dict(state)
         y_true, y_prob = collect_probs(model, mtype, val_dl, args.device)
         y_true_ref = y_true if y_true_ref is None else y_true_ref
