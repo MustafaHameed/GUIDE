@@ -1,0 +1,27 @@
+{
+  "per_model": {
+    "gru": {
+      "auprc": 0.9339217475446265,
+      "roc_auc": 0.8597700271848845,
+      "logloss": 0.36444802527869935
+    },
+    "transformer": {
+      "auprc": 0.9332412473022899,
+      "roc_auc": 0.8585566341013331,
+      "logloss": 0.5524832513894233
+    }
+  },
+  "metric": "auprc",
+  "best_metric": 0.9344765070597703,
+  "weights": {
+    "gru": 0.65,
+    "transformer": 0.35
+  },
+  "val_ratio": 0.1,
+  "seed": 42,
+  "note": "weights is a mapping over model names that sum to 1",
+  "names": [
+    "gru",
+    "transformer"
+  ]
+}
