@@ -32,8 +32,10 @@ from scripts.data_utils import (
 )
 
 
-def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: int, course_vocab: int, device: str) -> torch.nn.Module:
-    h = meta.get("hparams", {})
+def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: int, course_vocab: int, device: str, overrides: Optional[Dict[str, int]] = None) -> torch.nn.Module:
+    h = dict(meta.get("hparams", {}))
+    if overrides:
+        h.update(overrides)
     if model_type == "gru":
         model = GRUClassifier(
             input_dim=input_dim,
@@ -42,6 +44,7 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "lstm":
         model = LSTMClassifier(
@@ -51,6 +54,7 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "transformer":
         model = TimeAwareTransformer(
@@ -75,6 +79,60 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
             course_emb_dim=int(h.get("course_emb_dim", 16)),
         )
     return model.to(device)
+
+
+def _derive_hparams_from_state(model_type: str, state: Dict[str, torch.Tensor]) -> Dict[str, int]:
+    hp: Dict[str, int] = {}
+    try:
+        if model_type in ("gru", "lstm"):
+            prefix = "gru" if model_type == "gru" else "lstm"
+            key_hh = f"{prefix}.weight_hh_l0"
+            if key_hh in state:
+                hp["hidden_dim"] = int(state[key_hh].shape[1])
+            n = 0
+            while f"{prefix}.weight_ih_l{n}" in state:
+                n += 1
+            if n > 0:
+                hp["num_layers"] = n
+            if f"{prefix}.weight_hh_l0_reverse" in state:
+                hp["bidirectional"] = True
+        elif model_type == "transformer":
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            idx = -1
+            for k in state.keys():
+                if k.startswith("encoder.layers."):
+                    try:
+                        i = int(k.split(".")[2])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            for k in state.keys():
+                if k.endswith("linear1.weight"):
+                    hp["dim_feedforward"] = int(state[k].shape[0])
+                    break
+        elif model_type == "tcn":
+            if "input_proj.weight" in state:
+                hp["d_model"] = int(state["input_proj.weight"].shape[0])
+            idx = -1
+            for k in state.keys():
+                if k.startswith("net."):
+                    try:
+                        i = int(k.split(".")[1])
+                        idx = max(idx, i)
+                    except Exception:
+                        pass
+            if idx >= 0:
+                hp["num_layers"] = idx + 1
+            for name in ["net.0.conv1.conv.weight", "net.0.conv2.conv.weight"]:
+                if name in state:
+                    hp["tcn_kernel"] = int(state[name].shape[-1])
+                    break
+    except Exception:
+        pass
+    return hp
 
 
 def collect_probs(model: torch.nn.Module, model_type: str, dl: DataLoader, device: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -254,11 +312,12 @@ def main() -> None:
             rowid_to_group[int(rid)] = (it.username, it.course_id)
 
     for mtype, ckpt in avail:
-        model = build_model_from_meta(meta, mtype, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device)
         try:
             state = torch.load(ckpt, map_location=args.device, weights_only=True)  # type: ignore[call-arg]
         except TypeError:
             state = torch.load(ckpt, map_location=args.device)
+        overrides = _derive_hparams_from_state(mtype, state)
+        model = build_model_from_meta(meta, mtype, input_dim=len(feature_names), course_vocab=len(course_to_idx), device=args.device, overrides=overrides)
         model.load_state_dict(state)
         y_true, y_prob, row_ids = collect_probs(model, mtype, val_dl, args.device)
         y_true_ref = y_true if y_true_ref is None else y_true_ref
