@@ -1,5 +1,5 @@
 {
-  "model_type": "lstm",
+  "model_type": "gru",
   "feature_names": [
     "action_click_about",
     "action_click_courseware",
