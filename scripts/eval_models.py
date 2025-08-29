@@ -48,6 +48,9 @@ def _derive_hparams_from_state(model_type: str, state: Dict[str, torch.Tensor]) 
                 n += 1
             if n > 0:
                 hp["num_layers"] = n
+            # bidirectional if reverse weights exist
+            if f"{prefix}.weight_hh_l0_reverse" in state:
+                hp["bidirectional"] = True
         elif model_type == "transformer":
             # d_model from input_proj
             if "input_proj.weight" in state:
@@ -105,6 +108,7 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "lstm":
         model = LSTMClassifier(
@@ -114,6 +118,7 @@ def build_model_from_meta(meta: Dict[str, object], model_type: str, input_dim: i
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "transformer":
         model = TimeAwareTransformer(

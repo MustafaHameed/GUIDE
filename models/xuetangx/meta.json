@@ -1,5 +1,5 @@
 {
-  "model_type": "transformer",
+  "model_type": "lstm",
   "feature_names": [
     "action_click_about",
     "action_click_courseware",
@@ -387,6 +387,7 @@
     "dropout": 0.1,
     "course_emb_dim": 16,
     "time_freqs": 8,
-    "tcn_kernel": 3
+    "tcn_kernel": 3,
+    "bidirectional": true
   }
 }

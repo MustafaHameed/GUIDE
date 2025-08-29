@@ -54,6 +54,7 @@ def build_model(model_type: str, input_dim: int, course_vocab: int, args: argpar
             dropout=args.dropout,
             course_vocab=course_vocab,
             course_emb_dim=args.course_emb_dim,
+            bidirectional=args.bidirectional,
         )
     elif model_type == "lstm":
         return LSTMClassifier(
@@ -63,6 +64,7 @@ def build_model(model_type: str, input_dim: int, course_vocab: int, args: argpar
             dropout=args.dropout,
             course_vocab=course_vocab,
             course_emb_dim=args.course_emb_dim,
+            bidirectional=args.bidirectional,
         )
     elif model_type == "transformer":
         return TimeAwareTransformer(
@@ -106,6 +108,16 @@ def main() -> None:
     p.add_argument("--course_emb_dim", type=int, default=16)
     p.add_argument("--time_freqs", type=int, default=8)
     p.add_argument("--tcn_kernel", type=int, default=3)
+    p.add_argument("--bidirectional", action="store_true")
+
+    # Scheduler / optimization
+    p.add_argument("--scheduler", choices=["none", "cosine"], default="none")
+    p.add_argument("--t0", type=int, default=2, help="T_0 for CosineAnnealingWarmRestarts")
+    p.add_argument("--tmult", type=int, default=2, help="T_mult for CosineAnnealingWarmRestarts")
+
+    # Supervised masking augmentation
+    p.add_argument("--time_mask_prob", type=float, default=0.0, help="Probability of masking an entire timestep (x only)")
+    p.add_argument("--feat_mask_prob", type=float, default=0.0, help="Probability of masking each feature independently (x only)")
 
     # Training hyperparams
     p.add_argument("--epochs", type=int, default=5)
@@ -198,6 +210,9 @@ def main() -> None:
     model = build_model(args.model, input_dim, course_vocab=len(course_to_idx), args=args)
     model.to(args.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = None
+    if args.scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.t0, T_mult=args.tmult)
 
     # Optional: initialize from pretrained encoder (Transformer)
     if args.init_from_pretrained:
@@ -295,10 +310,29 @@ def main() -> None:
             if is_train:
                 optimizer.zero_grad(set_to_none=True)
 
+            # Supervised masking (does not modify dt)
+            x_in = x
+            if (args.time_mask_prob > 0.0 or args.feat_mask_prob > 0.0) and is_train:
+                B, T, F = x.shape
+                # Avoid masking the last feature (log_dt) by splitting
+                if F >= 1:
+                    x_main = x[:, :, : F - 1]
+                    x_dt = x[:, :, F - 1 : F]
+                else:
+                    x_main = x
+                    x_dt = None
+                if args.time_mask_prob > 0.0:
+                    keep = (torch.rand(B, T, device=x.device) > args.time_mask_prob).float() * mask
+                    x_main = x_main * keep.unsqueeze(-1)
+                if args.feat_mask_prob > 0.0:
+                    keepf = (torch.rand(B, T, x_main.size(-1), device=x.device) > args.feat_mask_prob).float()
+                    x_main = x_main * keepf
+                x_in = torch.cat([x_main, x_dt], dim=-1) if x_dt is not None else x_main
+
             if args.model in ("gru", "lstm", "tcn"):
-                logits = model(x=x, mask=mask, course_ids=course_ids)
+                logits = model(x=x_in, mask=mask, course_ids=course_ids)
             else:
-                logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
+                logits = model(x=x_in, dt=dt, mask=mask, course_ids=course_ids)
 
             if args.loss == "bce":
                 loss = masked_bce_with_logits(logits, y, mask)
@@ -311,6 +345,9 @@ def main() -> None:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
+                if scheduler is not None:
+                    # approximate per-iteration step for warm restarts
+                    scheduler.step()
 
             with torch.no_grad():
                 total_loss += float(loss.item()) * mask.sum().item()
@@ -362,10 +399,27 @@ def main() -> None:
                 mask = batch["mask"].to(args.device)
                 course_ids = batch["course_ids"].to(args.device)
                 optimizer.zero_grad(set_to_none=True)
+                # Supervised masking
+                x_in = x
+                if args.time_mask_prob > 0.0 or args.feat_mask_prob > 0.0:
+                    B, T, F = x.shape
+                    if F >= 1:
+                        x_main = x[:, :, : F - 1]
+                        x_dt = x[:, :, F - 1 : F]
+                    else:
+                        x_main = x
+                        x_dt = None
+                    if args.time_mask_prob > 0.0:
+                        keep = (torch.rand(B, T, device=x.device) > args.time_mask_prob).float() * mask
+                        x_main = x_main * keep.unsqueeze(-1)
+                    if args.feat_mask_prob > 0.0:
+                        keepf = (torch.rand(B, T, x_main.size(-1), device=x.device) > args.feat_mask_prob).float()
+                        x_main = x_main * keepf
+                    x_in = torch.cat([x_main, x_dt], dim=-1) if x_dt is not None else x_main
                 if args.model in ("gru", "lstm", "tcn"):
-                    logits = model(x=x, mask=mask, course_ids=course_ids)
+                    logits = model(x=x_in, mask=mask, course_ids=course_ids)
                 else:
-                    logits = model(x=x, dt=dt, mask=mask, course_ids=course_ids)
+                    logits = model(x=x_in, dt=dt, mask=mask, course_ids=course_ids)
                 if args.loss == "bce":
                     loss = masked_bce_with_logits(logits, y, mask)
                 elif args.loss == "weighted_bce":
@@ -375,6 +429,8 @@ def main() -> None:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
+                if scheduler is not None:
+                    scheduler.step(epoch - 1 + i / max(n_batches, 1))
 
                 with torch.no_grad():
                     total_loss += float(loss.item()) * mask.sum().item()
@@ -442,6 +498,7 @@ def main() -> None:
             "course_emb_dim": args.course_emb_dim,
             "time_freqs": args.time_freqs,
             "tcn_kernel": args.tcn_kernel,
+            "bidirectional": args.bidirectional,
         },
     }
     with open(save_dir / "meta.json", "w", encoding="utf-8") as f:

@@ -92,6 +92,8 @@ def _derive_hparams_from_state(model_type: str, state: Dict[str, torch.Tensor]) 
                 n += 1
             if n > 0:
                 hp["num_layers"] = n
+            if f"{prefix}.weight_hh_l0_reverse" in state:
+                hp["bidirectional"] = True
         elif model_type == "transformer":
             if "input_proj.weight" in state:
                 hp["d_model"] = int(state["input_proj.weight"].shape[0])
@@ -143,6 +145,7 @@ def build_model_for_ckpt(meta: Dict[str, object], model_type: str, input_dim: in
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "lstm":
         m = LSTMClassifier(
@@ -152,6 +155,7 @@ def build_model_for_ckpt(meta: Dict[str, object], model_type: str, input_dim: in
             dropout=float(h.get("dropout", 0.1)),
             course_vocab=course_vocab,
             course_emb_dim=int(h.get("course_emb_dim", 16)),
+            bidirectional=bool(h.get("bidirectional", False)),
         )
     elif model_type == "transformer":
         m = TimeAwareTransformer(

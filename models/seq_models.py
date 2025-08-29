@@ -29,9 +29,11 @@ class GRUClassifier(nn.Module):
         dropout: float = 0.1,
         course_vocab: Optional[int] = None,
         course_emb_dim: int = 16,
+        bidirectional: bool = False,
     ):
         super().__init__()
         self.course_emb = None
+        self.bidirectional = bidirectional
         if course_vocab is not None and course_vocab > 0 and course_emb_dim > 0:
             self.course_emb = nn.Embedding(course_vocab, course_emb_dim)
             nn.init.normal_(self.course_emb.weight, std=0.02)
@@ -43,12 +45,13 @@ class GRUClassifier(nn.Module):
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0.0,
-            bidirectional=False,
+            bidirectional=bidirectional,
         )
+        out_dim = hidden_dim * (2 if bidirectional else 1)
         self.head = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
+            nn.LayerNorm(out_dim),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(out_dim, 1),
         )
 
     def forward(
@@ -91,9 +94,11 @@ class LSTMClassifier(nn.Module):
         dropout: float = 0.1,
         course_vocab: Optional[int] = None,
         course_emb_dim: int = 16,
+        bidirectional: bool = False,
     ):
         super().__init__()
         self.course_emb = None
+        self.bidirectional = bidirectional
         if course_vocab is not None and course_vocab > 0 and course_emb_dim > 0:
             self.course_emb = nn.Embedding(course_vocab, course_emb_dim)
             nn.init.normal_(self.course_emb.weight, std=0.02)
@@ -105,12 +110,13 @@ class LSTMClassifier(nn.Module):
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0.0,
-            bidirectional=False,
+            bidirectional=bidirectional,
         )
+        out_dim = hidden_dim * (2 if bidirectional else 1)
         self.head = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
+            nn.LayerNorm(out_dim),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(out_dim, 1),
         )
 
     def forward(
